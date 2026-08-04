@@ -4,10 +4,18 @@
 >
 > This is an editorial reference, not an AI-authorship detector. The automated AI Editor ruleset remains deliberately smaller until each rule has an explicit detector, counterexamples, and tests.
 
-# How to use this guide
-<callout icon="⚠️" color="yellow_bg">
-	**These patterns are editorial signals, not proof of AI authorship.** Human writers use them. AI can avoid them. Mixed human–AI drafts blur the boundary further. Use this guide to inspect and improve writing, never to accuse a writer or determine authorship from style alone.
-</callout>
+> [!WARNING]
+> **These patterns are editorial signals, not proof of AI authorship.** Human writers use them. AI can avoid them. Mixed human–AI drafts blur the boundary further. Use this guide to inspect and improve writing, never to accuse a writer or determine authorship from style alone.
+
+## Navigate the catalog
+
+- [How to use this guide](#how-to-use-this-guide)
+- [Pattern families](#pattern-families)
+- [Patterns 1–20](#patterns-120) through [Patterns 201–220](#patterns-201220)
+- [Research notes](#research-notes)
+- [Editorial boundary](#editorial-boundary)
+
+## How to use this guide
 One phrase proves nothing. A cluster can justify a closer edit, comparison with the writer’s established work, or a conversation about process. It still does not prove that AI produced the passage. The useful question is: **What is this pattern doing to the writing?**
 Detection research gives strong reasons for that restraint. OpenAI withdrew its own classifier after reporting low accuracy. NIST describes text detection as generator-, prompt-, domain-, and editing-dependent. Peer-reviewed studies show false positives, false negatives, performance loss after paraphrasing, and serious bias against non-native English writers. Human judgment also leans on cues that are easy to manipulate.
 At the same time, large corpus studies have found measurable vocabulary shifts after widespread LLM adoption. Words such as *delve*, *intricate*, *pivotal*, *underscores*, and *comprehensive* rose sharply in biomedical abstracts. That is useful population-level evidence. It cannot identify the author of one sentence.
@@ -28,13 +36,15 @@ Some patterns remain useful when they serve a clear function:
 Each ugly version turns the construction into a miniature paragraph and then pushes it past usefulness. The escalation is deliberate: it shows how a phrase that looks harmless once can flatten a paragraph when the writer keeps reaching for it.
 Exceptions are deliberately selective. When an entry has one, the guide also shows a concrete good use that meets the stated conditions. Entries without a meaningful exception do not get a ceremonial defense.
 Official plain-language guidance supports short sentences, meaningful headings, bullets for equal-status items, and numbered lists for sequences. Purdue’s writing guidance supports transitions when they name a real logical relationship. The FTC supports clear, conspicuous disclosures beside the claims they qualify. The problem is not the mere existence of a device. It is automatic, generic, repetitive, or misleading use.
-## Fast navigation
-- Use the table of contents to jump to a 20-pattern range.
+### Fast navigation
+
+- Use the range headings below to jump to a 20-pattern section.
 - Search the page for an exact phrase, pattern name, or pattern number.
 - Read the family note first when several nearby entries share the same underlying mechanism.
-<table_of_contents/>
-# Pattern families
-## Caveats, hedges, and safety language
+
+## Pattern families
+
+### Caveats, hedges, and safety language
 Models are trained to avoid unsupported certainty and unsafe advice, so they often reach for reusable caveats. The caveat becomes a problem when it is generic, detached from the claim, or used instead of stating the actual limitation.
 Check whether the qualification names a precise risk, boundary, audience, or uncertainty. Generic protection language that could follow any claim is the stronger tell.
 **Cross-domain examples:**
@@ -43,7 +53,7 @@ Check whether the qualification names a precise risk, boundary, audience, or unc
 - Social: “Important note: this is not financial advice.”
 - Essay: “It should be noted that the sample is relatively small.”
 - Workplace: “That said, each team may need a different approach.”
-## Mechanical structure and polished rhythm
+### Mechanical structure and polished rhythm
 Models maintain coherence by arranging ideas into regular lists, mirrored clauses, even sentence lengths, and explicit labels. That organization can help, but repeated symmetry often reveals that the container was chosen before the substance.
 Inspect the count, order, and rhythm. If every idea arrives in the same-sized package, or prose was forced into three equal parts without a real sequence, the structure is mechanical.
 **Cross-domain examples:**
@@ -52,7 +62,7 @@ Inspect the count, order, and rhythm. If every idea arrives in the same-sized pa
 - Social: “One idea. One post. One breakthrough.”
 - Essay: “Firstly, access matters. Secondly, quality matters. Thirdly, outcomes matter.”
 - Workplace: “Plan. Execute. Measure. Repeat.”
-## Stock metaphors and borrowed imagery
+### Stock metaphors and borrowed imagery
 A familiar metaphor lets a model make an abstract idea feel vivid without supplying a mechanism. Popular journeys, landscapes, engines, stars, oceans, and building frames are statistically safe and easy to continue.
 Name the literal claim underneath the image. If the metaphor adds no usable relationship, mixes with another image, or could describe almost any subject, it is decorative.
 **Cross-domain examples:**
@@ -61,7 +71,7 @@ Name the literal claim underneath the image. If the metaphor adds no usable rela
 - Social: “Stop shouting into the void and ride the wave.”
 - Essay: “Education is the lighthouse guiding society through turbulent waters.”
 - Workplace: “The roadmap is our compass through the project landscape.”
-## Binary reframing and manufactured balance
+### Binary reframing and manufactured balance
 Contrast creates instant momentum and the appearance of judgment. A model can make a familiar point feel sharper by opposing two neat halves, even when reality is additive, uncertain, or multi-causal.
 Test the opposition. Ask whether both halves can be true, whether the evidence rules one side out, and whether the symmetry is stronger than the reasoning.
 **Cross-domain examples:**
@@ -70,7 +80,7 @@ Test the opposition. Ask whether both halves can be true, whether the evidence r
 - Social: “The point is not more followers. It is better followers.”
 - Essay: “The issue is not technology itself but society’s response to it.”
 - Workplace: “The hard part is not the deadline; it is alignment.”
-## Transitions, summaries, and procedural framing
+### Transitions, summaries, and procedural framing
 Models use explicit transitions to keep long outputs locally coherent and visibly helpful. The labels become filler when they announce a move that headings, order, or the next sentence already make obvious.
 Remove the signpost and reread the passage. Keep it only if it clarifies sequence, logic, audience, or retrieval. Repeated paragraph-opening transitions are a stronger signal than one necessary cue.
 **Cross-domain examples:**
@@ -79,7 +89,7 @@ Remove the signpost and reread the passage. Keep it only if it clarifies sequenc
 - Social: “Here are the key takeaways from my morning routine.”
 - Essay: “In conclusion, the evidence highlights several important considerations.”
 - Workplace: “The bottom line is that we need a step-by-step roadmap.”
-## Canned empathy and reader capture
+### Canned empathy and reader capture
 Assistant models are rewarded for being welcoming, reassuring, and broadly applicable. They often infer a generic emotional state, validate it, and promise relief before learning whether that state describes the reader.
 Ask what evidence the writer has about the reader. Watch for universal reassurance, broad audience triads, and emotional mirroring that never becomes specific to the situation.
 **Cross-domain examples:**
@@ -88,7 +98,7 @@ Ask what evidence the writer has about the reader. Watch for universal reassuran
 - Social: “Curious what everyone thinks—does this resonate?”
 - Essay: “Imagine a world where every student feels seen.”
 - Workplace: “Whether you are new, experienced, or in between, this guide is for you.”
-## Timeless-sounding trend claims
+### Timeless-sounding trend claims
 A changing-world opener makes almost any topic feel urgent. Models can invoke an era, rise, or accelerating trend without naming a date, dataset, event, or decision consequence.
 Demand a timestamp and a measurable change. Words such as *today*, *increasingly*, *ever-evolving*, *rise*, and *new era* need evidence or a concrete event.
 **Cross-domain examples:**
@@ -97,7 +107,7 @@ Demand a timestamp and a measurable change. Words such as *today*, *increasingly
 - Social: “We are entering a new era of personal creativity.”
 - Essay: “In an increasingly digital age, society faces unprecedented change.”
 - Workplace: “The business landscape is evolving faster than ever before.”
-## Inflated claims, vague virtues, and promotional vocabulary
+### Inflated claims, vague virtues, and promotional vocabulary
 Positive, abstract language is a low-risk way for a model to sound useful and persuasive. Words about transformation, innovation, impact, trust, power, and potential can fill a sentence without committing to a measurable result.
 Circle the adjectives, intensifiers, and abstract nouns, then ask what observable fact each one replaces. If the claim cannot be measured, pictured, or falsified, the language is carrying it.
 **Cross-domain examples:**
@@ -106,9 +116,11 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 - Social: “A game-changing habit that can revolutionize your mornings.”
 - Essay: “This pivotal development underscores the profound importance of collaboration.”
 - Workplace: “Our robust framework will optimize outcomes at scale.”
-# The 220 patterns
-# Patterns 1–20
-## 1. It’s Not X, It’s Y
+## The 220 patterns
+
+### Patterns 1–20
+
+#### 1. It’s Not X, It’s Y
 **What it is:** Binary reframing that claims the real issue is something deeper, in the form “It’s not X, it’s Y.”
 **Why AI may reach for it:** The contrast gives the model an instant thesis: reject the obvious answer, then install a cleaner one. It creates certainty without making the model prove that X is false or that Y is sufficient.
 **Three typical AI examples:**
@@ -120,7 +132,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the frame when evidence genuinely rules out the first explanation and supports the second.
 **Good use:** The outage was not caused by traffic volume; the logs show that an expired certificate rejected every request.
 ---
-## 2. Staccato Drama
+#### 2. Staccato Drama
 **What it is:** A run of very short, punchy sentences used for faux intensity.
 **Why AI may reach for it:** Short fragments let the model manufacture pace and emotional weight without developing an argument. Each full stop makes an ordinary point look like a reveal.
 **Three typical AI examples:**
@@ -132,7 +144,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Fragments can work when a deliberate pause, shock, or change of pace serves the scene or speaker.
 **Good use:** The monitor went black. Then the alarms started.
 ---
-## 3. Ever-Evolving Landscape
+#### 3. Ever-Evolving Landscape
 **What it is:** Grand, abstract opener about a constantly changing world, especially “in today’s fast-paced world” or “ever-evolving landscape.”
 **Why AI may reach for it:** A changing-world opener makes any topic sound current and urgent before the model has to name what changed. “Landscape” also hides the actors, events, and measurements behind a broad scene.
 **Three typical AI examples:**
@@ -142,7 +154,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for “today’s fast-paced world,” “ever-evolving landscape,” “increasingly digital age,” and similar openers. Ask for the date, the measured change, the source, and the consequence; if none can be supplied, delete the opener.
 **The ugly version:** In today’s relentlessly fast-paced, ever-evolving digital landscape, brands must constantly evolve as the world continues changing at an unprecedented pace.
 ---
-## 4. It’s Important to Note
+#### 4. It’s Important to Note
 **What it is:** Hedging preface that adds faux gravitas to an obvious statement.
 **Why AI may reach for it:** The preface lets the model sound cautious and authoritative without deciding whether the following fact is surprising, risky, or central. It adds a warning label before identifying a hazard.
 **Three typical AI examples:**
@@ -152,7 +164,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Find “it’s important to note,” “it should be noted,” and “it is worth emphasizing.” Remove the preface; if the sentence has the same force and meaning, the phrase added gravitas rather than information.
 **The ugly version:** It’s important to note that consistency is important, and it’s also important to note that results may vary depending on a variety of important factors.
 ---
-## 5. Let’s Dive In
+#### 5. Let’s Dive In
 **What it is:** Overused invitation to start, often following a fluffy intro.
 **Why AI may reach for it:** The phrase is an easy bridge from a generic introduction into the answer. It signals motion while postponing the first concrete point.
 **Three typical AI examples:**
@@ -164,7 +176,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** It can suit live facilitation when the speaker is explicitly inviting a group to begin a shared examination.
 **Good use:** We have ten minutes left, so let’s dive into the two failed requests in the log.
 ---
-## 6. Whether You’re X, Y, or Z
+#### 6. Whether You’re X, Y, or Z
 **What it is:** Inclusive triad that tries to cover all readers at once.
 **Why AI may reach for it:** A three-part audience sweep lets the model imply universal relevance without choosing a reader. The categories usually sound inclusive but do not change the advice.
 **Three typical AI examples:**
@@ -176,7 +188,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the construction when the named groups are the actual supported audience and the next text clearly branches for them.
 **Good use:** Whether you’re an owner, tenant, or property manager, choose your role below to see the documents you must submit.
 ---
-## 7. On the One Hand / On the Other Hand
+#### 7. On the One Hand / On the Other Hand
 **What it is:** Forced balanced framing that presents both sides even when not needed.
 **Why AI may reach for it:** Balanced clauses give the model a ready-made shape that looks fair-minded. It can fill both sides even when the evidence strongly favors one or the decision does not require equal treatment.
 **Three typical AI examples:**
@@ -188,7 +200,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the pair for a real two-sided decision when both effects matter and the criterion for choosing is stated.
 **Good use:** On the one hand, annual billing improves cash flow; on the other, our trial data shows a 19% lower conversion rate. We will test both plans for one quarter.
 ---
-## 8. Not Only… But Also
+#### 8. Not Only… But Also
 **What it is:** Parallel structure that over-polishes simple comparisons.
 **Why AI may reach for it:** The paired syntax lets the model enlarge a modest claim by attaching a second benefit. The grammatical symmetry can imply that both claims are proven even when one is merely promotional.
 **Three typical AI examples:**
@@ -200,7 +212,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the construction when the second point is a meaningful escalation or surprise and both halves deserve emphasis.
 **Good use:** The leak not only damaged the archive; it also exposed the electrical wiring.
 ---
-## 9. At the End of the Day
+#### 9. At the End of the Day
 **What it is:** Tired closer that pretends to reveal the core truth.
 **Why AI may reach for it:** The phrase offers a prebuilt closing and tells the reader that a final simplification is coming. It often replaces the work of showing why one conclusion outweighs the rest.
 **Three typical AI examples:**
@@ -210,7 +222,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Find “at the end of the day” near conclusions. Remove it and test the remaining claim for evidence and specificity; if the sentence becomes an unsupported slogan, the closer was supplying false authority.
 **The ugly version:** At the end of the day, when all is said and done and everything is taken into account, success ultimately comes down to succeeding.
 ---
-## 10. From A to Z Completeness
+#### 10. From A to Z Completeness
 **What it is:** Promise of exhaustive coverage using “from X to Y” framing.
 **Why AI may reach for it:** A from-to range lets the model imply complete coverage with two endpoints. It avoids naming the missing stages, exclusions, or handoffs between them.
 **Three typical AI examples:**
@@ -222,7 +234,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a from-to range when the endpoints are real boundaries and the material covers the intervening process.
 **Good use:** The audit follows each order from checkout through payment, fulfilment, delivery, and refund.
 ---
-## 11. You’re in the Right Place
+#### 11. You’re in the Right Place
 **What it is:** SEO-style reassurance that mirrors the search query back to the reader.
 **Why AI may reach for it:** Mirroring the reader’s search phrase is a cheap way to create reassurance and keep them on the page. The model can promise fit before it knows the reader’s situation.
 **Three typical AI examples:**
@@ -234,7 +246,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** The phrase can orient a visitor when the page immediately confirms a narrow intent and gives a concrete route forward.
 **Good use:** If you need to replace a UK passport that expires within six months, you’re in the right place. Start with the eligibility check below.
 ---
-## 12. Here’s a Step-by-Step Guide
+#### 12. Here’s a Step-by-Step Guide
 **What it is:** Fixed promise of a linear, numbered solution regardless of problem complexity.
 **Why AI may reach for it:** A numbered guide gives the model a stable container and a visible sense of progress. It can force uncertain, iterative, or parallel work into a false linear sequence.
 **Three typical AI examples:**
@@ -246,7 +258,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the label for a repeatable procedure whose order matters.
 **Good use:** Here is a step-by-step guide to rotating the key: create the new key, deploy it, verify traffic, then revoke the old one.
 ---
-## 13. First, Second, Third
+#### 13. First, Second, Third
 **What it is:** Rigid signposting that over-explains structure instead of just flowing.
 **Why AI may reach for it:** Ordinal transitions help the model track its own output and make unrelated points look sequenced. The labels can hide that the ideas are equal, incomplete, or arbitrarily ordered.
 **Three typical AI examples:**
@@ -258,7 +270,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use ordinal signposts when order, rank, or later reference matters.
 **Good use:** First isolate the circuit, second verify zero voltage, and third attach the lockout tag.
 ---
-## 14. Ultimately, What Matters
+#### 14. Ultimately, What Matters
 **What it is:** Soft-sounding but generic conclusion using “ultimately” to signal a wrap-up.
 **Why AI may reach for it:** “Ultimately” lets the model announce a hierarchy without comparing the competing factors. “What matters” turns a broad preference into a final verdict.
 **Three typical AI examples:**
@@ -268,7 +280,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Find conclusions beginning with “ultimately” or “ultimately, what matters.” Ask which alternatives were weighed and what evidence makes this factor decisive; if the answer is missing, remove the ranking.
 **The ugly version:** Ultimately, what ultimately matters most at the end of the day is what truly matters to you, your audience, and the future of meaningful success.
 ---
-## 15. In Other Words
+#### 15. In Other Words
 **What it is:** Redundant rephrasing that restates the same idea with minimal new insight.
 **Why AI may reach for it:** The phrase lets the model restate a sentence and spend more tokens without advancing it. A near-synonym can look like clarification even when the abstraction level never changes.
 **Three typical AI examples:**
@@ -280,7 +292,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it to translate a technical or unfamiliar statement into language the defined audience can act on.
 **Good use:** The account is in arrears. In other words, the payment due on 1 June has not arrived.
 ---
-## 16. To Put It Simply
+#### 16. To Put It Simply
 **What it is:** Claims simplicity before delivering a slightly rephrased but still abstract statement.
 **Why AI may reach for it:** The cue promises compression before the model has actually simplified the idea. It can make a vague definition feel accessible by announcing simplicity rather than producing it.
 **Three typical AI examples:**
@@ -292,7 +304,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it before a genuinely plain, accurate restatement that preserves the important limits.
 **Good use:** To put it simply, the drug lowers blood pressure; it does not cure the condition.
 ---
-## 17. Imagine This / Picture This
+#### 17. Imagine This / Picture This
 **What it is:** Paints a generic scenario as a hook, usually with low specificity.
 **Why AI may reach for it:** A generic imagined future supplies an emotional hook without requiring observed detail. The model can insert an ideal outcome and let the reader furnish the missing evidence.
 **Three typical AI examples:**
@@ -304,7 +316,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use guided imagination when a concrete hypothetical helps the reader rehearse a decision, scene, or procedure.
 **Good use:** Picture the junction at 8 a.m.: the school gate is on your left, buses block the near lane, and you have six seconds to cross.
 ---
-## 18. The X of Y
+#### 18. The X of Y
 **What it is:** Metaphoric positioning using the “X of Y” formula.
 **Why AI may reach for it:** Borrowing a famous company or system gives the model an instant bundle of associations. It substitutes a recognizable label for the specific product mechanics, market, and constraints.
 **Three typical AI examples:**
@@ -316,7 +328,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the analogy when a precise shared mechanism helps an audience understand an unfamiliar system.
 **Good use:** The scheduler is the hotel booking desk of the machine room: each machine is a room, and each reservation blocks a fixed time slot.
 ---
-## 19. The Bottom Line Is
+#### 19. The Bottom Line Is
 **What it is:** Overused phrase to signal a supposed hard truth.
 **Why AI may reach for it:** The label creates the sound of a decisive commercial conclusion. It can turn a platitude into a verdict without showing the calculation or decision behind it.
 **Three typical AI examples:**
@@ -328,7 +340,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it in decision-focused business writing when it points to a concrete result or required action after the supporting detail.
 **Good use:** The bottom line is a £42,000 annual loss, so we will close the warehouse at the end of September.
 ---
-## 20. X Is Not Just About Y
+#### 20. X Is Not Just About Y
 **What it is:** Claims a topic is deeper than the obvious, usually without adding much depth.
 **Why AI may reach for it:** The frame gives the model a ready-made depth move: dismiss the familiar view and announce a broader one. It often adds a second abstract noun without showing how the dimensions relate.
 **Three typical AI examples:**
@@ -340,8 +352,8 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the contrast when readers commonly reduce the subject to one component and the sentence names a distinct, relevant component.
 **Good use:** Accessibility is not just about screen readers; keyboard-only users also need every control to receive focus.
 ---
-# Patterns 21–40
-## 21. It’s Easy to Feel X
+### Patterns 21–40
+#### 21. It’s Easy to Feel X
 **What it is:** Faux empathy that opens with “it’s easy to feel,” then normalizes a common anxiety.
 **Why AI may reach for it:** The opener fabricates familiarity by assigning the reader a plausible feeling. That emotional assumption lets the model sound empathetic before it has any evidence about this audience.
 **Three typical AI examples:**
@@ -353,7 +365,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the validation when the audience has directly reported the feeling and the next sentence addresses its documented cause.
 **Good use:** It’s easy to feel overwhelmed by this form: 61% of new carers reported that reaction in our exit survey. Start with the three required fields marked in blue.
 ---
-## 22. The Truth Is / The Reality Is
+#### 22. The Truth Is / The Reality Is
 **What it is:** Claims to reveal hidden truth, usually a platitude.
 **Why AI may reach for it:** The reveal phrase lets the model promote an ordinary claim into hidden knowledge. It asks the reader to accept the speaker’s certainty before seeing evidence.
 **Three typical AI examples:**
@@ -363,7 +375,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for “the truth is” and “the reality is.” Remove the reveal and test the remaining sentence: if it is a truism, unsupported generalization, or false universal, the phrase was carrying it.
 **The ugly version:** The truth is, the reality is, most people are simply not ready to hear the deeper truth about what reality really requires.
 ---
-## 23. On the Surface… But Beneath
+#### 23. On the Surface… But Beneath
 **What it is:** Two-layer contrast that sets up a deeper interpretation.
 **Why AI may reach for it:** A surface/depth pair gives the model an easy diagnostic arc: name an obvious cause, then replace it with a more impressive hidden cause. The second layer can sound insightful without evidence.
 **Three typical AI examples:**
@@ -375,7 +387,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the contrast when a first observation and a later examination produce different, evidenced conclusions.
 **Good use:** On the surface, the failures looked random; beneath that pattern, every request came from the same expired client.
 ---
-## 24. In the World / Realm of X
+#### 24. In the World / Realm of X
 **What it is:** Abstract domain framing like “in the world of X” or “in the realm of Y.”
 **Why AI may reach for it:** “World” and “realm” give the model a grand setting without naming a market, jurisdiction, discipline, or boundary. The domain sounds established while remaining undefined.
 **Three typical AI examples:**
@@ -387,7 +399,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use “world” or “realm” literally in fiction, games, or analysis of a defined fictional setting.
 **Good use:** In the world of Earthsea, names carry power because they reveal a thing’s true nature.
 ---
-## 25. As an AI Language Model
+#### 25. As an AI Language Model
 **What it is:** Self-referential disclaimer that foregrounds model limitations.
 **Why AI may reach for it:** The stock disclosure lets the model handle questions about identity, experience, or capability with one memorized boundary. It can appear even when the limitation has no bearing on the request.
 **Three typical AI examples:**
@@ -399,7 +411,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Disclose AI identity when the user could reasonably mistake the system for a person or when capability, consent, or accountability depends on it.
 **Good use:** As an AI assistant, I cannot witness the damage or sign the insurance declaration.
 ---
-## 26. I Can’t Provide X Advice
+#### 26. I Can’t Provide X Advice
 **What it is:** Safety disclaimer about legal, financial, or medical topics.
 **Why AI may reach for it:** A broad refusal is a safe completion for high-stakes topics and avoids calculating the exact line between general information and personalized instruction. The model may repeat the boundary instead of giving the useful, permitted part.
 **Three typical AI examples:**
@@ -411,7 +423,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a clear boundary when personalized guidance would be unsafe, unauthorized, or dependent on facts the system cannot verify.
 **Good use:** I can explain common causes of chest pain, but I cannot determine yours. Sudden chest pressure with shortness of breath needs urgent medical assessment.
 ---
-## 27. Key Takeaways
+#### 27. Key Takeaways
 **What it is:** Explicit “key takeaways” section that summarizes obvious points.
 **Why AI may reach for it:** A takeaway section gives the model a familiar ending and another chance to restate its own output. It can label ordinary repetition as retrieval support.
 **Three typical AI examples:**
@@ -423,7 +435,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a takeaway layer after long or technical material when it compresses the main findings and preserves their limits.
 **Good use:** Key takeaways: the trial missed its primary endpoint; the safety signal was unchanged; no treatment recommendation follows from this study.
 ---
-## 28. Actionable Tips
+#### 28. Actionable Tips
 **What it is:** Framing advice as “actionable tips” regardless of specificity.
 **Why AI may reach for it:** Calling advice “actionable” lets the model claim usefulness without supplying an action, owner, input, or result. The label stands in for operational detail.
 **Three typical AI examples:**
@@ -435,7 +447,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** The label is accurate when every tip specifies a concrete action and observable result.
 **Good use:** Actionable tip: before Friday, export the last 30 days of failed payments and call the ten customers with the highest account value.
 ---
-## 29. Overwhelming but It Doesn’t Have To Be
+#### 29. Overwhelming but It Doesn’t Have To Be
 **What it is:** Sets up overwhelm then offers reassurance and a simple plan.
 **Why AI may reach for it:** The model creates a problem-and-relief arc by assigning overwhelm, then promising simplicity. It can reassure before explaining what makes the task hard.
 **Three typical AI examples:**
@@ -447,7 +459,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the reassurance when the audience has documented difficulty and the text immediately removes a specific burden.
 **Good use:** The 18-page form can feel overwhelming, but it doesn’t have to be: renewal applicants only complete sections 1, 3, and 7.
 ---
-## 30. The Good News Is
+#### 30. The Good News Is
 **What it is:** Hopeful pivot after highlighting a problem.
 **Why AI may reach for it:** The hopeful pivot gives the model an easy emotional turn after stating a problem. It can present an unsupported upside as relief.
 **Three typical AI examples:**
@@ -459,7 +471,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase in a status update when a concrete favorable result directly answers the concern just raised.
 **Good use:** The shipment missed Tuesday’s cutoff. The good news is that the carrier confirmed Friday delivery at no extra cost.
 ---
-## 31. The Bad News Is
+#### 31. The Bad News Is
 **What it is:** Negative pivot to emphasize stakes.
 **Why AI may reach for it:** The negative pivot supplies instant stakes and a clean setup for the model’s proposed solution. It can exaggerate a routine constraint to make the next advice feel necessary.
 **Three typical AI examples:**
@@ -471,7 +483,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase when delivering a concrete adverse development alongside its consequence and next action.
 **Good use:** The bad news is that the backup stopped running on 12 May. Do not delete the source files until tonight’s full backup is verified.
 ---
-## 32. X Has Been Around for Centuries
+#### 32. X Has Been Around for Centuries
 **What it is:** Trivial pseudo-historical opener.
 **Why AI may reach for it:** A centuries-long preface gives the model borrowed historical depth without requiring a relevant history. It usually delays a modern claim with an unfalsified generalization.
 **Three typical AI examples:**
@@ -483,7 +495,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the history when the duration is documented and materially explains the current practice.
 **Good use:** Smallpox inoculation had been practised in parts of Asia for centuries before eighteenth-century accounts brought the method to wider British attention.
 ---
-## 33. Since the Dawn of Time
+#### 33. Since the Dawn of Time
 **What it is:** Grandiose exaggeration for basic concepts.
 **Why AI may reach for it:** The phrase turns a broad human tendency into timeless destiny. It gives the model grandeur while avoiding dates, cultures, counterexamples, and change.
 **Three typical AI examples:**
@@ -493,7 +505,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for “since the dawn of time.” Treat it as a universal historical claim: if the writer cannot define the starting period and support continuity, cut it.
 **The ugly version:** Since the dawn of time, humans have always built brands, optimized funnels, cultivated audiences, and understood the timeless importance of authentic engagement.
 ---
-## 34. In a Nutshell
+#### 34. In a Nutshell
 **What it is:** Casual summary phrase that rarely adds clarity.
 **Why AI may reach for it:** The phrase promises a compact summary and lets the model recycle a slogan as explanation. It often reduces a complex point past the point of usefulness.
 **Three typical AI examples:**
@@ -505,7 +517,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it in informal prose before a genuinely shorter statement that preserves the important condition.
 **Good use:** In a nutshell, the plan costs less now but locks us into the supplier for three years.
 ---
-## 35. Let’s Break It Down
+#### 35. Let’s Break It Down
 **What it is:** Promise to decompose a concept into simpler parts.
 **Why AI may reach for it:** The invitation promises decomposition before the model has identified real parts. It can precede an arbitrary three-item list that only makes the answer look teachable.
 **Three typical AI examples:**
@@ -517,7 +529,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase in live or conversational teaching when the following decomposition is real and useful.
 **Good use:** Let’s break the invoice total down into labour, materials, tax, and the late fee.
 ---
-## 36. Step 1 / Step 2 / Step 3
+#### 36. Step 1 / Step 2 / Step 3
 **What it is:** Rigid procedural framing even for non-procedural topics.
 **Why AI may reach for it:** Explicit step labels give the model a stable sequence and make advice look executable. The order may be invented even when the actions are independent, iterative, or missing prerequisites.
 **Three typical AI examples:**
@@ -529,7 +541,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use numbered steps for an ordered procedure with real dependencies.
 **Good use:** Step 1: disconnect the power. Step 2: test for voltage. Step 3: remove the cover.
 ---
-## 37. Pros and Cons
+#### 37. Pros and Cons
 **What it is:** Standard pros/cons framing applied to everything.
 **Why AI may reach for it:** A pros-and-cons table is a dependable way for the model to fill both sides of any topic. It can flatten differences in probability, severity, ownership, and evidence into equal-looking bullets.
 **Three typical AI examples:**
@@ -541,7 +553,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the structure for a bounded choice when benefits and costs are comparable and weighted.
 **Good use:** Pros of the annual plan: £4,800 lower cost. Cons: a 12-month commitment and no midyear seat reduction.
 ---
-## 38. On the Flip Side
+#### 38. On the Flip Side
 **What it is:** Casual contrast phrase to introduce the opposite view.
 **Why AI may reach for it:** The phrase gives the model a casual switch to an opposite point. It can create a false reversal where the next sentence is only another caveat or loosely related fact.
 **Three typical AI examples:**
@@ -553,7 +565,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it in informal prose when the next point is a genuine countereffect.
 **Good use:** The smaller batch cuts waste. On the flip side, it raises the unit cost by 14%.
 ---
-## 39. However, It’s Important to Remember
+#### 39. However, It’s Important to Remember
 **What it is:** Hedged contrast that softens any strong claim.
 **Why AI may reach for it:** Stacking “however” with a reminder preface lets the model soften a claim twice. The padding creates caution without naming the exact limit.
 **Three typical AI examples:**
@@ -565,7 +577,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a reminder when an earlier condition would otherwise be forgotten and materially changes the next action.
 **Good use:** However, remember that the test environment uses fake card numbers; do not use these results to reconcile live payments.
 ---
-## 40. That Said
+#### 40. That Said
 **What it is:** Short reversal signal that appears constantly in AI prose.
 **Why AI may reach for it:** “That said” is a compact transition the model can reuse whenever it wants to qualify itself. Repetition makes each paragraph sound balanced even when the relation is weak.
 **Three typical AI examples:**
@@ -577,8 +589,8 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it when the next sentence directly limits or reverses the previous one.
 **Good use:** The patch passed every automated test. That said, we have not tested it with the legacy scanner.
 ---
-# Patterns 41–60
-## 41. At Its Core, X Is Y
+### Patterns 41–60
+#### 41. At Its Core, X Is Y
 **What it is:** Essence statement that defines a concept in broad terms.
 **Why AI may reach for it:** “At its core” lets the model compress a contested concept into one polished essence. It can make a broad definition sound settled without stating its scope.
 **Three typical AI examples:**
@@ -590,7 +602,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it when naming a precise defining property within a stated scope.
 **Good use:** At its core, public-key encryption separates the key used to encrypt data from the key used to decrypt it.
 ---
-## 42. Think of X as Y
+#### 42. Think of X as Y
 **What it is:** Analogy invitation that often oversimplifies.
 **Why AI may reach for it:** The invitation primes the reader to accept an analogy before the model has mapped its limits. A familiar image can replace the mechanism it was meant to explain.
 **Three typical AI examples:**
@@ -602,7 +614,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the analogy when it clarifies a specific unfamiliar relationship and its limits are clear.
 **Good use:** Think of the queue as a deli ticket system: each job waits its turn, but urgent jobs can be assigned a higher priority.
 ---
-## 43. X Is Like Y
+#### 43. X Is Like Y
 **What it is:** Basic simile comparing abstract things.
 **Why AI may reach for it:** A simile lets the model make an abstract noun feel concrete with almost any familiar object. The resemblance can be emotional rather than explanatory.
 **Three typical AI examples:**
@@ -614,7 +626,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a simile when the shared property is precise and helps the audience understand the subject.
 **Good use:** A cache is like a desk drawer: frequently used items stay close, but the drawer must be refreshed when the source changes.
 ---
-## 44. X Might Sound Simple, But
+#### 44. X Might Sound Simple, But
 **What it is:** Setup that claims simplicity hides complexity.
 **Why AI may reach for it:** The setup creates a small suspense gap: the idea looks simple, but the model promises hidden difficulty. It can inflate an ordinary instruction without showing what makes it hard.
 **Three typical AI examples:**
@@ -626,7 +638,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the setup when a documented obstacle genuinely contradicts the apparent simplicity.
 **Good use:** The repair sounds simple, but the casing contains a charged capacitor that remains dangerous after unplugging.
 ---
-## 45. X Is More Than Just Y
+#### 45. X Is More Than Just Y
 **What it is:** Expansion move claiming additional layers.
 **Why AI may reach for it:** The construction enlarges a concept by rejecting a narrow version and attaching a grander one. It can confuse an additional component with the whole definition.
 **Three typical AI examples:**
@@ -638,7 +650,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it when correcting a documented narrow definition with a concrete additional component.
 **Good use:** The migration is more than just copying files; we must preserve permissions and audit history.
 ---
-## 46. In Fact
+#### 46. In Fact
 **What it is:** Mild intensifier used excessively in AI text.
 **Why AI may reach for it:** “In fact” lets the model upgrade the certainty of the next sentence without supplying a fact. It can turn a preference or generalization into evidence by tone alone.
 **Three typical AI examples:**
@@ -650,7 +662,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it when the next sentence corrects a misconception or supplies stronger evidence.
 **Good use:** We expected demand to fall. In fact, paid orders rose from 412 to 587.
 ---
-## 47. For Example
+#### 47. For Example
 **What it is:** Generic lead-in to often generic examples.
 **Why AI may reach for it:** The phrase is a reliable way for the model to make an abstract claim look supported. The example may remain hypothetical, generic, or unrelated to the category.
 **Three typical AI examples:**
@@ -662,7 +674,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it when an instance materially clarifies an abstract category or rule.
 **Good use:** Some expenses vary with usage. For example, our SMS bill rises by £0.04 for each message sent.
 ---
-## 48. For Instance
+#### 48. For Instance
 **What it is:** Near-duplicate of “for example,” adding redundancy.
 **Why AI may reach for it:** “For instance” performs the same support function as “for example” and is easy to repeat across paragraphs. It can disguise invented illustrations as evidence.
 **Three typical AI examples:**
@@ -674,7 +686,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it sparingly when the reader needs a concrete instance to understand the category.
 **Good use:** The policy covers irreversible actions. For instance, deleting the encryption key requires a second approver.
 ---
-## 49. From a Broader Perspective
+#### 49. From a Broader Perspective
 **What it is:** Zoom-out framing for high-level commentary.
 **Why AI may reach for it:** The zoom-out phrase lets the model raise the abstraction level and sound strategic. It may change the vocabulary without changing the unit of analysis.
 **Three typical AI examples:**
@@ -686,7 +698,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it when the analysis explicitly changes scale and the new scale reveals something relevant.
 **Good use:** From a broader perspective, the five delayed orders are part of a 23% rise in regional delivery failures this quarter.
 ---
-## 50. Zooming In / Zooming Out
+#### 50. Zooming In / Zooming Out
 **What it is:** Camera-metaphor language about shifting levels of detail.
 **Why AI may reach for it:** Camera language gives the model an easy transition between detail and overview. It can imply analysis without naming the actual scale or evidence.
 **Three typical AI examples:**
@@ -698,7 +710,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the metaphor when deliberately switching between defined aggregate and detailed evidence.
 **Good use:** Zooming out to the full quarter, cancellations are flat; zooming in to the final week, they doubled after the price change.
 ---
-## 51. In Summary
+#### 51. In Summary
 **What it is:** Formal wrap-up phrase that signals the end.
 **Why AI may reach for it:** A formal summary cue gives the model a standard ending and permission to repeat itself. The label can make a slogan feel like a synthesis.
 **Three typical AI examples:**
@@ -710,7 +722,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a summary after long or technical material when readers need a shorter retrieval layer.
 **Good use:** In summary, the treatment reduced symptoms for six weeks, caused more nausea, and has not been tested beyond three months.
 ---
-## 52. To Recap
+#### 52. To Recap
 **What it is:** Casual recap signal that often repeats earlier bullets.
 **Why AI may reach for it:** “To recap” lets the model replay recent bullets and maintain the appearance of structure. It often repeats material the reader has not had time to forget.
 **Three typical AI examples:**
@@ -722,7 +734,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a recap after a long interruption or multi-stage discussion when restoring context prevents error.
 **Good use:** To recap before we reconnect the supply: valve A is closed, valve B is locked, and the pressure gauge reads zero.
 ---
-## 53. It Depends, But
+#### 53. It Depends, But
 **What it is:** Non-committal answer that defaults to “it depends” followed by generic factors.
 **Why AI may reach for it:** “It depends” protects the model from committing, while “but” lets it continue with generic advice anyway. The variables may be listed without showing how they change the answer.
 **Three typical AI examples:**
@@ -734,7 +746,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it when the outcome truly changes with named variables and the text explains those branches.
 **Good use:** It depends on monthly volume: below 10,000 requests, Plan A is cheaper; above that, Plan B is.
 ---
-## 54. No One-Size-Fits-All
+#### 54. No One-Size-Fits-All
 **What it is:** Truism that denies universality right after giving broad advice.
 **Why AI may reach for it:** The truism lets the model disclaim universality after giving universal advice. It sounds nuanced without providing a rule for choosing among alternatives.
 **Three typical AI examples:**
@@ -746,7 +758,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase when the text immediately names the variables and gives different decision rules.
 **Good use:** There is no one-size-fits-all dose: the prescriber adjusts it for age, kidney function, and the medicines listed below.
 ---
-## 55. Tailor It to Your Needs
+#### 55. Tailor It to Your Needs
 **What it is:** Personalized-sounding but generic customization advice.
 **Why AI may reach for it:** The instruction simulates personalization while leaving every decision to the reader. The model avoids naming what can change and what evidence should guide the change.
 **Three typical AI examples:**
@@ -758,7 +770,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use customization advice when the adjustable parts, fixed constraints, and decision evidence are named.
 **Good use:** Tailor the reminder interval to the customer’s billing cycle, but keep the legal notice unchanged.
 ---
-## 56. Start Small and Iterate
+#### 56. Start Small and Iterate
 **What it is:** Safe incrementalism advice, regardless of domain.
 **Why AI may reach for it:** Incrementalism is a safe recommendation because it sounds prudent across almost any domain. The model can prescribe testing without naming the risk, hypothesis, or signal.
 **Three typical AI examples:**
@@ -770,7 +782,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the advice for a reversible experiment with a defined hypothesis and stopping rule.
 **Good use:** Start small with 5% of traffic, then iterate only if checkout errors stay below 0.5% for 24 hours.
 ---
-## 57. X, Y, and Z Triads
+#### 57. X, Y, and Z Triads
 **What it is:** Lists of three for rhythm, often with vague adjectives.
 **Why AI may reach for it:** Three items give the model a pleasing cadence and a natural stopping point. It may invent or pad a third item to complete the rhythm.
 **Three typical AI examples:**
@@ -782,7 +794,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a triad when the subject genuinely has three parallel, distinct parts.
 **Good use:** The incident review covers detection, containment, and recovery.
 ---
-## 58. Beginner to Expert Range
+#### 58. Beginner to Expert Range
 **What it is:** Overly broad audience claim that spans all skill levels.
 **Why AI may reach for it:** A beginner-to-expert range makes the audience sound broad and the content universally useful. It avoids choosing the prior knowledge the explanation assumes.
 **Three typical AI examples:**
@@ -794,7 +806,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the range when the content provides explicit paths for each skill level.
 **Good use:** Whether you’re a beginner or an expert, choose the matching path: beginners complete the formula exercise; experts start with the audit case on page 12.
 ---
-## 59. No Matter Where You Are on Your Journey
+#### 59. No Matter Where You Are on Your Journey
 **What it is:** Journey metaphor that covers every stage.
 **Why AI may reach for it:** The journey frame lets the model address everyone without defining stages. It turns a process into emotional progress and attaches the same advice to every point.
 **Three typical AI examples:**
@@ -804,7 +816,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for “no matter where you are on your journey.” Ask what the stages are and how the action changes at each one; if it does not change, remove the journey claim.
 **The ugly version:** No matter where you are on your unique journey through the journey of growth, this timeless guidance will meet you exactly where your journey happens to be.
 ---
-## 60. Take It to the Next Level
+#### 60. Take It to the Next Level
 **What it is:** Vague promise of improvement without specifics.
 **Why AI may reach for it:** “Next level” promises improvement without forcing the model to define the current level or the result. The upward motion supplies ambition in place of a metric.
 **Three typical AI examples:**
@@ -814,8 +826,8 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Find “take X to the next level.” Ask for the baseline, target, measure, and timeframe; if no level can be identified, replace the phrase with the concrete change.
 **The ugly version:** Take your already elevated brand to the next level beyond the next level with next-level strategies designed for truly next-level growth.
 ---
-# Patterns 61–80
-## 61. Unlock the Power of X
+### Patterns 61–80
+#### 61. Unlock the Power of X
 **What it is:** Marketing-style invitation to “unlock” benefits.
 **Why AI may reach for it:** “Unlock” frames an ordinary use as releasing hidden value. It lets the model promise a broad benefit without naming the mechanism, constraint, or size of the effect.
 **Three typical AI examples:**
@@ -825,7 +837,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for “unlock the power of.” Replace it with the actor, action, and result; if the sentence cannot say what changes or by how much, the locked-power metaphor is empty.
 **The ugly version:** Unlock the limitless power of powerful storytelling to unlock your audience’s untapped potential and open the door to unprecedented growth.
 ---
-## 62. Harness the Power of X
+#### 62. Harness the Power of X
 **What it is:** Similar to “unlock,” overusing verbs like “harness” that AI favors.
 **Why AI may reach for it:** “Harness” gives the model a high-energy verb for using any tool or idea. The phrase implies control over a force while avoiding the concrete operation.
 **Three typical AI examples:**
@@ -835,7 +847,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Find “harness the power of.” Ask what is being captured, by which action, under what constraint, and toward which result; if those details are absent, use the actual verb.
 **The ugly version:** Harness the power of focus to harness the power of clarity, then harness both powers to powerfully harness growth.
 ---
-## 63. Delve Into / Delving Into
+#### 63. Delve Into / Delving Into
 **What it is:** Over-formal verb heavily associated with AI text.
 **Why AI may reach for it:** “Delve” is a probable continuation in formal explanatory prose and gives a topic artificial depth. The model can choose it where “examine,” “read,” or “analyse” would name the work better.
 **Three typical AI examples:**
@@ -847,7 +859,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** The verb can be natural in formal prose when it describes sustained investigation rather than decorating a routine overview.
 **Good use:** The biography delves into correspondence that earlier accounts ignored.
 ---
-## 64. Dive Into the Intricacies Of
+#### 64. Dive Into the Intricacies Of
 **What it is:** Wordier cousin of “dive into,” often paired with “intricacies.”
 **Why AI may reach for it:** The phrase stacks two depth signals—“dive” and “intricacies”—so the model can make a broad overview sound rigorous. It promises detail before naming any complex relationship.
 **Three typical AI examples:**
@@ -857,7 +869,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for “dive into the intricacies of.” List the actual interacting parts or difficult distinctions; if none follow, replace the promise with the subject.
 **The ugly version:** Let’s dive deep into the intricate intricacies of a deeply intricate topic whose many intricacies demand an even deeper dive.
 ---
-## 65. Navigate the Complex Landscape
+#### 65. Navigate the Complex Landscape
 **What it is:** Navigation metaphor with “complex landscape” or “landscape of X.”
 **Why AI may reach for it:** The navigation-and-landscape pair is a ready-made metaphor for any difficult field. It lets the model claim complexity without naming the choices, hazards, or route.
 **Three typical AI examples:**
@@ -867,7 +879,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for “navigate the complex landscape of.” Replace the landscape with the actual system and identify the decision being navigated; if the sentence still lacks a route or constraint, delete the metaphor.
 **The ugly version:** Navigate the complex, ever-shifting landscape of modern complexity with a trusted roadmap, clear compass, and guiding North Star.
 ---
-## 66. In Conclusion
+#### 66. In Conclusion
 **What it is:** School-essay-style closer.
 **Why AI may reach for it:** The phrase is a learned school-essay ending that tells the model and reader the response is closing. It often precedes one more generic thesis restatement.
 **Three typical AI examples:**
@@ -879,7 +891,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the marker when a formal genre expects an explicitly signposted conclusion after a substantial argument.
 **Good use:** In conclusion, the three trials show a short-term benefit, but the evidence is too small and too brief to support routine use.
 ---
-## 67. Remember That
+#### 67. Remember That
 **What it is:** Instructional reminder phrase used excessively.
 **Why AI may reach for it:** The imperative lets the model elevate the next statement into a durable lesson. Repeating it can make ordinary claims sound like rules the reader is in danger of forgetting.
 **Three typical AI examples:**
@@ -891,7 +903,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a reminder when an earlier condition materially affects the current step.
 **Good use:** Remember that the sample contains live customer data; use the encrypted drive when you copy it.
 ---
-## 68. Keep in Mind That
+#### 68. Keep in Mind That
 **What it is:** Slight variation on “remember that,” with similar tone.
 **Why AI may reach for it:** “Keep in mind” gives the model a soft warning slot that can accept almost any caveat. It sounds considerate even when the limitation is vague or unrelated.
 **Three typical AI examples:**
@@ -903,7 +915,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it conversationally when a previously stated condition must remain active during the next instruction.
 **Good use:** Keep in mind that the figures exclude refunds when you compare them with last month’s total.
 ---
-## 69. It’s Worth Noting That
+#### 69. It’s Worth Noting That
 **What it is:** Hedge that adds polite distance from the claim.
 **Why AI may reach for it:** The phrase creates polite distance and mild importance without committing to either. It can bury a necessary condition as an aside.
 **Three typical AI examples:**
@@ -915,7 +927,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it sparingly for relevant secondary context that does not change the main instruction.
 **Good use:** It’s worth noting that the archive uses local time, while every timestamp in this report is UTC.
 ---
-## 70. From X to Y: Subtitle Pattern
+#### 70. From X to Y: Subtitle Pattern
 **What it is:** Title or heading format “From X to Y: Z” signaling a journey.
 **Why AI may reach for it:** The from-to subtitle gives the model an instant transformation story and a balanced headline shape. It can imply that the material carries readers between two states without showing the path.
 **Three typical AI examples:**
@@ -927,7 +939,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the format when the material genuinely documents a defined change from one state to another.
 **Good use:** From 14 Minutes to 6: How We Cut Checkout Time by Removing Manual Approval.
 ---
-## 71. The X You Didn’t Know You Needed
+#### 71. The X You Didn’t Know You Needed
 **What it is:** Clickbait framing of unexpected value.
 **Why AI may reach for it:** The construction manufactures surprise and need in the same line. The model can tell readers they were missing something before showing evidence that the thing matters.
 **Three typical AI examples:**
@@ -937,7 +949,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for “you didn’t know you needed.” Ask what observed problem the item solves and why the audience would not already recognize it; if the need is invented, state the benefit plainly.
 **The ugly version:** The revolutionary framework you didn’t know you needed for the problem you didn’t know you had and the transformation you never knew was possible.
 ---
-## 72. Here’s the Thing
+#### 72. Here’s the Thing
 **What it is:** Conversational pivot that pretends to cut through noise.
 **Why AI may reach for it:** The conversational pivot lets the model perform candour before a familiar point. It signals that noise is being cut through even when no correction or new fact follows.
 **Three typical AI examples:**
@@ -949,7 +961,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** It can work in spoken or deliberately conversational prose when it marks a real correction or direct answer.
 **Good use:** Here’s the thing: I gave you the wrong deadline. The application closes today at five.
 ---
-## 73. Spoiler: It’s Not X
+#### 73. Spoiler: It’s Not X
 **What it is:** “Spoiler” framing that reveals a non-obvious answer, usually still obvious.
 **Why AI may reach for it:** “Spoiler” creates a reveal beat, while the not-X frame supplies an instant correction. The model gets suspense and certainty without proving that the answer is surprising.
 **Three typical AI examples:**
@@ -961,7 +973,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a spoiler label when discussing a story, competition, or result that readers may reasonably want to encounter unannounced.
 **Good use:** Spoiler: it’s not the butler; the final chapter reveals that Mara forged the letter.
 ---
-## 74. If You’ve Ever Felt X, You’re Not Alone
+#### 74. If You’ve Ever Felt X, You’re Not Alone
 **What it is:** Empathy opener that generalizes a feeling.
 **Why AI may reach for it:** The opener lets the model infer a common pain, validate it, and create instant solidarity. It can claim “you’re not alone” without evidence that the reader feels this way or that others share it.
 **Three typical AI examples:**
@@ -973,7 +985,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the reassurance when the audience has directly reported the feeling and reliable evidence shows it is shared.
 **Good use:** If you felt disoriented during the first week, you’re not alone: 38 of 52 new starters reported the same problem in our onboarding survey.
 ---
-## 75. Chances Are
+#### 75. Chances Are
 **What it is:** Probabilistic hedge to make assumptions about the reader.
 **Why AI may reach for it:** ‘Chances are’ lets the model turn an unverified guess about the reader into a plausible-sounding probability. It creates intimacy without requiring audience data.
 **Three typical AI examples:**
@@ -985,7 +997,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use probabilistic language when a named dataset supports it and the wording matches the measured rate.
 **Good use:** In 68% of the 412 support tickets reviewed, the customer had already tried resetting the password, so chances are the next caller has tried it too.
 ---
-## 76. More Often Than Not
+#### 76. More Often Than Not
 **What it is:** Another probability hedge to sound measured.
 **Why AI may reach for it:** ‘More often than not’ supplies the tone of a measured generalization while leaving the frequency undefined. The model can sound empirical without committing to a denominator.
 **Three typical AI examples:**
@@ -997,7 +1009,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Keep it when the claim summarizes a documented majority and an exact percentage would distract from the point.
 **Good use:** Across our last 30 incident reviews, more often than not the first alert came from a customer rather than monitoring: 19 cases versus 11.
 ---
-## 77. At First Glance
+#### 77. At First Glance
 **What it is:** Contrast between superficial and deeper view.
 **Why AI may reach for it:** ‘At first glance’ manufactures a shallow-versus-deep reveal before the model has established that two interpretations exist. It gives ordinary analysis a discovery arc.
 **Three typical AI examples:**
@@ -1009,7 +1021,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it when the text compares two evidence states and explains what new observation changed the interpretation.
 **Good use:** At first glance, the outage looked regional because only EU dashboards were red. Packet captures later showed that all regions were dropping the same authentication calls.
 ---
-## 78. Behind the Scenes
+#### 78. Behind the Scenes
 **What it is:** Framing that claims to reveal hidden dynamics.
 **Why AI may reach for it:** ‘Behind the scenes’ promises privileged access to concealed work. The phrase can make routine operations feel secret or consequential without explaining what actually happens.
 **Three typical AI examples:**
@@ -1021,7 +1033,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it to introduce specific internal operations that are relevant and normally invisible to the reader.
 **Good use:** Behind the scenes, the upload service splits the video into six-second segments, stores two copies, and waits for both checksums before marking the file ready.
 ---
-## 79. Self-Referential Restatement of the Question
+#### 79. Self-Referential Restatement of the Question
 **What it is:** Opening that mirrors the user’s question back at them.
 **Why AI may reach for it:** Restating the question buys the model time and creates the appearance of alignment. It often mirrors the user’s nouns before supplying any answer or resolving any ambiguity.
 **Three typical AI examples:**
@@ -1033,7 +1045,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Restate only when doing so confirms a consequential interpretation or converts a broad request into a precise question.
 **Good use:** You asked for ‘retention.’ I am treating that as 90-day paid-account retention, not email-list retention, because the two require different data.
 ---
-## 80. Let’s Explore
+#### 80. Let’s Explore
 **What it is:** Vague invitation to examine a topic.
 **Why AI may reach for it:** ‘Let’s explore’ is a low-commitment bridge that lets the model begin another section without stating its claim, method, or destination. It signals motion while postponing substance.
 **Three typical AI examples:**
@@ -1043,8 +1055,8 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Look for ‘let’s explore,’ ‘let’s take a look,’ or ‘let’s examine’ immediately before a heading or explanation. Remove the invitation and read the next sentence. Falsify the flag when the invitation is part of a real collaborative exercise with a defined object and stopping point.
 **The ugly version:** Let’s explore the fascinating intersection of strategy, creativity, and growth as we uncover the many ways these powerful forces come together.
 ---
-# Patterns 81–100
-## 81. Overly Balanced On the Other Hand Clause
+### Patterns 81–100
+#### 81. Overly Balanced On the Other Hand Clause
 **What it is:** Adds a second clause to neutralize any strong statement.
 **Why AI may reach for it:** An automatic ‘on the other hand’ clause protects the model from sounding one-sided. It can invent symmetry between considerations that differ sharply in evidence, likelihood, or importance.
 **Three typical AI examples:**
@@ -1056,7 +1068,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use balanced clauses when two supported considerations create a real trade-off and their relative weight is made explicit.
 **Good use:** On the one hand, the annual contract cuts the price by 18%. On the other, it locks us in before the security review is complete; that unresolved risk outweighs the discount.
 ---
-## 82. Formal Academic Verbs Cluster
+#### 82. Formal Academic Verbs Cluster
 **What it is:** Overuse of verbs like “underscore,” “illuminate,” “facilitate,” and “bolster.”
 **Why AI may reach for it:** Formal verbs such as ‘underscore,’ ‘illuminate,’ ‘facilitate,’ and ‘bolster’ let the model raise the register without adding a clearer action. A cluster makes basic relationships sound scholarly.
 **Three typical AI examples:**
@@ -1068,7 +1080,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Formal verbs are appropriate when they express a precise relationship in academic, legal, or technical prose rather than merely raising the tone.
 **Good use:** The second experiment bolsters the causal claim because it reproduces the effect after random assignment.
 ---
-## 83. Transform Your X
+#### 83. Transform Your X
 **What it is:** Marketing verb “transform” applied to vague outcomes.
 **Why AI may reach for it:** ‘Transform’ compresses an unspecified before-and-after change into one promotional verb. The model can promise a dramatic outcome without naming the baseline, intervention, or result.
 **Three typical AI examples:**
@@ -1080,7 +1092,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use ‘transform’ for a documented, material change whose starting state, mechanism, and resulting state are all shown.
 **Good use:** The screen reader transformed the task from one the employee could not complete alone into a five-minute self-service process.
 ---
-## 84. X Isn’t a Destination; It’s a Journey
+#### 84. X Isn’t a Destination; It’s a Journey
 **What it is:** Journey cliché applied to almost any topic.
 **Why AI may reach for it:** The destination-versus-journey contrast gives any ongoing activity instant wisdom. It replaces the specific cycles, setbacks, or maintenance work with a familiar moral.
 **Three typical AI examples:**
@@ -1090,7 +1102,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Look for ‘isn’t a destination; it’s a journey’ or close destination/path contrasts. Translate the metaphor into literal process language. Falsify the flag when the passage sustains the journey metaphor and maps its parts to a real sequence rather than stopping at the cliché.
 **The ugly version:** Security is not a destination; it is an endless journey down a winding road where every milestone simply reveals another horizon.
 ---
-## 85. At Scale
+#### 85. At Scale
 **What it is:** Jargon phrase bolted onto claims to make them sound bigger.
 **Why AI may reach for it:** Adding ‘at scale’ makes a claim sound operationally mature while leaving volume, frequency, geography, and constraints undefined. It borrows the authority of systems engineering.
 **Three typical AI examples:**
@@ -1102,7 +1114,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase when scale is quantified and materially changes the engineering or operating method.
 **Good use:** Manual review works for 40 invoices a day; at 18,000 a day, we need queued validation and exception sampling.
 ---
-## 86. From X to Y, Everyone Can Z
+#### 86. From X to Y, Everyone Can Z
 **What it is:** Inclusive statement that tries to cover all experience levels.
 **Why AI may reach for it:** A ‘from X to Y, everyone’ frame stretches the audience until nearly anyone fits. The model avoids choosing a reader and implies universal usefulness without testing distinct needs.
 **Three typical AI examples:**
@@ -1114,7 +1126,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a broad range only when the recommendation rests on a requirement shared by every named group.
 **Good use:** From one-person shops to public companies, every employer filing Form 941 must use the current IRS revision for that quarter.
 ---
-## 87. Whether You Love It or Hate It
+#### 87. Whether You Love It or Hate It
 **What it is:** Polarizing setup for a widely known phenomenon.
 **Why AI may reach for it:** ‘Whether you love it or hate it’ invents two emotional camps and then declares the topic unavoidable. It supplies conflict even when the audience is indifferent or the premise is disputed.
 **Three typical AI examples:**
@@ -1124,7 +1136,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for ‘love it or hate it,’ ‘like it or not,’ or paired emotional extremes before an inevitability claim. Ask whether those are the real positions. Falsify the flag when the piece reports two documented constituencies whose reactions matter to the decision.
 **The ugly version:** Whether you love it or hate it, the future has arrived, and every serious leader must embrace daily video or risk becoming invisible.
 ---
-## 88. In the Context of X
+#### 88. In the Context of X
 **What it is:** Academic-sounding narrowing phrase.
 **Why AI may reach for it:** ‘In the context of’ gives a sentence academic framing without necessarily narrowing anything. The model can paste it before a broad claim and make the claim sound scoped.
 **Three typical AI examples:**
@@ -1136,7 +1148,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Keep the phrase when it defines the conditions under which a term, result, or rule has a different meaning.
 **Good use:** In the context of this trial, ‘recovery’ means no fever for 48 hours without medication.
 ---
-## 89. In Many Ways
+#### 89. In Many Ways
 **What it is:** Vague hedge to soften a strong claim.
 **Why AI may reach for it:** ‘In many ways’ softens a sweeping analogy without identifying which ways count. It lets the model make a broad equivalence while retaining an escape hatch.
 **Three typical AI examples:**
@@ -1146,7 +1158,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for ‘in many ways,’ ‘in some sense,’ or ‘in a way’ before a definition or analogy. List the actual dimensions of similarity. Falsify the flag when those dimensions are named immediately and the differences are also bounded.
 **The ugly version:** In many ways, a company is a living organism, a family, a machine, and a conversation all at the same time.
 ---
-## 90. On Top of That
+#### 90. On Top of That
 **What it is:** Layering transition that stacks arguments.
 **Why AI may reach for it:** ‘On top of that’ treats the next point as cumulative evidence without showing that it is independent, relevant, or stronger. It encourages the model to keep stacking reasons after the argument is complete.
 **Three typical AI examples:**
@@ -1156,7 +1168,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Mark repeated ‘on top of that,’ ‘plus,’ or ‘additionally’ openings. Draw the dependency between each claim and the conclusion. Falsify the flag when the added fact is genuinely cumulative and changes the decision rather than repeating an earlier reason.
 **The ugly version:** The tool saves time. On top of that, it improves efficiency. On top of that, it streamlines productivity. On top of that, it helps teams do more with less.
 ---
-## 91. Over-Reliance on Moreover / Furthermore / In Addition
+#### 91. Over-Reliance on Moreover / Furthermore / In Addition
 **What it is:** Serial use of formal transitions to start sentences.
 **Why AI may reach for it:** Serial ‘moreover,’ ‘furthermore,’ and ‘in addition’ openings act as glue between independently generated sentences. They impose an essay-like progression even when the points repeat or lack a logical order.
 **Three typical AI examples:**
@@ -1166,7 +1178,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Count paragraph-opening ‘moreover,’ ‘furthermore,’ and ‘in addition.’ Remove them and label the real relation: cause, contrast, example, or simple continuation. Falsify the flag when each transition accurately identifies a distinct additive claim and the frequency fits the genre.
 **The ugly version:** Moreover, the platform is intuitive. Furthermore, it is easy to use. In addition, users will find it simple. Moreover, this accessibility facilitates seamless adoption.
 ---
-## 92. Generic Buzzword Triples
+#### 92. Generic Buzzword Triples
 **What it is:** Strings of buzzwords like “innovative, scalable, impactful.”
 **Why AI may reach for it:** A triple of positive buzzwords gives the model rhythm and broad approval without forcing any adjective to be observable. Three terms can simulate a complete value proposition.
 **Three typical AI examples:**
@@ -1176,7 +1188,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Look for three comma-separated adjectives before a broad noun, especially ‘innovative,’ ‘scalable,’ ‘impactful,’ ‘agile,’ or ‘customer-centric.’ Ask for a test for each word. Falsify the flag when every adjective maps to a separate, demonstrated property.
 **The ugly version:** Our innovative, scalable, customer-centric solution delivers agile, impactful, future-ready outcomes for modern, dynamic, purpose-driven organizations.
 ---
-## 93. Overly Friendly Closing Invite
+#### 93. Overly Friendly Closing Invite
 **What it is:** Polite, generic closing that invites further questions.
 **Why AI may reach for it:** A generic offer to help is a safe conversational exit. The model can sound warm without identifying the next decision, missing input, or kind of help that would matter.
 **Three typical AI examples:**
@@ -1188,7 +1200,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a friendly invitation in an active service relationship when it names the next kind of assistance available.
 **Good use:** If the import still fails, reply with the job ID and I’ll trace that run.
 ---
-## 94. Placeholder Brackets
+#### 94. Placeholder Brackets
 **What it is:** Leaving bracketed placeholders like \[your brand\] or \[insert metric\].
 **Why AI may reach for it:** Bracketed placeholders survive when the model imitates a template but does not resolve its variables. The draft looks finished at a glance while critical names, numbers, or claims remain unset.
 **Three typical AI examples:**
@@ -1200,7 +1212,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Placeholders belong in explicitly labeled templates when each variable is named consistently and accompanied by completion guidance.
 **Good use:** Template: ‘The test ran from \[START_DATE: YYYY-MM-DD\] through \[END_DATE: YYYY-MM-DD\] and included \[SAMPLE_SIZE: integer\] participants.’
 ---
-## 95. Everything-in-Threes Cadence
+#### 95. Everything-in-Threes Cadence
 **What it is:** Repeating triple patterns across the entire piece (three sections, three bullets, three sub-bullets).
 **Why AI may reach for it:** Three-part groupings are easy for a model to predict, balance, and close. Repeating the cadence across headings, bullets, and clauses makes arbitrary sets feel designed.
 **Three typical AI examples:**
@@ -1212,7 +1224,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a triad when the material genuinely has three components or when one deliberate three-beat cadence serves the genre.
 **Good use:** The fire triangle has three required elements: heat, fuel, and oxygen.
 ---
-## 96. Perfectly Even Sentence Rhythm
+#### 96. Perfectly Even Sentence Rhythm
 **What it is:** Medium-length sentences with similar structure and cadence throughout.
 **Why AI may reach for it:** Uniform sentence length and syntax reduce the model’s planning burden. The resulting prose stays smooth because every sentence carries the same weight, whether the ideas deserve it or not.
 **Three typical AI examples:**
@@ -1224,7 +1236,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Even rhythm can serve a speech, poem, instruction, or parallel comparison when the ideas are truly equal and the cadence is intentional.
 **Good use:** We came to listen. We stayed to learn. We left to act.
 ---
-## 97. Overuse of Bullet Lists
+#### 97. Overuse of Bullet Lists
 **What it is:** Turning any idea into a bulleted or numbered list.
 **Why AI may reach for it:** Bullets give the model a reliable container for fragments that may not have an order or shared category. The visual structure can disguise repetition and spare the model from building an argument.
 **Three typical AI examples:**
@@ -1243,7 +1255,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 - Signed consent form
 - Current medication list
 ---
-## 98. Perfect Grammar, No Edge
+#### 98. Perfect Grammar, No Edge
 **What it is:** Immaculate grammar with no slang, fragments, or intentional breaks.
 **Why AI may reach for it:** The model defaults to standard grammar and neutral register because both are broadly acceptable. Without chosen diction, contractions, fragments, or emphasis, every sentence can sound equally polished and emotionally uncommitted.
 **Three typical AI examples:**
@@ -1255,7 +1267,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Controlled grammar and neutral tone are appropriate in safety instructions, contracts, policies, and other genres where personality could obscure meaning.
 **Good use:** Disconnect the device from mains power before removing the rear panel.
 ---
-## 99. Promotional Travel-Guide Tone
+#### 99. Promotional Travel-Guide Tone
 **What it is:** Slightly promotional, brochure-like language even for neutral topics.
 **Why AI may reach for it:** Brochure verbs such as ‘discover,’ ‘experience,’ and ‘explore’ let the model turn neutral information into an invitation. The subject acquires a glow even when the reader asked for facts.
 **Three typical AI examples:**
@@ -1267,7 +1279,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** A promotional travel guide may use inviting language when it describes specific, verifiable features of the place.
 **Good use:** Walk the 2.4-kilometre cliff path at sunrise, when the eastern lookout is shaded and the lighthouse is open.
 ---
-## 100. AI Vocabulary Drift
+#### 100. AI Vocabulary Drift
 **What it is:** High density of AI-favored words like “realm,” “leverage,” “pivotal,” “robust,” “landscape,” “underscoring.”
 **Why AI may reach for it:** A model can drift toward high-probability prestige words such as ‘realm,’ ‘pivotal,’ ‘robust,’ ‘landscape,’ and ‘underscore.’ Density matters: the words reinforce one another until generic model register replaces the subject’s vocabulary.
 **Three typical AI examples:**
@@ -1279,8 +1291,8 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Retain an individual term when it is the accepted precise word in the relevant discipline; density and generic substitution are the warning signs.
 **Good use:** The controller remained robust under packet loss: all 50 runs converged with up to 8% dropped messages.
 ---
-# Patterns 101–120
-## 101. No Fluff Claim
+### Patterns 101–120
+#### 101. No Fluff Claim
 **What it is:** The writer explicitly promises “no fluff” or “no nonsense,” while the text remains padded.
 **Why AI may reach for it:** Promising ‘no fluff’ pre-emptively claims discipline instead of demonstrating it. The phrase lets the model frame ordinary advice as unusually direct while adding another line of setup.
 **Three typical AI examples:**
@@ -1290,7 +1302,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for ‘no fluff,’ ‘no nonsense,’ ‘straight to the point,’ or ‘only what works.’ Remove the promise and measure whether the next paragraph starts with evidence or action. Falsify the flag when ‘fluff’ is explicitly defined as an excluded content type and the deliverable follows that boundary.
 **The ugly version:** No fluff, no filler, no nonsense—just a comprehensive deep dive into the essential fundamentals you absolutely need to know before getting started.
 ---
-## 102. Shouting Into the Void
+#### 102. Shouting Into the Void
 **What it is:** The “posting into the void” metaphor used to dramatize low engagement.
 **Why AI may reach for it:** The void metaphor dramatizes low distribution or response without diagnosing reach, audience fit, timing, or message quality. It converts an analytics problem into loneliness.
 **Three typical AI examples:**
@@ -1300,7 +1312,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Look for ‘shouting,’ ‘speaking,’ ‘posting,’ or ‘whispering into the void.’ Ask which observable failure the void represents. Falsify the flag when the text is deliberately literary and the emotional isolation, rather than performance data, is the actual subject.
 **The ugly version:** Every morning she hurled another carefully crafted post into the hungry digital void, where silence swallowed her expertise without leaving so much as a like.
 ---
-## 103. Curious What Others Think
+#### 103. Curious What Others Think
 **What it is:** Ending with a performative curiosity question.
 **Why AI may reach for it:** ‘Curious what others think’ simulates openness while demanding almost nothing from the writer. The broad question can be attached to any post to solicit engagement rather than information.
 **Three typical AI examples:**
@@ -1312,7 +1324,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Ask for input when the question is specific, the audience can answer it, and the response will inform a stated decision.
 **Good use:** If you used either checkout, which field caused you to stop? We will remove the most-cited field in Friday’s test.
 ---
-## 104. And Honestly?
+#### 104. And Honestly?
 **What it is:** Faux-confessional aside used to signal vulnerability.
 **Why AI may reach for it:** ‘And honestly?’ creates a confessional beat without requiring a real disclosure. It signals candor, then often delivers a safe opinion or another generic claim.
 **Three typical AI examples:**
@@ -1324,7 +1336,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** A candid cue can work in personal speech or memoir when it introduces a specific admission that changes how the preceding account is understood.
 **Good use:** And honestly? I opposed the delay in Monday’s meeting, then changed my mind after reading the two unresolved safety reports.
 ---
-## 105. Here’s the Kicker
+#### 105. Here’s the Kicker
 **What it is:** Dramatic reveal phrase as beat before a twist.
 **Why AI may reach for it:** ‘Here’s the kicker’ inserts a dramatic beat before a fact regardless of whether it reverses the argument. The model gets suspense without constructing a genuine twist.
 **Three typical AI examples:**
@@ -1334,7 +1346,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Look for ‘here’s the kicker,’ ‘the twist,’ or a colon after a reveal label. Remove the label and test whether the fact still changes the conclusion. Falsify the flag when the reveal genuinely overturns the reader’s reasonable expectation and the tone fits the genre.
 **The ugly version:** We spent six months, twelve meetings, and the entire budget rebuilding the dashboard. Here’s the kicker: the old one also had charts.
 ---
-## 106. The Part Most People Miss
+#### 106. The Part Most People Miss
 **What it is:** Claim to reveal a “hidden” component everyone else overlooks.
 **Why AI may reach for it:** ‘The part most people miss’ grants the model insider status and manufactures a negligent majority. It can elevate a familiar point without showing who missed it or why it matters.
 **Three typical AI examples:**
@@ -1346,7 +1358,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the framing only when a defined review shows that a material component was repeatedly omitted.
 **Good use:** The part 17 of 20 migration plans missed was rollback ownership; the audit found a rollback command but no named operator.
 ---
-## 107. You’re Not Imagining It
+#### 107. You’re Not Imagining It
 **What it is:** Validation phrase that confirms the reader’s perception.
 **Why AI may reach for it:** ‘You’re not imagining it’ validates an assumed perception before confirming the reader has it. The model creates rapport by declaring a trend real without data.
 **Three typical AI examples:**
@@ -1358,7 +1370,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use validation when the audience has reported a specific experience and evidence confirms the change.
 **Good use:** You’re not imagining the slower exports: median completion time rose from 42 seconds to 96 seconds after Tuesday’s release.
 ---
-## 108. The Best Part? X
+#### 108. The Best Part? X
 **What it is:** Short question followed by one-sentence “best part” payoff.
 **Why AI may reach for it:** The fragment ‘The best part?’ creates a forced payoff and labels one benefit as superior without criteria. It gives the model a punchy mini-reveal.
 **Three typical AI examples:**
@@ -1370,7 +1382,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the label when a defined audience and stated criterion make one benefit demonstrably the most valuable.
 **Good use:** For the field team, the best part is offline access: inspectors can finish the form in tunnels with no signal.
 ---
-## 109. The Kicker? X
+#### 109. The Kicker? X
 **What it is:** Variation of the kicker pattern with question form.
 **Why AI may reach for it:** ‘The kicker?’ is a compressed reveal template. The question mark supplies drama, while the following sentence may be only another benefit or observation.
 **Three typical AI examples:**
@@ -1380,7 +1392,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Find a standalone ‘the kicker?’ or equivalent fragment before a payoff. Test whether the payoff reverses an established expectation. Falsify the flag when it delivers a real reversal in a voice where the theatrical beat is intentional.
 **The ugly version:** The kicker? The revolutionary secret to becoming more productive was, astonishingly, making a list of things to do.
 ---
-## 110. But Here’s the Truth
+#### 110. But Here’s the Truth
 **What it is:** Hot-take beat that claims to finally reveal honesty.
 **Why AI may reach for it:** ‘But here’s the truth’ labels the next claim as uniquely honest. The model gains authority through the frame instead of evidence or accountable firsthand knowledge.
 **Three typical AI examples:**
@@ -1390,7 +1402,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for ‘here’s the truth,’ ‘the truth is,’ or ‘let’s be honest’ after a contrast. Remove the frame and demand support for the remaining claim. Falsify the flag when the sentence introduces a documented correction to a specific false statement.
 **The ugly version:** But here’s the truth: every strategy fails unless you believe in it, commit to it, and show up as the most authentic version of yourself.
 ---
-## 111. What Nobody’s Saying
+#### 111. What Nobody’s Saying
 **What it is:** Manufactured contrarianism about a mainstream point.
 **Why AI may reach for it:** ‘What nobody’s saying’ creates contrarian novelty by erasing existing discussion. The model can repackage a common criticism as suppressed insight.
 **Three typical AI examples:**
@@ -1400,7 +1412,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for ‘nobody is saying,’ ‘no one talks about,’ or ‘the conversation no one is having.’ Check the first page of credible discussion or sources. Falsify the flag only when a defined corpus or meeting record truly lacks the point.
 **The ugly version:** What nobody’s saying about meetings is that some of them are unnecessary—a forbidden truth the business world may not be ready to hear.
 ---
-## 112. Fear Not
+#### 112. Fear Not
 **What it is:** Reassuring imperative in formal tone.
 **Why AI may reach for it:** ‘Fear not’ lets the model assume anxiety and pivot into reassurance in two words. Its mock-formal tone can trivialize the actual difficulty.
 **Three typical AI examples:**
@@ -1410,7 +1422,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Look for ‘fear not,’ ‘do not worry,’ or ‘rest assured’ before a generic solution. Ask whether the audience expressed fear and whether the next step addresses it. Falsify the flag when the archaic tone is deliberate characterization or genre-appropriate humor.
 **The ugly version:** Fear not, weary entrepreneur, for the labyrinth of quarterly reporting can be conquered with three simple pillars and a positive mindset.
 ---
-## 113. Little Did I/We Know
+#### 113. Little Did I/We Know
 **What it is:** Story hook that retroactively claims a twist.
 **Why AI may reach for it:** ‘Little did I know’ retrofits foreshadowing onto a personal story. A model can create a twist arc even when it has no lived ignorance or later discovery.
 **Three typical AI examples:**
@@ -1422,7 +1434,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it in truthful first-person narrative when the earlier ignorance and later discovery are both concrete.
 **Good use:** Little did I know that the ‘test’ server contained live records; I learned that at 14:20 when a customer replied to the test message.
 ---
-## 114. Master the Art of X
+#### 114. Master the Art of X
 **What it is:** Grandiose promise to “master the art” of a mundane skill.
 **Why AI may reach for it:** ‘Master the art of’ enlarges a bounded skill into a prestigious lifelong craft. It promises command while avoiding a measurable level of competence.
 **Three typical AI examples:**
@@ -1432,7 +1444,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Find ‘master the art,’ ‘mastery,’ or ‘become a master’ attached to routine tasks. Replace ‘master’ with the actual performance target. Falsify the flag when the subject is conventionally treated as an art and the text defines a credible standard of mastery.
 **The ugly version:** Master the art of clicking Send and transform every ordinary email into an unforgettable expression of strategic brilliance.
 ---
-## 115. Game-Changer Label
+#### 115. Game-Changer Label
 **What it is:** Describing everyday tools or tactics as a “game-changer.”
 **Why AI may reach for it:** ‘Game-changer’ substitutes a verdict for the rule, constraint, or result that changed. The model can inflate an ordinary improvement into a categorical shift.
 **Three typical AI examples:**
@@ -1444,7 +1456,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the label when an intervention removes a binding constraint or changes the governing rules, and show the before-and-after result.
 **Good use:** Same-day PCR was a game-changer for this ward: isolation decisions fell from a 36-hour wait to four hours, freeing 11 beds each week.
 ---
-## 116. Revolutionize the Way
+#### 116. Revolutionize the Way
 **What it is:** Overblown claim to “revolutionize the way” X is done.
 **Why AI may reach for it:** ‘Revolutionize the way’ claims system-wide replacement without naming the old method or adoption. It gives the model maximal novelty from a routine feature.
 **Three typical AI examples:**
@@ -1456,7 +1468,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Reserve the claim for a demonstrated, broad change in established practice with evidence of adoption and displaced methods.
 **Good use:** Movable type revolutionized European book production: printers could reuse letters, produce editions faster, and replace hand-copying for mass circulation.
 ---
-## 117. Unlock/Unleash Potential
+#### 117. Unlock/Unleash Potential
 **What it is:** “Unlock” or “unleash the potential of” generic nouns.
 **Why AI may reach for it:** ‘Unlock’ and ‘unleash’ imply valuable capacity is already trapped inside a broad noun. The model can promise upside without naming the constraint, intervention, or recoverable amount.
 **Three typical AI examples:**
@@ -1468,7 +1480,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the metaphor when a known constraint blocks measurable existing capacity and the intervention removes that constraint.
 **Good use:** Adding a second loading dock unlocked 38 hours of weekly machine capacity that had been lost while trucks queued at the single bay.
 ---
-## 118. Significant Milestone
+#### 118. Significant Milestone
 **What it is:** Vague milestone framing with no concrete detail.
 **Why AI may reach for it:** ‘Significant milestone’ adds importance to an event without stating the threshold, plan, or consequence. The model gets celebratory weight from two abstract words.
 **Three typical AI examples:**
@@ -1480,7 +1492,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase for a predefined threshold that changes status, capability, or the next phase of work.
 **Good use:** Passing 10,000 verified samples is a significant milestone because it triggers the preregistered external-validation phase.
 ---
-## 119. A Testament To
+#### 119. A Testament To
 **What it is:** Formal praise phrase often used instead of concrete proof.
 **Why AI may reach for it:** ‘A testament to’ turns an outcome into praise without ruling out other causes. The model can attribute success to virtue while skipping the causal chain.
 **Three typical AI examples:**
@@ -1492,7 +1504,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it as explicit ceremonial praise when no causal or evidentiary claim is being smuggled into the sentence.
 **Good use:** This scholarship is a testament to Dr. Rao’s thirty years of volunteer teaching; tonight we are honoring that service, not measuring its effects.
 ---
-## 120. Beacon / Lighthouse Metaphor
+#### 120. Beacon / Lighthouse Metaphor
 **What it is:** Using “beacon” or similar as an overblown metaphor for clarity.
 **Why AI may reach for it:** Beacon and lighthouse imagery gives an abstract idea moral clarity and direction. The model can evoke guidance without identifying who is navigating, toward what, or by which signal.
 **Three typical AI examples:**
@@ -1504,8 +1516,8 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the image sparingly when a sustained metaphor maps source, signal, audience, and direction without mixing frames.
 **Good use:** The daily error budget is our lighthouse: when it turns red, teams stop launching and steer capacity toward reliability.
 ---
-# Patterns 121–140
-## 121. Tapestry / Symphony / Tides
+### Patterns 121–140
+#### 121. Tapestry / Symphony / Tides
 **What it is:** Poetic metaphor cluster for complexity or harmony.
 **Why AI may reach for it:** Tapestries, symphonies, and tides provide ready-made beauty for complexity, coordination, or change. The model can swap among them without explaining the actual relationships.
 **Three typical AI examples:**
@@ -1517,7 +1529,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** A literary or ceremonial passage may use one sustained metaphor when its imagery is coherent and chosen for effect.
 **Good use:** In the quartet, the cello held the floor while the violin answered; the negotiation followed the same score, one voice yielding space before the other entered.
 ---
-## 122. Journey as a Noun
+#### 122. Journey as a Noun
 **What it is:** Treating every process as a “journey” with emotional weight.
 **Why AI may reach for it:** Calling every process a ‘journey’ gives it emotion, stages, and implied growth without specifying events. The noun is especially easy to attach to customers, creators, brands, and transformation.
 **Three typical AI examples:**
@@ -1529,7 +1541,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use ‘customer journey’ as a defined service-design term when the passage names the actor, stages, touchpoints, and evidence.
 **Good use:** The renewal journey has four observed touchpoints: the 30-day email, admin review, procurement approval, and signature.
 ---
-## 123. Robust, Comprehensive, Holistic
+#### 123. Robust, Comprehensive, Holistic
 **What it is:** Triple-adjective bloat stacked before a noun.
 **Why AI may reach for it:** ‘Robust, comprehensive, holistic’ piles three assurances onto a noun because none is specific enough alone. The model covers resilience, scope, and systems thinking without proving any of them.
 **Three typical AI examples:**
@@ -1539,7 +1551,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Look for stacked adjectives such as ‘robust,’ ‘comprehensive,’ ‘holistic,’ ‘scalable,’ and ‘sustainable.’ Demand a separate test for each. Falsify the flag when the document defines and verifies each property independently.
 **The ugly version:** Our robust, comprehensive, holistic framework provides a scalable, sustainable, end-to-end solution for every dimension of organizational excellence.
 ---
-## 124. Innovative, Cutting-Edge, State-of-the-Art
+#### 124. Innovative, Cutting-Edge, State-of-the-Art
 **What it is:** Tech marketing adjective cluster.
 **Why AI may reach for it:** ‘Innovative,’ ‘cutting-edge,’ and ‘state-of-the-art’ claim novelty or technical leadership without a comparison set or date. The model can sound current while naming no advance.
 **Three typical AI examples:**
@@ -1551,7 +1563,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the term when a dated, named benchmark or formal review establishes the comparison.
 **Good use:** As of the March 2026 benchmark, Model A is state of the art on Dataset Q at 91.4%, 1.8 points above the previous published result.
 ---
-## 125. Remarkably / Incredibly / Highly + Adjective
+#### 125. Remarkably / Incredibly / Highly + Adjective
 **What it is:** Intensifier + adjective stack that feels generic.
 **Why AI may reach for it:** Intensifier-plus-adjective pairs let the model raise enthusiasm without changing the proposition. ‘Remarkably effective’ and ‘highly efficient’ often replace the missing measurement.
 **Three typical AI examples:**
@@ -1563,7 +1575,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Keep an intensifier when a stated comparison defines the magnitude and the adjective accurately summarizes it.
 **Good use:** The treatment was highly effective in this trial: 94% cleared the infection versus 51% in the control group.
 ---
-## 126. Wealth of / Treasure Trove
+#### 126. Wealth of / Treasure Trove
 **What it is:** Metaphors for lots of information or data.
 **Why AI may reach for it:** ‘A wealth of’ and ‘treasure trove’ turn an unspecified pile of information into valuable abundance. The model avoids saying how much exists, whether it is usable, or what it contains.
 **Three typical AI examples:**
@@ -1573,7 +1585,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for riches metaphors around data, insights, content, or experience. Ask for count, quality, and retrieval method. Falsify the flag when the prose is deliberately playful and the next sentence inventories the material precisely.
 **The ugly version:** Your neglected inbox is a glittering treasure trove overflowing with a wealth of priceless insights just waiting to unlock untold growth.
 ---
-## 127. Dive Deeper / Deep Dive
+#### 127. Dive Deeper / Deep Dive
 **What it is:** Invitation to go into detail, often repeated.
 **Why AI may reach for it:** ‘Deep dive’ promises depth as a format label. The model can lengthen an answer, repeat context, or add headings without increasing evidence, mechanism, or resolution.
 **Three typical AI examples:**
@@ -1585,7 +1597,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the label for material that is substantially more detailed than the surrounding summary and specify what extra depth it contains.
 **Good use:** For the deep dive, see Appendix B: 14 failure traces, the retry-state diagram, and a line-by-line analysis of the race condition.
 ---
-## 128. Shed Light On
+#### 128. Shed Light On
 **What it is:** Mildly dramatic verb for “explain” or “clarify.”
 **Why AI may reach for it:** ‘Shed light on’ supplies a discovery metaphor for ordinary explanation or correlation. It can make incomplete evidence sound clarifying without stating what uncertainty was reduced.
 **Three typical AI examples:**
@@ -1597,7 +1609,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the metaphor sparingly when evidence narrows a clearly stated uncertainty and the result follows immediately.
 **Good use:** The interviews shed light on the cancellation spike: 18 of 23 customers believed the annual price shown was a monthly price.
 ---
-## 129. The Power of X
+#### 129. The Power of X
 **What it is:** Abstract “power of” framing instead of concrete benefit.
 **Why AI may reach for it:** ‘The power of X’ turns a topic into a benefit claim before identifying its mechanism or size. The model gets an energetic title from an abstract noun.
 **Three typical AI examples:**
@@ -1609,7 +1621,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the frame when the passage immediately demonstrates a specific mechanism and measured effect.
 **Good use:** The power of batching came from setup time: processing 20 samples together cut calibration from 20 runs to one and saved 95 minutes.
 ---
-## 130. At the Heart of X
+#### 130. At the Heart of X
 **What it is:** Essence metaphor centered on “heart.”
 **Why AI may reach for it:** ‘At the heart of’ declares one factor central through metaphor rather than causal analysis. The model can reduce a multi-cause system to a pleasing essence.
 **Three typical AI examples:**
@@ -1619,7 +1631,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Find ‘at the heart,’ ‘at the center,’ or ‘the core of’ before a broad claim. Ask whether the factor is necessary, sufficient, or simply important. Falsify the flag when the system literally has a central component or evidence identifies the factor as the main causal bottleneck.
 **The ugly version:** At the heart of every thriving organization lies trust, and at the heart of trust lies communication, and at the heart of communication lies authenticity.
 ---
-## 131. Crucial / Critical / Pivotal Role
+#### 131. Crucial / Critical / Pivotal Role
 **What it is:** Emphasis on importance without specifics.
 **Why AI may reach for it:** Calling a role ‘crucial,’ ‘critical,’ or ‘pivotal’ marks importance without naming the failure prevented or outcome changed. The model can emphasize almost any supporting factor.
 **Three typical AI examples:**
@@ -1631,7 +1643,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use ‘critical’ when failure or absence produces a specified, material consequence.
 **Good use:** The backup pump is critical: if the primary fails during dialysis, flow stops within 12 seconds without it.
 ---
-## 132. Playbook Language
+#### 132. Playbook Language
 **What it is:** Calling simple lists or examples a “playbook.”
 **Why AI may reach for it:** Calling advice a ‘playbook’ implies reusable moves, triggers, and decision rules. The model often applies the label to a short list that says what to do but not when, by whom, or under which conditions.
 **Three typical AI examples:**
@@ -1643,7 +1655,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use ‘playbook’ for a reusable operational guide that names triggers, owners, actions, branches, and exit conditions.
 **Good use:** Incident playbook: when checkout errors exceed 2% for five minutes, the on-call engineer disables the new gateway, verifies recovery, and opens a severity-one review.
 ---
-## 133. Blueprint Language
+#### 133. Blueprint Language
 **What it is:** Using “blueprint” to make a plan sound precise.
 **Why AI may reach for it:** ‘Blueprint’ borrows the precision of a construction drawing. The model can make broad strategic advice sound implementation-ready without dimensions, dependencies, or specifications.
 **Three typical AI examples:**
@@ -1655,7 +1667,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use ‘blueprint’ for a detailed specification that defines components, relationships, dimensions, and constraints.
 **Good use:** The network blueprint names every subnet, gateway, firewall rule, failover path, and address range required for installation.
 ---
-## 134. Roadmap Language
+#### 134. Roadmap Language
 **What it is:** Calling any future plan a “roadmap.”
 **Why AI may reach for it:** ‘Roadmap’ makes any future-oriented list sound sequenced and governed. The model often omits dates, dependencies, owners, decision gates, and the reason priorities may change.
 **Three typical AI examples:**
@@ -1667,7 +1679,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use ‘roadmap’ for a time-ordered plan with outcomes, dependencies, owners, and explicit review points.
 **Good use:** Q3 roadmap: Priya owns SSO by August 15; audit logging follows because it depends on the new identity events; the September 1 review decides whether SCIM enters Q4.
 ---
-## 135. Step-by-Step Roadmap Hybrid
+#### 135. Step-by-Step Roadmap Hybrid
 **What it is:** Combining “step-by-step” with “roadmap” or “blueprint.”
 **Why AI may reach for it:** Combining ‘step-by-step’ with ‘roadmap’ or ‘blueprint’ stacks two promises of order and precision. The model can oversell a generic sequence as both complete instructions and strategic direction.
 **Three typical AI examples:**
@@ -1679,7 +1691,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the hybrid only for a genuinely linear implementation plan whose steps include inputs, actions, outputs, and dependencies.
 **Good use:** The step-by-step migration roadmap lists the schema backup, checksum, write freeze, copy command, verification query, cutover, and rollback trigger in execution order.
 ---
-## 136. In This Article / Guide / Post
+#### 136. In This Article / Guide / Post
 **What it is:** Meta opener that explains what the piece will do.
 **Why AI may reach for it:** ‘In this article’ narrates the document instead of beginning its work. The model uses the meta opener to forecast familiar sections and establish coherence before making a claim.
 **Three typical AI examples:**
@@ -1691,7 +1703,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a meta introduction when it gives readers concrete scope, prerequisites, exclusions, or navigation they need before proceeding.
 **Good use:** This guide covers rotating an existing API key without downtime. It assumes two active deployment slots and does not cover initial key creation.
 ---
-## 137. This Piece Explores
+#### 137. This Piece Explores
 **What it is:** Slightly more formal variation of the meta opener.
 **Why AI may reach for it:** ‘This piece explores’ is a more formal self-description that lets the model announce intellectual work instead of stating its question, method, or finding.
 **Three typical AI examples:**
@@ -1703,7 +1715,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Formal scope language is appropriate in an abstract when it identifies the exact question, material, and method.
 **Good use:** This paper examines 1,204 eviction filings from 2022–2025 to test whether notice length predicts default judgments.
 ---
-## 138. Key Insights / Key Takeaways
+#### 138. Key Insights / Key Takeaways
 **What it is:** Labeling points as “key insights” without ranking.
 **Why AI may reach for it:** ‘Key insights’ and ‘key takeaways’ declare priority without showing the ranking rule. The model can label every summary point as key and make a routine recap feel curated.
 **Three typical AI examples:**
@@ -1715,7 +1727,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the label for a selective summary whose items are ranked by a stated decision or audience need.
 **Good use:** Key takeaways for Friday’s launch decision: the crash rate exceeds the 1% stop threshold, rollback takes four minutes, and no fix has passed load testing.
 ---
-## 139. From X to Y: Range Examples
+#### 139. From X to Y: Range Examples
 **What it is:** Using extreme range pairs for emphasis (tiny to huge, new to experienced).
 **Why AI may reach for it:** A ‘from X to Y’ range implies breadth by choosing distant endpoints. The model can claim universal coverage while skipping the populations or stages between them.
 **Three typical AI examples:**
@@ -1727,7 +1739,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a range when the endpoints are real bounds and the evidence or process covers the intermediate values.
 **Good use:** The sensor is calibrated from −20°C to 60°C in 5°C increments, with error below 0.3°C at every tested point.
 ---
-## 140. Bustling / Vibrant / Dynamic
+#### 140. Bustling / Vibrant / Dynamic
 **What it is:** Overly vivid but generic adjectives for markets and communities.
 **Why AI may reach for it:** ‘Bustling,’ ‘vibrant,’ and ‘dynamic’ add ready-made motion and positivity to markets or communities. The model can create atmosphere without naming who is present or what is changing.
 **Three typical AI examples:**
@@ -1739,8 +1751,8 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the adjective when nearby concrete observations show the activity or change it summarizes.
 **Good use:** The market was bustling by 6 a.m.: 83 stalls were open, delivery carts blocked both lanes, and buyers queued three deep at the fish counters.
 ---
-# Patterns 141–160
-## 141. Landscape / Ecosystem / Space
+### Patterns 141–160
+#### 141. Landscape / Ecosystem / Space
 **What it is:** Treating industries as “landscapes” or “spaces.”
 **Why AI may reach for it:** ‘Landscape,’ ‘ecosystem,’ and ‘space’ let the model refer to a field without naming its actors or relationships. The nouns create breadth and complexity by default.
 **Three typical AI examples:**
@@ -1752,7 +1764,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use ‘ecosystem’ when the passage identifies interdependent actors and exchanges, or use any of the terms in their literal technical sense.
 **Good use:** The payments ecosystem here includes the merchant, gateway, acquiring bank, card network, and issuer; a failed authorization can originate at any of those five links.
 ---
-## 142. Realm / Sphere
+#### 142. Realm / Sphere
 **What it is:** Slightly mystical nouns for domains or fields.
 **Why AI may reach for it:** ‘Realm’ and ‘sphere’ elevate an ordinary domain with spatial or mystical distance. The model can vary ‘field’ without becoming more specific.
 **Three typical AI examples:**
@@ -1764,7 +1776,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Keep the words in literal or established technical uses, not as ornamental substitutes for ‘field.’
 **Good use:** Every point on the sphere is 10 centimetres from its centre.
 ---
-## 143. Navigate / Navigate Through
+#### 143. Navigate / Navigate Through
 **What it is:** Navigation verbs for dealing with complexity.
 **Why AI may reach for it:** ‘Navigate’ casts any choice or difficulty as travel through terrain. The model gets motion and competence without listing the branches, hazards, or destination.
 **Three typical AI examples:**
@@ -1776,7 +1788,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the verb literally or when the text maps a genuine branching decision process with hazards and destinations.
 **Good use:** The wizard helps applicants navigate three branches: resident, cross-border employee, or non-resident contractor, each with different tax forms.
 ---
-## 144. Embark On
+#### 144. Embark On
 **What it is:** Journey verb used to start projects.
 **Why AI may reach for it:** ‘Embark on’ turns the start of routine work into the departure point of an adventure. It adds ceremony before the model has named the first action.
 **Three typical AI examples:**
@@ -1788,7 +1800,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use ‘embark’ for a literal voyage or a deliberately ceremonial departure where the register fits.
 **Good use:** The research vessel embarks on its 47-day Antarctic survey from Hobart on 3 November.
 ---
-## 145. Take Your X to New Heights
+#### 145. Take Your X to New Heights
 **What it is:** Upward-movement cliché for improvement.
 **Why AI may reach for it:** ‘Take X to new heights’ promises upward improvement while avoiding the metric, current level, and target. The vertical metaphor supplies excitement but no destination.
 **Three typical AI examples:**
@@ -1798,7 +1810,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Search for ‘new heights,’ ‘next level,’ ‘soar,’ or ‘reach new peaks.’ Ask which measure rises and to what target. Falsify the flag when the height is literal or a sustained metaphor with a stated metric.
 **The ugly version:** Take your weekly status meetings to breathtaking new heights and watch team alignment soar beyond every imaginable limit.
 ---
-## 146. Elevate Your X
+#### 146. Elevate Your X
 **What it is:** Another upward-movement verb heavily overused by AI.
 **Why AI may reach for it:** ‘Elevate’ replaces a specific improvement verb with an aspirational upward motion. The model can attach it to brand, experience, content, or conversation without committing to a result.
 **Three typical AI examples:**
@@ -1808,7 +1820,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Find abstract objects being ‘elevated.’ Substitute the actual action—shorten, clarify, raise, reduce, or redesign—and require a measure. Falsify the flag when physical elevation is literal or the metaphor is deliberately sustained.
 **The ugly version:** Elevate your brand, elevate your message, and elevate every customer interaction into a premium moment of unforgettable excellence.
 ---
-## 147. Enhance / Boost / Improve
+#### 147. Enhance / Boost / Improve
 **What it is:** Soft verbs with no clear metric.
 **Why AI may reach for it:** Generic improvement verbs let the model claim positive movement without choosing a variable. ‘Enhance,’ ‘boost,’ and ‘improve’ can hide whether the goal is speed, accuracy, volume, quality, or satisfaction.
 **Three typical AI examples:**
@@ -1820,7 +1832,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a general improvement verb when the sentence immediately names the metric, baseline, target, period, and mechanism.
 **Good use:** The revised reminder improved 30-day renewal from 61% to 68% in the May cohort by linking directly to the saved payment screen.
 ---
-## 148. Supercharge
+#### 148. Supercharge
 **What it is:** Comic-book verb for “slightly improve.”
 **Why AI may reach for it:** “Supercharge” gives a small improvement the emotional scale of an engine upgrade. It lets AI promise acceleration without naming what changes, how much it changes, or which action causes the change.
 **Three typical AI examples:**
@@ -1830,7 +1842,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: “supercharge” attached to a broad goal such as growth, productivity, engagement, or research. Ask for the changed input, metric, baseline, and expected gain. Falsification test: if removing “supercharge” loses no factual information, the verb is carrying hype rather than meaning.
 **The ugly version:** Supercharge your entire content ecosystem with one powerful calendar that amplifies every channel, accelerates every campaign, and sends your engagement into overdrive—without changing your budget, team, or strategy.
 ---
-## 149. Turbocharge
+#### 149. Turbocharge
 **What it is:** Variation of supercharge, equally inflated.
 **Why AI may reach for it:** “Turbocharge” borrows the drama of forced engine induction to make ordinary optimization sound sudden and extreme. AI can use it instead of explaining the mechanism, limits, and time required for improvement.
 **Three typical AI examples:**
@@ -1840,7 +1852,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: “turbocharge” followed by an abstract result such as awareness, learning, innovation, or velocity. Look for missing quantities and missing causal steps. Falsification test: if the sentence cannot be rewritten with a precise action and measurable result, it is promotional inflation.
 **The ugly version:** Turbocharge your experimentation velocity, turbocharge your market learning, and turbocharge your brand awareness with a single weekly meeting that transforms slow ideas into explosive growth.
 ---
-## 150. X on Steroids
+#### 150. X on Steroids
 **What it is:** Intensifier metaphor that exaggerates scale.
 **Why AI may reach for it:** “X on steroids” supplies instant magnitude without defining the dimension being enlarged. It is easy for AI to extend because almost any tool, process, or result can be framed as a stronger version of something familiar.
 **Three typical AI examples:**
@@ -1850,7 +1862,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: “on steroids” used as the whole explanation of scale or capability. Ask: larger in users, speed, cost, automation, risk, or complexity? Falsification test: if the writer can state the dimension and amount of change, the comparison is unnecessary; if they cannot, it was never informative.
 **The ugly version:** Our new onboarding is customer success on steroids: more messages, more pop-ups, more checklists, more reminders, and more automation hitting every user before they have finished creating an account.
 ---
-## 151. X at Its Finest
+#### 151. X at Its Finest
 **What it is:** Claiming an example represents the pinnacle.
 **Why AI may reach for it:** “At its finest” lets AI pronounce a winner without establishing a comparison set or criteria. The phrase sounds evaluative while avoiding the work of showing what makes the example unusually good.
 **Three typical AI examples:**
@@ -1862,7 +1874,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** It can work as clearly subjective criticism or praise when the reviewer names the feature being judged and the comparison set is understood.
 **Good use:** For deadpan office comedy, this is Armando Iannucci at his finest: the scene turns one missing folder into a five-person panic without breaking character.
 ---
-## 152. Championing / Advocating For
+#### 152. Championing / Advocating For
 **What it is:** Formal verbs for “supporting” or “pushing.”
 **Why AI may reach for it:** “Championing” and “advocating for” can turn passive approval into the appearance of sustained action. AI reaches for them because they confer moral purpose without requiring names, policies, votes, budgets, or other proof of advocacy.
 **Three typical AI examples:**
@@ -1874,7 +1886,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use these verbs for documented, sustained advocacy or formal representation—not for a favorable opinion or a marketing statement.
 **Good use:** The coalition advocated for the accessibility amendment for eighteen months, submitted draft language, and testified at all three committee hearings.
 ---
-## 153. Foster / Cultivate
+#### 153. Foster / Cultivate
 **What it is:** Gardening metaphors for building relationships or culture.
 **Why AI may reach for it:** “Foster” and “cultivate” make relationships, trust, and culture sound like natural growth that follows from good intentions. AI uses the gardening frame to skip the repeated behaviors, incentives, and time that actually produce the result.
 **Three typical AI examples:**
@@ -1886,7 +1898,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** The verbs are useful when they describe gradual development caused by named, repeated practices.
 **Good use:** Weekly peer reviews cultivated a shared editing standard: by the third month, factual corrections per draft had fallen from six to two.
 ---
-## 154. Bolster / Underpin / Underscore
+#### 154. Bolster / Underpin / Underscore
 **What it is:** Academic verbs that inflate basic points.
 **Why AI may reach for it:** These verbs imply different evidence relationships, but AI often treats them as interchangeable upgrades for “show” or “support.” The formal tone can make a weak connection sound logically established.
 **Three typical AI examples:**
@@ -1898,7 +1910,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use each verb when its specific logical relationship is accurate and the supporting evidence is visible.
 **Good use:** The control group’s unchanged error rate bolsters the claim that the new checklist, rather than seasonal demand, caused the reduction.
 ---
-## 155. Seamless Experience
+#### 155. Seamless Experience
 **What it is:** UX cliché for any slightly smooth flow.
 **Why AI may reach for it:** “Seamless experience” compresses every handoff, wait, error, and recovery path into one positive adjective. AI favors it because the phrase sounds like a complete UX outcome without requiring task-level evidence.
 **Three typical AI examples:**
@@ -1910,7 +1922,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use “seamless” only for a named, tested flow whose handoffs are genuinely invisible to the user.
 **Good use:** In testing, all 24 participants moved from the free trial to paid without re-entering billing details or losing their saved work, so the upgrade handoff was seamless.
 ---
-## 156. Frictionless Journey
+#### 156. Frictionless Journey
 **What it is:** Cousin of “seamless,” using friction metaphor.
 **Why AI may reach for it:** “Frictionless journey” makes all effort sound like a design defect and hides which step is slow, confusing, or unnecessary. AI can praise a flow with the metaphor without reporting completion time, abandonment, errors, or user effort.
 **Three typical AI examples:**
@@ -1922,7 +1934,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** UX teams can use “friction” as a technical shorthand when they identify the exact user effort, preserve necessary safeguards, and measure the change.
 **Good use:** Removing the second address form cut median checkout time by 38 seconds while leaving payment confirmation intact; that eliminated duplicate-entry friction.
 ---
-## 157. Pain Points Language
+#### 157. Pain Points Language
 **What it is:** Repeated use of “pain points” instead of specific problems.
 **Why AI may reach for it:** “Pain points” lets AI discuss customers without naming any customer’s actual delay, cost, fear, failed task, or workaround. The category label can substitute for research and make generic copy look customer-aware.
 **Three typical AI examples:**
@@ -1934,7 +1946,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use “pain point” as an internal research category when each item links to a concrete observation or quotation.
 **Good use:** Research tag: billing pain point. Evidence: 11 of 16 admins exported invoices to a spreadsheet because the product could not group charges by cost centre.
 ---
-## 158. Low-Hanging Fruit
+#### 158. Low-Hanging Fruit
 **What it is:** Business cliché for easy opportunities.
 **Why AI may reach for it:** “Low-hanging fruit” declares an opportunity easy before anyone estimates access, dependencies, risk, or effort. AI uses the familiar business metaphor to make prioritization sound self-evident.
 **Three typical AI examples:**
@@ -1946,7 +1958,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** It can be useful inside a documented prioritization exercise when “low” effort and likely impact have explicit thresholds.
 **Good use:** The broken help link is low-hanging fruit under our rubric: one owner, a ten-minute change, no dependency, and 1,400 failed clicks last month.
 ---
-## 159. Quick Wins
+#### 159. Quick Wins
 **What it is:** Promise of easy, immediate gains.
 **Why AI may reach for it:** “Quick wins” promises speed and payoff while leaving both undefined. AI reaches for the phrase because it creates momentum without distinguishing a visible activity from a result that matters.
 **Three typical AI examples:**
@@ -1958,7 +1970,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the label for bounded actions that can be completed quickly and produce a defined, observable benefit.
 **Good use:** Quick win: add the missing password-reset link today; support received 86 reset requests last week, and the existing route already works.
 ---
-## 160. Silver Bullet Denial
+#### 160. Silver Bullet Denial
 **What it is:** Claims there’s no silver bullet right before giving a pseudo-one.
 **Why AI may reach for it:** The silver-bullet denial gives AI credibility for rejecting easy answers, then allows it to smuggle in a preferred tactic as the near-magical exception. The caveat protects the recommendation from scrutiny.
 **Three typical AI examples:**
@@ -1970,8 +1982,8 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** The phrase can introduce a genuine multi-causal explanation when the writer does not immediately nominate a pseudo-silver bullet.
 **Good use:** There is no silver bullet for churn: the last quarter’s cancellations split across missing integrations, failed cards, and slow onboarding, so each cause needs a different response.
 ---
-# Patterns 161–180
-## 161. The Harsh Reality
+### Patterns 161–180
+#### 161. The Harsh Reality
 **What it is:** Dramatic setup for a mildly obvious fact.
 **Why AI may reach for it:** “The harsh reality” preloads a statement with severity and positions the writer as unusually candid. AI can use the frame to turn a truism or unsupported opinion into a supposedly brave conclusion.
 **Three typical AI examples:**
@@ -1981,7 +1993,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: “the harsh reality is” before a claim that is neither surprising nor evidenced. Remove the preface and inspect what remains. Falsification test: if the sentence becomes ordinary or weaker without the announcement, the drama—not the fact—created its force.
 **The ugly version:** The harsh reality is that if you are not publishing twelve pieces a day, building a personal brand, mastering AI, and networking constantly, you have already chosen irrelevance.
 ---
-## 162. The Ugly Truth
+#### 162. The Ugly Truth
 **What it is:** Similar to harsh reality, more clickbaity.
 **Why AI may reach for it:** “The ugly truth” manufactures a hidden, unpleasant revelation before revealing anything. AI uses it as a ready-made click hook that can make a familiar observation feel forbidden or courageous.
 **Three typical AI examples:**
@@ -1991,7 +2003,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: “the ugly truth about…” in a title or reveal sentence. Ask whether the claim is both substantiated and meaningfully concealed. Falsification test: if a direct factual headline is stronger and equally clear, the “ugly truth” frame is clickbait.
 **The ugly version:** The ugly truth about your employees is that they do not crave purpose, flexibility, or respect—they crave the motivational power of another mandatory Monday meeting.
 ---
-## 163. Brutal Honesty / Real Talk
+#### 163. Brutal Honesty / Real Talk
 **What it is:** Announcing honesty instead of just being blunt.
 **Why AI may reach for it:** “Brutal honesty” and “real talk” announce candor so the following judgment can feel earned without evidence or accountability. AI can mimic a personal voice while taking no personal risk.
 **Three typical AI examples:**
@@ -2003,7 +2015,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** A real speaker may use the phrase to mark a genuine admission, especially when the admission reflects badly on the speaker rather than attacking the reader.
 **Good use:** Real talk: I approved the rushed launch, ignored two warnings from support, and caused the rollback we are discussing.
 ---
-## 164. You Deserve
+#### 164. You Deserve
 **What it is:** Flattering claim about what the reader “deserves.”
 **Why AI may reach for it:** “You deserve” flatters the reader and creates moral certainty without knowing their circumstances. AI can attach it to any product or aspiration, turning preference into entitlement and persuasion into validation.
 **Three typical AI examples:**
@@ -2015,7 +2027,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use “deserve” for an established right, promised service level, or minimum standard—not as a bridge to a product pitch.
 **Good use:** You paid for next-day delivery and the order arrived six days late; under the guarantee, you deserve a full refund of the shipping fee.
 ---
-## 165. You’re Not Wrong to Feel X
+#### 165. You’re Not Wrong to Feel X
 **What it is:** Validating emotional reaction in dramatic language.
 **Why AI may reach for it:** “You’re not wrong to feel…” lets AI simulate empathy by assigning an emotion and validating it in the same breath. The move feels personal even when the model has no evidence that the reader feels that way.
 **Three typical AI examples:**
@@ -2027,7 +2039,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Validate a feeling when the person has expressed it or when the context supplies strong, specific evidence. Do not invent an inner state.
 **Good use:** You said the three surprise scope changes left you frustrated. That reaction makes sense; the deadline stayed fixed while the work increased.
 ---
-## 166. Quietly / Silently
+#### 166. Quietly / Silently
 **What it is:** Adverbs highlighting subtle impact.
 **Why AI may reach for it:** “Quietly” and “silently” let AI make an ordinary or unmeasured effect sound hidden and consequential. The adverb supplies intrigue without showing that the change was actually hard to observe.
 **Three typical AI examples:**
@@ -2039,7 +2051,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the adverbs for effects that are genuinely difficult to notice directly and are demonstrated through a specific lagging or indirect measure.
 **Good use:** Failed card retries quietly increased involuntary churn: customers saw no error, but payment logs showed 312 subscriptions ending after the third attempt.
 ---
-## 167. The Silent Killer
+#### 167. The Silent Killer
 **What it is:** Labeling something (churn, confusion) a “silent killer.”
 **Why AI may reach for it:** “The silent killer” imports the stakes of an unnoticed lethal condition into ordinary business problems. AI uses the label to create fear and urgency without measuring prevalence, harm, or causation.
 **Three typical AI examples:**
@@ -2049,7 +2061,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: a non-medical issue called a “silent killer.” Look for a vague noun such as confusion, inconsistency, churn, or complacency and no causal evidence. Falsification test: unless the phrase is the established literal name of a documented health risk, replace it with the specific harm and rate.
 **The ugly version:** Misaligned button padding is the silent killer of SaaS growth, draining trust, conversions, morale, and market share while your dashboards remain blissfully unaware.
 ---
-## 168. Hidden Gem / Hidden Lever
+#### 168. Hidden Gem / Hidden Lever
 **What it is:** Suggesting underused tactic as “hidden.”
 **Why AI may reach for it:** “Hidden gem” and “hidden lever” allow AI to present familiar advice as proprietary discovery. The words create scarcity and insider status without showing that the tactic is underused or unusually effective.
 **Three typical AI examples:**
@@ -2061,7 +2073,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use “hidden” when the information is genuinely difficult for the intended audience to find and the writer can show both low visibility and practical value.
 **Good use:** The accessibility menu contains a hidden keyboard shortcut: fewer than 1% of surveyed users knew it existed, yet it cuts the repeated task from six keystrokes to two.
 ---
-## 169. Behind Every X Lies Y
+#### 169. Behind Every X Lies Y
 **What it is:** Behind-the-scenes abstraction.
 **Why AI may reach for it:** “Behind every X lies Y” gives AI a universal causal sentence with a polished reveal. It turns one possible contributor into the secret explanation for every success, failure, or visible outcome.
 **Three typical AI examples:**
@@ -2071,7 +2083,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: “behind every” or “behind each” followed by one cause. Test the universal quantifier by looking for one counterexample or another necessary cause. Falsification test: if a single credible counterexample exists, “every” fails and the causal claim must be narrowed.
 **The ugly version:** Behind every successful launch lies one fearless founder, one crystal-clear story, and one perfectly timed post that makes strategy, product quality, pricing, and distribution almost irrelevant.
 ---
-## 170. Beneath the Surface
+#### 170. Beneath the Surface
 **What it is:** Depth metaphor similar to “on the surface/beneath.”
 **Why AI may reach for it:** “Beneath the surface” promises a deeper diagnosis before evidence has established one. AI can convert a visible metric into a more profound-sounding explanation simply by placing an abstract cause underneath it.
 **Three typical AI examples:**
@@ -2081,7 +2093,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: surface/depth language followed by a confident root-cause claim. Trace the evidence from the visible symptom to the supposed underlying cause. Falsification test: if the deeper explanation is not supported by interviews, logs, experiments, or another causal source, the metaphor is posing as analysis.
 **The ugly version:** Beneath the surface of your 2% checkout drop lies a profound crisis of trust, identity, positioning, belonging, and brand purpose that only a complete rebrand can resolve.
 ---
-## 171. Scratch the Surface
+#### 171. Scratch the Surface
 **What it is:** Shallow-depth metaphor.
 **Why AI may reach for it:** “Scratch the surface” lets AI acknowledge limited coverage while implying a large, important body of material beyond the page. The promise of depth can mask the fact that the writer has not identified what remains.
 **Three typical AI examples:**
@@ -2093,7 +2105,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it to mark a real scope boundary when the omitted material is named and available for further examination.
 **Good use:** This chart covers reported incidents only; it scratches the surface because it excludes near misses, contractor reports, and cases settled before investigation.
 ---
-## 172. Tip of the Iceberg
+#### 172. Tip of the Iceberg
 **What it is:** Classic visual metaphor for unseen depth.
 **Why AI may reach for it:** “Tip of the iceberg” gives AI an easy visible-versus-hidden model and suggests the unseen part is much larger. The metaphor often appears without evidence that a hidden population exists or dwarfs the observed one.
 **Three typical AI examples:**
@@ -2105,7 +2117,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the metaphor when evidence supports a substantially larger hidden set and the visible observation is genuinely part of it.
 **Good use:** The 18 confirmed cases are the tip of the iceberg: randomized testing found the defect in 7% of 4,000 devices, implying roughly 280 affected units.
 ---
-## 173. Flood / Avalanche / Tsunami of X
+#### 173. Flood / Avalanche / Tsunami of X
 **What it is:** Disaster metaphors for large quantities.
 **Why AI may reach for it:** Flood, avalanche, and tsunami metaphors turn high volume into physical disaster. AI reaches for them because they supply scale, motion, and threat without requiring a count or explaining the actual consequence of volume.
 **Three typical AI examples:**
@@ -2115,7 +2127,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: a disaster noun attached to emails, content, notifications, data, choices, or demand. Ask for the rate, total, time window, capacity, and failure caused by the volume. Falsification test: if ordinary quantity words communicate the same fact, the disaster image is emotional inflation.
 **The ugly version:** A tsunami of content is crashing over your customers while an avalanche of notifications buries their attention beneath a flood of unstoppable brand noise.
 ---
-## 174. Noise vs Signal
+#### 174. Noise vs Signal
 **What it is:** Overused information-theory metaphor.
 **Why AI may reach for it:** “Noise versus signal” offers AI a clean binary for separating useful from useless information. Outside technical contexts, it often avoids defining the decision, the data-generating process, and the criterion that makes one observation informative.
 **Three typical AI examples:**
@@ -2127,7 +2139,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the terms when a defined measurement process distinguishes information relevant to a specific inference from random or unwanted variation.
 **Good use:** To estimate the 60 Hz signal, the filter removes higher-frequency sensor noise introduced by the motor.
 ---
-## 175. North Star
+#### 175. North Star
 **What it is:** Guiding-star metaphor for main metric or goal.
 **Why AI may reach for it:** “North Star” turns a priority into a guiding celestial object and can hide who chose it, which trade-offs it governs, and what counter-metrics prevent harm. AI uses it to make a vague goal sound stable and strategic.
 **Three typical AI examples:**
@@ -2139,7 +2151,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** “North Star metric” is legitimate product terminology when one defined measure guides trade-offs and is balanced by guardrail metrics.
 **Good use:** Our North Star metric is weekly documents successfully shared with a collaborator; we review it with spam reports and failed-share rate as guardrails.
 ---
-## 176. Low Barrier / High Leverage
+#### 176. Low Barrier / High Leverage
 **What it is:** Framing actions by low effort vs high impact.
 **Why AI may reach for it:** “Low barrier” and “high leverage” compress effort and impact into attractive labels without supplying the comparison. AI can recommend an action as efficient while ignoring prerequisites, probability, delayed costs, and who does the work.
 **Three typical AI examples:**
@@ -2151,7 +2163,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the terms in a real effort-versus-impact comparison with defined thresholds and uncertainty.
 **Good use:** Adding the existing demo video to the confirmation email is low effort—one template edit—and potentially high leverage because 41% of new users open that email.
 ---
-## 177. Double-Edged Sword
+#### 177. Double-Edged Sword
 **What it is:** Cliché for trade-offs.
 **Why AI may reach for it:** “Double-edged sword” tells the reader a trade-off exists without naming either causal edge. AI uses the familiar object to sound balanced while skipping who benefits, who is harmed, and under which conditions.
 **Three typical AI examples:**
@@ -2163,7 +2175,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it when the same mechanism creates a concrete benefit and a concrete harm that matter to the decision.
 **Good use:** Auto-approval is a double-edged sword: it cuts median wait time from two days to four minutes, but the same lack of review increased fraudulent payouts by 18%.
 ---
-## 178. Blessing and a Curse
+#### 178. Blessing and a Curse
 **What it is:** Another cliché for trade-offs.
 **Why AI may reach for it:** “A blessing and a curse” supplies a ready-made emotional balance without explaining the trade-off. AI can place any success, resource, or visibility inside the frame and appear nuanced without analyzing conditions.
 **Three typical AI examples:**
@@ -2175,7 +2187,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** The phrase can work in personal or informal writing when the writer names the specific benefit and cost rather than using it as a substitute for them.
 **Good use:** The grant was a blessing and a curse: it funded the clinic for a year, but its reporting rules took our only nurse away from patients every Friday.
 ---
-## 179. Skeleton / Framework / Scaffolding
+#### 179. Skeleton / Framework / Scaffolding
 **What it is:** Building metaphors for conceptual structures.
 **Why AI may reach for it:** Skeleton, framework, and scaffolding can make a loose collection of ideas sound engineered. AI uses building language to imply stable parts and relationships even when the document contains only headings or suggestions.
 **Three typical AI examples:**
@@ -2187,7 +2199,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use these terms when they distinguish an organizing structure from finished content or when the elements have stable relationships and repeated use.
 **Good use:** This outline is scaffolding: the evidence table will replace sections 2–4 once the interviews are coded.
 ---
-## 180. X Is the New Y
+#### 180. X Is the New Y
 **What it is:** Trend-framing cliché.
 **Why AI may reach for it:** “X is the new Y” gives AI a compact trend headline by claiming replacement or equivalence. The symmetry feels insightful even when X and Y perform different functions and no change over time has been shown.
 **Three typical AI examples:**
@@ -2197,8 +2209,8 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: “X is the new Y” involving currencies, moats, acquisition, media, or strategy. Test whether X has actually replaced Y for a defined group, task, or period. Falsification test: if both remain important or the relation is merely metaphorical, the substitution claim fails.
 **The ugly version:** Trust is the new currency, retention is the new acquisition, community is the new moat, and attention is the new oil—so every old business concept can finally become a newer metaphor.
 ---
-# Patterns 181–200
-## 181. Now More Than Ever
+### Patterns 181–200
+#### 181. Now More Than Ever
 **What it is:** Time-pressure phrase suggesting urgency.
 **Why AI may reach for it:** “Now more than ever” creates urgency by asserting a historical maximum without comparing the present with any earlier period. AI can make a timeless principle feel newly critical without dates or data.
 **Three typical AI examples:**
@@ -2210,7 +2222,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase only when evidence supports a present historical high or a dated change has clearly increased the requirement.
 **Good use:** Now more than ever, the reservoir needs rationing: storage is at 18%, the lowest July level in the 62-year record.
 ---
-## 182. In Today’s World / Age / Era
+#### 182. In Today’s World / Age / Era
 **What it is:** Temporal grandstanding similar to “fast-paced world.”
 **Why AI may reach for it:** “In today’s world/age/era” gives AI a universal opening and a vague reason for urgency. It avoids identifying the specific technology, law, behavior, or market change that makes the present relevant.
 **Three typical AI examples:**
@@ -2222,7 +2234,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Temporal framing is legitimate when the passage defines the period and names the development that distinguishes it.
 **Good use:** In the post-2024 reporting regime, companies must disclose Scope 3 emissions that were optional under the previous rule.
 ---
-## 183. Increasingly + Adjective
+#### 183. Increasingly + Adjective
 **What it is:** Trend intensifier that often lacks data.
 **Why AI may reach for it:** “Increasingly” turns a current state into a trend. AI uses it to imply movement without providing two time points, a rate, or even the direction’s consistency.
 **Three typical AI examples:**
@@ -2234,7 +2246,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use “increasingly” when comparable observations across time show the named measure rising.
 **Good use:** Buyers are increasingly choosing annual plans: the share rose from 21% in 2023 to 34% in 2024 and 47% in 2025.
 ---
-## 184. Ever-Increasing / Constantly Growing
+#### 184. Ever-Increasing / Constantly Growing
 **What it is:** Exponential-sounding adjectives without numbers.
 **Why AI may reach for it:** “Ever-increasing” and “constantly growing” imply uninterrupted growth, often indefinitely. AI reaches for them because exponential-sounding motion creates stakes without a baseline, rate, pause, or reversal.
 **Three typical AI examples:**
@@ -2246,7 +2258,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use these terms only for a stated period in which the measured quantity actually rises without reversal.
 **Good use:** During the six-hour load test, queue depth was constantly growing—from 400 jobs at noon to 8,700 at 6 p.m.—because arrivals exceeded processing capacity.
 ---
-## 185. The Rise of X
+#### 185. The Rise of X
 **What it is:** Headline trope for trend explanation.
 **Why AI may reach for it:** “The rise of X” gives AI an instant trend narrative and headline. It can turn a few visible examples into a movement without showing adoption, prevalence, geography, or duration.
 **Three typical AI examples:**
@@ -2258,7 +2270,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use “the rise of” for a documented, sustained increase in a defined phenomenon.
 **Good use:** The rise of heat-pump installations is measurable: annual UK installations increased from 55,000 in 2021 to 220,000 in 2025.
 ---
-## 186. New Era of X
+#### 186. New Era of X
 **What it is:** Hyperbolic era-framing.
 **Why AI may reach for it:** “A new era” divides time into before and after without proving that the underlying rules changed. AI uses era language to make a product launch or trend sound historically decisive.
 **Three typical AI examples:**
@@ -2270,7 +2282,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use era framing when a dated breakpoint produces durable, field-wide changes—not for an ordinary launch.
 **Good use:** The 1947 partition began a new era in regional migration policy: two new states, new borders, and new citizenship rules changed movement across the subcontinent.
 ---
-## 187. As Never Before / Like Never Before
+#### 187. As Never Before / Like Never Before
 **What it is:** Overblown uniqueness claim.
 **Why AI may reach for it:** “Like never before” claims unprecedented access, speed, choice, or risk without checking the historical record. AI uses the phrase to inflate novelty while leaving the comparison period undefined.
 **Three typical AI examples:**
@@ -2282,7 +2294,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase only when a defined record shows the present measure is genuinely unprecedented.
 **Good use:** During the storm, the river rose like never before in the gauge’s 94-year record, reaching 8.4 metres above the previous 7.9-metre maximum.
 ---
-## 188. X Has Never Been More Important
+#### 188. X Has Never Been More Important
 **What it is:** Max-importance claim for basic concepts.
 **Why AI may reach for it:** “Has never been more important” combines an unsupported historical maximum with an abstract importance claim. AI can attach it to any enduring virtue and manufacture urgency without specifying stakes or alternatives.
 **Three typical AI examples:**
@@ -2292,7 +2304,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: the exact superlative attached to trust, leadership, resilience, clarity, security, or differentiation. Ask how importance is measured and which prior periods were compared. Falsification test: if no valid historical importance measure exists, the claim cannot be verified and should be replaced by the current consequence.
 **The ugly version:** Trust has never been more important, clarity has never been more vital, and authentic differentiation has never been more essential than in this unprecedented moment.
 ---
-## 189. Let That Sink In
+#### 189. Let That Sink In
 **What it is:** Dramatic pause after a metric or statement.
 **Why AI may reach for it:** “Let that sink in” instructs the reader to feel the weight of a claim instead of helping them interpret it. AI uses the pause as a dramatic beat even when the number lacks a denominator, comparison, or consequence.
 **Three typical AI examples:**
@@ -2302,7 +2314,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: the standalone command after a statistic or aphorism. Inspect the preceding claim for source, denominator, baseline, and practical meaning. Falsification test: if replacing the command with an explanation improves understanding, the pause was emotional direction rather than analysis.
 **The ugly version:** Only 3% of visitors clicked the purple button. Let that sink in. Three percent. A number so profound it may change everything you thought you knew about digital behaviour.
 ---
-## 190. If You Think About It
+#### 190. If You Think About It
 **What it is:** Conversational prompt for a simple observation.
 **Why AI may reach for it:** “If you think about it” presents a simple observation as a conclusion reached through reflection. AI uses the phrase to create conversational intimacy and intellectual momentum without adding reasoning.
 **Three typical AI examples:**
@@ -2312,7 +2324,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: “if you think about it” before a metaphor, redefinition, or truism. Remove the invitation and ask whether an actual inference remains. Falsification test: if the passage supplies intermediate reasoning that the reader must follow, state that reasoning directly; if not, the phrase is filler.
 **The ugly version:** If you think about it, your brand is a relationship, your product is a promise, your funnel is a conversation, and your revenue is really just trust wearing a number.
 ---
-## 191. The Reality Check
+#### 191. The Reality Check
 **What it is:** Labeling a paragraph as “reality check.”
 **Why AI may reach for it:** “Reality check” gives AI an authoritative interruption and frames the next opinion as indisputable. It can simulate blunt expertise without supplying the facts that would make the correction real.
 **Three typical AI examples:**
@@ -2322,7 +2334,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: “reality check:” before criticism or a contrarian statement. Ask what earlier belief is being corrected and what evidence contradicts it. Falsification test: if the passage cannot name the mistaken forecast and the observed result, it is attitude rather than a check against reality.
 **The ugly version:** Reality check: nobody cares about your product, your story, your effort, or your vision until you stop making excuses and start posting every day.
 ---
-## 192. On Paper vs In Practice
+#### 192. On Paper vs In Practice
 **What it is:** Contrast between theoretical and real-world behavior.
 **Why AI may reach for it:** “On paper versus in practice” gives AI a useful contrast shape, but it can invent a gap without comparing the documented design with observed behaviour. The form sounds empirical even when both halves are assumptions.
 **Three typical AI examples:**
@@ -2334,7 +2346,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the contrast when a documented design or prediction can be compared with observed behaviour.
 **Good use:** On paper, the retry policy allows three attempts; in practice, the proxy also retries twice, so one failed payment can produce six charges.
 ---
-## 193. Worst-Case Scenario
+#### 193. Worst-Case Scenario
 **What it is:** Fear-setting phrase for risk.
 **Why AI may reach for it:** “Worst-case scenario” can turn speculation into a concrete-sounding endpoint. AI may choose an implausibly mild case to reassure or an extreme case to frighten, without probability, assumptions, or mitigation.
 **Three typical AI examples:**
@@ -2346,7 +2358,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a worst-case scenario in structured risk work when assumptions, likelihood, impact, and mitigation are explicit.
 **Good use:** Worst credible case for the migration: the primary and replica both accept corrupt writes for 20 minutes; probability is below 1%, and the mitigation is a read-only cutover with snapshot rollback.
 ---
-## 194. Best-Case Scenario
+#### 194. Best-Case Scenario
 **What it is:** Paired with worst-case to frame range.
 **Why AI may reach for it:** “Best-case scenario” makes upside vivid and can quietly turn an outer bound into an expected result. AI uses it to motivate action without stating the conditions or probability needed to reach the outcome.
 **Three typical AI examples:**
@@ -2358,7 +2370,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use a best-case scenario as an explicit outer bound with stated conditions and probability, not as the expected outcome.
 **Good use:** Best case, if all three enterprise pilots convert, annual recurring revenue rises by £360,000; the forecast counts one conversion, based on our 35% pilot rate.
 ---
-## 195. The Stakes Are High
+#### 195. The Stakes Are High
 **What it is:** Drama phrase for decision significance.
 **Why AI may reach for it:** “The stakes are high” announces consequence without naming who can lose what, how likely the loss is, or whether the decision is reversible. AI uses the phrase to create urgency before doing risk analysis.
 **Three typical AI examples:**
@@ -2370,7 +2382,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase when material consequences, affected parties, reversibility, and decision timing are all explicit.
 **Good use:** The stakes are high because the valve controls oxygen to 42 patients, a mistaken closure causes immediate harm, and the action cannot be reversed remotely.
 ---
-## 196. It All Comes Down To
+#### 196. It All Comes Down To
 **What it is:** Reduction phrase that boils everything into one factor.
 **Why AI may reach for it:** “It all comes down to” collapses a multi-causal problem into one decisive factor. AI reaches for the reduction because it produces a clean conclusion even when other variables remain active.
 **Three typical AI examples:**
@@ -2382,7 +2394,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the reduction for a demonstrated binding constraint within a clearly bounded decision.
 **Good use:** Both bids meet the technical and delivery requirements, so this award comes down to audited five-year cost: £4.2 million versus £4.8 million.
 ---
-## 197. At First, It Might Seem
+#### 197. At First, It Might Seem
 **What it is:** Hedge around potentially counterintuitive points.
 **Why AI may reach for it:** “At first, it might seem” creates a presumed naïve reading that the writer can overturn. AI uses it to manufacture a reveal even when readers would not naturally hold the opening assumption.
 **Three typical AI examples:**
@@ -2394,7 +2406,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the setup when a documented first impression differs from the evidence-supported interpretation.
 **Good use:** At first, the chart seems to show complaints doubling, but the reporting population tripled; complaints per 1,000 users actually fell from 8 to 5.
 ---
-## 198. You Might Be Tempted To
+#### 198. You Might Be Tempted To
 **What it is:** Pre-empting a “wrong” instinct before correcting it.
 **Why AI may reach for it:** “You might be tempted to” invents an impulse for the reader and gives AI an easy wrong-turn/correction sequence. The model can sound anticipatory without evidence that anyone faces that choice.
 **Three typical AI examples:**
@@ -2406,7 +2418,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it for a documented, plausible decision path when explaining a specific hidden cost or constraint.
 **Good use:** You might be tempted to retry the import immediately, but the first attempt can still be processing; check the job ID before creating a duplicate.
 ---
-## 199. It Can Be Tempting To
+#### 199. It Can Be Tempting To
 **What it is:** Variation of the temptation pattern.
 **Why AI may reach for it:** “It can be tempting to” performs the same pre-emption without directly accusing the reader. AI uses the impersonal phrasing to create a safe correction arc around advice that may not match the actual decision.
 **Three typical AI examples:**
@@ -2418,7 +2430,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it when a credible short-term incentive leads toward a documented longer-term cost.
 **Good use:** It can be tempting to skip the backup test to meet Friday’s release, but the last untested restore added nine hours to the outage.
 ---
-## 200. More Often Than You Think
+#### 200. More Often Than You Think
 **What it is:** Claiming frequency without evidence.
 **Why AI may reach for it:** “More often than you think” claims both a frequency and a mismatch with the reader’s belief. AI can supply neither denominator nor evidence about what the reader thinks while still making the claim feel surprising.
 **Three typical AI examples:**
@@ -2430,8 +2442,8 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase when measured frequency can be compared with a documented expectation from the same audience.
 **Good use:** Password reuse is more common than this team estimated: the survey prediction was 20%, while the audit found it in 46 of 100 test accounts.
 ---
-# Patterns 201–220
-## 201. Before You Know It
+### Patterns 201–220
+#### 201. Before You Know It
 **What it is:** Time-acceleration phrase.
 **Why AI may reach for it:** “Before you know it” compresses an unspecified period and removes the steps between action and outcome. AI uses it to make consequences feel automatic, fast, and inevitable.
 **Three typical AI examples:**
@@ -2441,7 +2453,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: the phrase connecting a small action to a future problem or success. Ask how long the process takes, which intermediate events occur, and what could interrupt it. Falsification test: if the timing and chain can be stated, state them; if not, the phrase is manufacturing inevitability.
 **The ugly version:** Post without a strategy and, before you know it, your audience is wrong, your offer is diluted, your team is confused, and your entire brand has become impossible to repair.
 ---
-## 202. In the Blink of an Eye
+#### 202. In the Blink of an Eye
 **What it is:** Overly dramatic speed metaphor.
 **Why AI may reach for it:** “In the blink of an eye” turns any fast change into instantaneous drama. AI can imply speed and fragility without reporting the actual interval or the process that caused the change.
 **Three typical AI examples:**
@@ -2451,7 +2463,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: the phrase attached to reputation, trends, markets, trust, or customer behaviour. Replace it with the elapsed time and event sequence. Falsification test: if the literal duration is important and extremely short, the number is more informative than the metaphor.
 **The ugly version:** In the blink of an eye, one typo can destroy your reputation, erase years of trust, trigger a global backlash, and hand the market to your competitors.
 ---
-## 203. At First Glance vs On Closer Inspection
+#### 203. At First Glance vs On Closer Inspection
 **What it is:** Double-vision phrase contrasting surface with depth.
 **Why AI may reach for it:** The first-glance/closer-inspection frame gives AI a built-in reveal: a simple initial reading becomes a deeper diagnosis. It can invent both readings without identifying what new observation changed the conclusion.
 **Three typical AI examples:**
@@ -2463,7 +2475,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the frame when a later, specified observation materially changes a plausible initial interpretation.
 **Good use:** At first glance, the crack looks cosmetic; under magnification, it crosses the solder joint and breaks continuity when the board flexes.
 ---
-## 204. Not All X Are Created Equal
+#### 204. Not All X Are Created Equal
 **What it is:** Cliché equality framing.
 **Why AI may reach for it:** “Not all X are created equal” announces variation as if it were a discovery, then often avoids naming the dimensions that differ. AI uses the cliché to set up ranking or segmentation without criteria.
 **Three typical AI examples:**
@@ -2475,7 +2487,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase only when the following comparison defines the relevant dimensions and supports them with evidence.
 **Good use:** Not all backup copies are created equal: the local copy shares the building’s fire risk, while the off-site copy was restored successfully in last week’s test.
 ---
-## 205. There’s a Fine Line Between
+#### 205. There’s a Fine Line Between
 **What it is:** Cliché tension framing.
 **Why AI may reach for it:** “There’s a fine line between” creates tension between two categories while leaving the boundary undefined. AI can sound discerning without telling the reader how to classify a borderline case.
 **Three typical AI examples:**
@@ -2487,7 +2499,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the phrase when a consequential boundary is genuinely hard to judge and the passage gives criteria for both sides.
 **Good use:** There is a fine line between a reminder and harassment in this policy: a second message after seven days is allowed; contacting another address after an opt-out is not.
 ---
-## 206. The Line Between X and Y Is Blurry
+#### 206. The Line Between X and Y Is Blurry
 **What it is:** Ambiguity cliché.
 **Why AI may reach for it:** “The line is blurry” declares categories overlapping without identifying the dimensions of overlap. AI uses ambiguity as a conclusion, which can excuse the writer from defining terms or making a decision.
 **Three typical AI examples:**
@@ -2499,7 +2511,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the description when categories genuinely overlap along named dimensions and the ambiguity affects a decision.
 **Good use:** The line between contractor and employee is blurry here: the designer chooses her hours but works exclusively on company equipment under a staff manager.
 ---
-## 207. Whether You Realize It or Not
+#### 207. Whether You Realize It or Not
 **What it is:** Asserting unconscious behavior.
 **Why AI may reach for it:** “Whether you realize it or not” asserts an unconscious effect and makes disagreement sound like proof of ignorance. AI uses it to give ordinary claims an unavoidable, personal edge.
 **Three typical AI examples:**
@@ -2511,7 +2523,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it sparingly for an automatic, verifiable process whose operation does not depend on the reader’s awareness.
 **Good use:** Whether you realize it or not, opening this spreadsheet recalculates every volatile formula; the status bar shows the process.
 ---
-## 208. Like It or Not
+#### 208. Like It or Not
 **What it is:** Asserting inevitability.
 **Why AI may reach for it:** “Like it or not” frames a claim as inevitable and pre-dismisses objection as mere preference. AI can make a debatable opinion sound like an external constraint.
 **Three typical AI examples:**
@@ -2523,7 +2535,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it only when a documented external condition applies regardless of preference; do not use it to bully agreement with an opinion.
 **Good use:** Like it or not, the old certificate expires at midnight UTC; clients that have not installed the replacement will lose access.
 ---
-## 209. Ready or Not
+#### 209. Ready or Not
 **What it is:** Similar inevitability framing.
 **Why AI may reach for it:** “Ready or not” combines inevitability with a deadline but often omits the event, authority, and preparation gap. AI uses it to create pressure around trends that are neither scheduled nor universal.
 **Three typical AI examples:**
@@ -2535,7 +2547,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it for a fixed, unavoidable event when the audience still has a concrete preparation window.
 **Good use:** Ready or not, the evacuation drill begins at 10:00; ward leads have 20 minutes to check their lists and assign escorts.
 ---
-## 210. The Hard Part Isn’t X, It’s Y
+#### 210. The Hard Part Isn’t X, It’s Y
 **What it is:** Variant of It’s Not X, It’s Y specifically about difficulty.
 **Why AI may reach for it:** “The hard part isn’t X, it’s Y” gives AI a crisp bottleneck diagnosis by demoting one difficulty and elevating another. The symmetry can hide that both are hard or that no evidence ranks them.
 **Three typical AI examples:**
@@ -2547,7 +2559,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the frame when evidence identifies Y as the binding constraint after X has been met or controlled.
 **Good use:** The hard part is not collecting applications—we receive 900 a week. It is review capacity: two staff can assess only 180.
 ---
-## 211. The Point Isn’t X, It’s Y
+#### 211. The Point Isn’t X, It’s Y
 **What it is:** Meta correction phrase often used in AI-style explanations.
 **Why AI may reach for it:** “The point isn’t X, it’s Y” lets AI redirect interpretation without showing that anyone claimed X or that Y follows from the evidence. The sentence sounds decisive because its two halves are balanced.
 **Three typical AI examples:**
@@ -2559,7 +2571,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it to correct a specific, evidenced misreading—not to dismiss an inconvenient criterion.
 **Good use:** The point is not that the drug never works; the trial shows that its benefit disappears when treatment starts more than 48 hours after symptoms.
 ---
-## 212. You Don’t Need X, You Need Y
+#### 212. You Don’t Need X, You Need Y
 **What it is:** Replacement pattern that swaps assumed solution with “real” one.
 **Why AI may reach for it:** “You don’t need X, you need Y” gives AI a forceful replacement diagnosis without examining whether X and Y are complementary. It creates certainty by treating an additive problem as a binary choice.
 **Three typical AI examples:**
@@ -2571,7 +2583,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use the pattern when the requested solution cannot address the demonstrated cause and the replacement can.
 **Good use:** You do not need another password reset; the account is locked by an unpaid invoice, so you need the billing administrator to restore access.
 ---
-## 213. You Don’t Have to X
+#### 213. You Don’t Have to X
 **What it is:** Reassuring removal of perceived burden.
 **Why AI may reach for it:** “You don’t have to” offers relief by inventing a burden and removing it. AI uses the reassuring frame to sound supportive before establishing that the reader feels pressured or that the alternative is safe.
 **Three typical AI examples:**
@@ -2583,7 +2595,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it to correct a documented false requirement or to remove a burden the audience has explicitly expressed.
 **Good use:** You don’t have to submit the form again; your first application is active until 30 September, and the reference number remains valid.
 ---
-## 214. You’re Still Early
+#### 214. You’re Still Early
 **What it is:** Comforting phrase about timing.
 **Why AI may reach for it:** “You’re still early” reassures the reader about timing while avoiding adoption data, market maturity, or a definition of early. AI can make any opportunity feel open and reduce fear of missing out without evidence.
 **Three typical AI examples:**
@@ -2595,7 +2607,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use “early” when a defined adoption or development measure places the subject in an initial stage.
 **Good use:** Grid-scale sodium batteries are still early in deployment: fewer than 2 GWh are operating worldwide, compared with more than 150 GWh of lithium-ion storage.
 ---
-## 215. It’s Still Day One
+#### 215. It’s Still Day One
 **What it is:** Borrowed startup phrase reused in generic contexts.
 **Why AI may reach for it:** “It’s still day one” borrows a startup slogan to imply limitless possibility, permanent urgency, and freedom from mature expectations. AI can apply it to an old or undefined initiative without stating what has actually begun.
 **Three typical AI examples:**
@@ -2607,7 +2619,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it literally for the first day of a defined initiative or explicitly as a quoted organizational motto.
 **Good use:** It is day one of the six-week pilot: the first 40 participants received devices this morning, and baseline measurements begin at noon.
 ---
-## 216. The Best Time Was X, the Second-Best Time Is Now
+#### 216. The Best Time Was X, the Second-Best Time Is Now
 **What it is:** Stock timing proverb.
 **Why AI may reach for it:** The “best time/second-best time” proverb turns regret into immediate action and treats timing as universally favourable now. AI uses it to close deliberation without checking whether prerequisites, risk, or a better future window matter.
 **Three typical AI examples:**
@@ -2617,7 +2629,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: the stock proverb applied to pricing, investing, publishing, hiring, or launching. Ask whether “now” is actually preferable to waiting and what conditions must be met first. Falsification test: if timing does not materially affect safety or outcome and delay has a clear cost, direct advice with those facts is stronger than the proverb.
 **The ugly version:** The best time to launch was before you understood the market; the second-best time is now, before research, testing, legal review, or doubt can slow your momentum.
 ---
-## 217. Only Time Will Tell
+#### 217. Only Time Will Tell
 **What it is:** Non-committal future uncertainty cliché.
 **Why AI may reach for it:** “Only time will tell” lets AI end at uncertainty without naming what remains unknown, which evidence will resolve it, or when a decision can be made. The cliché sounds prudent while avoiding a forecast or monitoring plan.
 **Three typical AI examples:**
@@ -2629,7 +2641,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** Use it for a genuinely unresolved future outcome only when the evidence and review date are named.
 **Good use:** Only time will tell whether immunity lasts beyond two years; the cohort will be retested every six months through June 2028.
 ---
-## 218. At First, I Was Skeptical, But
+#### 218. At First, I Was Skeptical, But
 **What it is:** Personal skepticism flipped to endorsement.
 **Why AI may reach for it:** The skepticism-to-endorsement arc gives AI instant narrative credibility: a doubtful first-person witness appears to have tested the idea and changed their mind. A model can generate the shape without having an experience.
 **Three typical AI examples:**
@@ -2641,7 +2653,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **Exception:** A human writer may use the arc for a real change of mind supported by specific experience. AI must not invent first-person skepticism or results.
 **Good use:** At first I was skeptical that the shorter form would reduce abandonment; after the A/B test showed completion rising from 41% to 68% across 12,000 visits, I changed my view.
 ---
-## 219. You Won’t Believe X
+#### 219. You Won’t Believe X
 **What it is:** Clickbait disbelief hook.
 **Why AI may reach for it:** “You won’t believe” withholds the fact and tells the reader how surprised to feel. AI uses the curiosity gap because it can generate attention before producing a result strong enough to deserve it.
 **Three typical AI examples:**
@@ -2651,7 +2663,7 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: the hook delays a number, event, or conclusion that could fit in the headline. Reveal the fact and see whether interest survives. Falsification test: if the direct result is clear and compelling, the disbelief instruction adds nothing; if the result is weak, the hook was compensating.
 **The ugly version:** You won’t believe what happened when we changed one button—and the shocking, jaw-dropping, almost unbelievable result will completely transform how you think about buttons forever.
 ---
-## 220. The Results Speak for Themselves
+#### 220. The Results Speak for Themselves
 **What it is:** Self-justifying phrase instead of showing data.
 **Why AI may reach for it:** “The results speak for themselves” lets AI claim validation while omitting the metric, baseline, timeframe, sample, and method. It converts evidence from something the writer must present into something the reader is told to assume.
 **Three typical AI examples:**
@@ -2661,7 +2673,9 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 **How to spot it:** Cue: the phrase beside vague changes such as “revenue grew,” “engagement improved,” or “customers loved it.” Inspect the surrounding text for numbers, comparison, time window, sample, and attribution. Falsification test: if all evidence is already visible and the phrase merely closes an informal summary, it may be harmless—though the data usually make it redundant.
 **The ugly version:** The results speak for themselves: engagement soared, trust deepened, customers were delighted, the team felt energized, and the business entered a stronger position by every measure that matters.
 **Exception:** It can close an informal summary after the relevant evidence, baseline, timeframe, and method have already been presented.
-**Good use:** After 18,400 sessions, completion rose from 52% to 71%, median time fell by 34 seconds, and error reports did not increase. In this case, the results speak for themselves.# Research notes
+**Good use:** After 18,400 sessions, completion rose from 52% to 71%, median time fell by 34 seconds, and error reports did not increase. In this case, the results speak for themselves.
+
+## Research notes
 - [NIST, Reducing Risks Posed by Synthetic Content (2024)](https://doi.org/10.6028/NIST.AI.100-4)
 - [OpenAI, New AI classifier for indicating AI-written text (withdrawn in 2023)](https://openai.com/index/new-ai-classifier-for-indicating-ai-written-text/)
 - [Sadasivan et al., Can AI-Generated Text be Reliably Detected? (2025)](https://openreview.net/forum?id=OOgsAZdFOt)
@@ -2676,4 +2690,3 @@ Circle the adjectives, intensifiers, and abstract nouns, then ask what observabl
 - [FTC, Advertising FAQs](https://www.ftc.gov/business-guidance/resources/advertising-faqs-guide-small-business)
 ## Editorial boundary
 This guide catalogues recurring writing habits. It is not a detector, probability score, misconduct test, or substitute for provenance. Any authorship judgment needs evidence outside the prose itself.
-
