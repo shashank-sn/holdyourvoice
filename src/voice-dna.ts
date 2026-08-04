@@ -27,7 +27,7 @@ function profileMetrics(text: string): VoiceDnaMetrics {
   const sentenceLength = mean(lengths);
   const sentenceVariation = deviation(lengths, sentenceLength);
   const rhythm = lengths.length > 1 ? mean(lengths.slice(1).map((length, index) => Math.abs(length - lengths[index]))) : 0;
-  const uppercaseStarts = draftSentences.filter((sentence) => /^[A-Z]/.test(sentence.text)).length;
+  const uppercaseStarts = draftSentences.filter((sentence) => /^\p{Lu}/u.test(sentence.text)).length;
   const caseStyle = uppercaseStarts / Math.max(1, draftSentences.length) > 0.8 ? 'standard' : uppercaseStarts === 0 ? 'lowercase' : 'mixed';
 
   return {
@@ -49,6 +49,7 @@ function profileMetrics(text: string): VoiceDnaMetrics {
 
 export function buildProfile(samples: string[], avoid: string[] = []): Profile {
   if (samples.length < 2) throw new Error('Provide at least two local writing samples.');
+  if (samples.some((sample) => !words(sample).length)) throw new Error('Every local writing sample must contain writing.');
   return { version: '2', sampleCount: samples.length, metrics: profileMetrics(samples.join('\n\n')), avoid };
 }
 

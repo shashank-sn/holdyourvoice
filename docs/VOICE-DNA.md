@@ -1,6 +1,6 @@
 # VoiceDNA
 
-VoiceDNA is a local, inspectable reference built from at least two author-owned samples. It describes repeatable mechanics that an editor can compare with a draft. It makes no identity or authorship claim and uploads nothing.
+VoiceDNA is a local, inspectable reference built from at least two non-empty author-owned samples. It describes repeatable mechanics that an editor can compare with a draft. It makes no identity or authorship claim and uploads nothing. Structural metrics accept Unicode writing; the current point-of-view and transition lists remain English-specific evidence.
 
 ## The 13 elements
 

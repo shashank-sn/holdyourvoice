@@ -18,7 +18,7 @@ function isNumberRecord(value: unknown): value is Record<string, number> {
 
 function isPunctuation(value: unknown): value is Record<string, number> {
   const marks = ['!', '?', ';', ':', '—'];
-  return isNumberRecord(value) && Object.keys(value).length === marks.length && marks.every((mark) => mark in value);
+  return isNumberRecord(value) && Object.values(value).every((item) => item >= 0) && Object.keys(value).length === marks.length && marks.every((mark) => mark in value);
 }
 
 function isMetrics(value: unknown): value is VoiceDnaMetrics {
@@ -26,7 +26,9 @@ function isMetrics(value: unknown): value is VoiceDnaMetrics {
   const metrics = value as Partial<VoiceDnaMetrics>;
   const numbers = [metrics.sentenceLength, metrics.sentenceVariation, metrics.rhythm, metrics.paragraphLength, metrics.lexicalDensity, metrics.questionRate];
   const stringArrays = [metrics.sentenceStructure, metrics.openingMoves, metrics.vocabulary, metrics.transitions];
-  return numbers.every((item) => typeof item === 'number' && Number.isFinite(item))
+  return numbers.every((item) => typeof item === 'number' && Number.isFinite(item) && item >= 0)
+    && typeof metrics.lexicalDensity === 'number' && metrics.lexicalDensity <= 1
+    && typeof metrics.questionRate === 'number' && metrics.questionRate <= 1
     && ['first_person', 'second_person', 'third_person', 'mixed'].includes(metrics.pointOfView ?? '')
     && ['lowercase', 'standard', 'mixed'].includes(metrics.caseStyle ?? '')
     && stringArrays.every((items) => Array.isArray(items) && items.every((item) => typeof item === 'string'))
@@ -37,7 +39,7 @@ function readProfile(path: string): Profile {
   const value: unknown = JSON.parse(input(path));
   if (!value || typeof value !== 'object') throw new Error('Profile must be a JSON object.');
   const profile = value as Partial<Profile>;
-  if (profile.version !== '2' || typeof profile.sampleCount !== 'number' || profile.sampleCount < 2 || !isMetrics(profile.metrics) || !Array.isArray(profile.avoid) || !profile.avoid.every((item) => typeof item === 'string' && item.trim().length > 0)) {
+  if (profile.version !== '2' || typeof profile.sampleCount !== 'number' || !Number.isInteger(profile.sampleCount) || profile.sampleCount < 2 || !isMetrics(profile.metrics) || !Array.isArray(profile.avoid) || !profile.avoid.every((item) => typeof item === 'string' && item.trim().length > 0)) {
     throw new Error('Profile is not a valid Hold Your Voice version 2 profile. Rebuild it with the profile command.');
   }
   return profile as Profile;
