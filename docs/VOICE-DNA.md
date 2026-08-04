@@ -1,6 +1,6 @@
 # VoiceDNA
 
-VoiceDNA is a local, inspectable reference built from at least two author-owned samples. It does not infer identity, detect authorship, or upload writing. It describes repeatable mechanics that an editor can compare with a draft.
+VoiceDNA is a local, inspectable reference built from at least two author-owned samples. It describes repeatable mechanics that an editor can compare with a draft. It makes no identity or authorship claim and uploads nothing.
 
 ## The 13 elements
 
@@ -13,7 +13,7 @@ VoiceDNA is a local, inspectable reference built from at least two author-owned 
 | 5. Paragraph length | Mean sentences per paragraph | The draft’s visual pacing has drifted. |
 | 6. Opening moves | Common first words | The opening enters unlike the reference samples. |
 | 7. Vocabulary | Frequent non-stop words | Familiar concrete language is missing or displaced. |
-| 8. Lexical density | Share of meaningful words | The draft has become unusually generic or compressed. |
+| 8. Lexical density | Share of non-stop words | The draft has become unusually generic or compressed. |
 | 9. Point of view | First-, second-, third-person, or mixed | The writer’s normal narrative distance changed. |
 | 10. Punctuation | Counts of selected marks | The draft uses emphasis or pauses unlike the reference. |
 | 11. Case style | Lowercase, standard, or mixed | Capitalization no longer matches the writer’s convention. |
@@ -22,6 +22,12 @@ VoiceDNA is a local, inspectable reference built from at least two author-owned 
 
 The current gate emits findings for sentence length, avoid-list phrases, question rate, case style, and point of view. The remaining elements are included in the profile and tiered prompt as visible evidence; they become automatic release checks only after a rule has counterexamples and tests.
 
+## current automated policy
+
+the gates are deliberately narrow. an avoid-list match is red and fails VoiceDNA immediately. sentence-length drift is yellow when the sentence falls outside `max(8 words, 2.2 × profile variation)` from the profile mean. question-rate drift is yellow above 0.25. case style and a non-mixed point-of-view mismatch are yellow.
+
+the counterexample is intentional variation: a technical explanation may need a longer sentence, a direct question can be the right opening, and a single quote can change point of view. yellow findings are review cues. only the explicit avoid list blocks release automatically. `src/voice-dna.test.ts` covers the minimum-sample boundary and the red avoid-list behavior; add positive and negative regression coverage before expanding this policy.
+
 ## Boundaries
 
-VoiceDNA is a comparison tool. A low score means “different from these samples,” not “bad,” “AI-written,” or “not written by this person.” Use it with editorial judgment and preserve deliberate changes.
+VoiceDNA is a comparison tool. A low score means “different from these samples.” It cannot label writing bad, AI-written, or authored by another person. Use editorial judgment and preserve deliberate changes.
