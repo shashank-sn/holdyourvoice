@@ -56,7 +56,11 @@ export interface Analysis {
   passed: boolean;
 }
 
-export interface Verification extends Analysis {
+export interface Verification {
+  version: string;
+  original: Analysis;
+  candidate: Analysis;
   preservationScore: number;
   regressions: Finding[];
+  passed: boolean;
 }

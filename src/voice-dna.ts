@@ -73,5 +73,5 @@ export function analyzeVoiceDna(text: string, profile: Profile): EngineReport {
   const red = findings.filter((item) => item.severity === 'red').length;
   const yellow = findings.length - red;
   const score = Math.max(0, 100 - red * 25 - yellow * 7);
-  return { engine: 'voice_dna', version: '2', score, passed: score >= 75, findings };
+  return { engine: 'voice_dna', version: '2', score, passed: red === 0, findings };
 }

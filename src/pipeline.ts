@@ -31,8 +31,8 @@ export function rewritePrompt(draft: string, profile: Profile): string {
     ...(redFindings.length ? formatFindings(redFindings) : ['- None.']),
     '',
     '# Tier 2 — VoiceDNA fidelity',
-    `- Sentence length: ${metrics.sentenceLength}; variation: ${metrics.sentenceVariation}; rhythm: ${metrics.rhythm}.`,
-    `- Paragraph length: ${metrics.paragraphLength}; casing: ${metrics.caseStyle}; point of view: ${metrics.pointOfView}.`,
+    `- Sentence length: ${metrics.sentenceLength}; sentence variation: ${metrics.sentenceVariation}; sentence structure: ${metrics.sentenceStructure.join(', ') || 'none recorded'}; rhythm: ${metrics.rhythm}.`,
+    `- Paragraph length: ${metrics.paragraphLength}; lexical density: ${metrics.lexicalDensity}; point of view: ${metrics.pointOfView}; punctuation: ${Object.entries(metrics.punctuation).map(([mark, count]) => `${mark} ${count}`).join(', ')}; case style: ${metrics.caseStyle}; question rate: ${metrics.questionRate}.`,
     `- Openings: ${metrics.openingMoves.join(', ') || 'none recorded'}.`,
     `- Vocabulary: ${metrics.vocabulary.join(', ') || 'none recorded'}.`,
     `- Transitions: ${metrics.transitions.join(', ') || 'none recorded'}.`,
@@ -60,5 +60,12 @@ export function verify(original: string, candidate: string, profile: Profile): V
   const known = new Set([...baseline.voiceDna.findings, ...baseline.aiEditor.findings].map((finding) => `${finding.engine}:${finding.id}:${finding.sentence}`));
   const regressions = [...checked.voiceDna.findings, ...checked.aiEditor.findings].filter((finding) => !known.has(`${finding.engine}:${finding.id}:${finding.sentence}`));
   const preservation = preservationScore(original, candidate);
-  return { ...checked, preservationScore: preservation, regressions, passed: checked.passed && !regressions.some((finding) => finding.severity === 'red') && preservation >= 70 };
+  return {
+    version: '2',
+    original: baseline,
+    candidate: checked,
+    preservationScore: preservation,
+    regressions,
+    passed: checked.passed && !regressions.some((finding) => finding.severity === 'red') && preservation >= 70,
+  };
 }

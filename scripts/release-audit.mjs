@@ -1,2 +1,35 @@
-import { readFileSync, readdirSync } from 'node:fs'; import { join } from 'node:path';
-const banned=[/api[_-]?key\s*[:=]/i,/client[_-]?secret\s*[:=]/i,/Authorization:\s*Bearer/i,/https?:\/\//i]; const walk=d=>readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(join(d,e.name)):[join(d,e.name)]); for(const file of walk('src')){ const text=readFileSync(file,'utf8'); if(banned.some(rx=>rx.test(text))) throw new Error(`release audit failed: credential or network marker in ${file}`); } console.log('release audit passed');
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { extname } from 'node:path';
+
+const textExtensions = new Set(['.json', '.md', '.mjs', '.ts', '.yaml', '.yml']);
+const credentialMarkers = [
+  /(?:api[_-]?key|client[_-]?secret|access[_-]?token|refresh[_-]?token|private[_-]?key)\s*[:=]\s*(?!['"]?(?:your|example|replace|<)[\w-]*['"]?$)[^\s]+/i,
+  /authorization\s*:\s*bearer\s+\S+/i,
+];
+const networkMarkers = [/\bfetch\s*\(/, /\bhttps?\.request\b/, /\bWebSocket\b/, /from\s+['"]node:(?:http|https|net|tls)['"]/];
+const forbiddenPaths = [/(^|\/)\.env(?:\.|$)/, /(^|\/)(?:profiles?|embeddings?|feedback-history|analytics)(?:\/|$)/i];
+const privateUrlMarkers = [/^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?(?:\/|$)/i, /^https?:\/\/[^/]+\.local(?:\/|$)/i];
+
+function candidateFiles() {
+  const tracked = execFileSync('git', ['ls-files'], { encoding: 'utf8' }).split('\n');
+  const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { encoding: 'utf8' }).split('\n');
+  return [...new Set([...tracked, ...untracked].filter(Boolean))];
+}
+
+function urls(text) {
+  return [...text.matchAll(/https?:\/\/[^\s)'"<>]+/g)].map((match) => match[0]);
+}
+
+const failures = [];
+for (const file of candidateFiles()) {
+  if (forbiddenPaths.some((pattern) => pattern.test(file))) failures.push(`private or secret-bearing path: ${file}`);
+  if (!textExtensions.has(extname(file))) continue;
+  const text = readFileSync(file, 'utf8');
+  if (credentialMarkers.some((pattern) => pattern.test(text))) failures.push(`credential marker: ${file}`);
+  if (file.startsWith('src/') && networkMarkers.some((pattern) => pattern.test(text))) failures.push(`runtime network marker: ${file}`);
+  for (const url of urls(text)) if (privateUrlMarkers.some((pattern) => pattern.test(url))) failures.push(`private or internal URL: ${file} (${url})`);
+}
+
+if (failures.length) throw new Error(`release audit failed:\n${failures.map((failure) => `- ${failure}`).join('\n')}`);
+console.log('release audit passed');
