@@ -1,0 +1,2 @@
+import { readFileSync, readdirSync } from 'node:fs'; import { join } from 'node:path';
+const banned=[/api[_-]?key\s*[:=]/i,/client[_-]?secret\s*[:=]/i,/Authorization:\s*Bearer/i,/https?:\/\//i]; const walk=d=>readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(join(d,e.name)):[join(d,e.name)]); for(const file of walk('src')){ const text=readFileSync(file,'utf8'); if(banned.some(rx=>rx.test(text))) throw new Error(`release audit failed: credential or network marker in ${file}`); } console.log('release audit passed');

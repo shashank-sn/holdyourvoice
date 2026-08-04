@@ -1,0 +1,5 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import { buildProfile } from './voice-dna.js'; import { analyze, rewritePrompt, verify } from './pipeline.js';
+const profile=buildProfile(['I ship clear ideas. The details stay concrete.','I write short sentences. Then I explain the mechanism.'],['leverage']);
+test('keeps the two engine scores independent',()=>{ const result=analyze('Firstly, we leverage a holistic strategy.',profile); assert.equal(result.aiEditor.passed,false); assert.equal(typeof result.voiceDna.score,'number'); });
+test('creates a combined but sentence-targeted rewrite brief',()=>{ const prompt=rewritePrompt('Firstly, we leverage a holistic strategy.',profile); assert.match(prompt,/VoiceDNA/); assert.match(prompt,/AI Editor/); assert.match(prompt,/Sentence 1/); });
+test('post gate reports a new AI regression',()=>{ const result=verify('I ship clear ideas.','I ship clear ideas — a game-changer.',profile); assert.equal(result.passed,false); assert.ok(result.regressions.length>0); });
