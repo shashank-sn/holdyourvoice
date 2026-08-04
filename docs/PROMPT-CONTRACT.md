@@ -1,6 +1,6 @@
 # Tiered prompt contract
 
-`rewrite-prompt` does not ask a model to rewrite freely. It sends evidence in five tiers. A lower tier may refine a higher tier, but never override it.
+`rewrite-prompt` sends evidence in five tiers and leaves the writing to an editor or model outside the package. A lower tier may refine a higher tier, but never override it.
 
 ## Tier 0 — preservation
 
@@ -12,11 +12,11 @@ Red findings and the profile avoid list are non-negotiable. The brief shows each
 
 ## Tier 2 — VoiceDNA fidelity
 
-The profile supplies the 13 observable elements of the writer’s mechanics. These are targets, not a request to imitate quirks mechanically. The model repairs only flagged sentences while preserving deliberate variation.
+The profile supplies the 13 observable elements of the writer’s mechanics. Treat them as targets and preserve deliberate variation. The model repairs only flagged sentences.
 
 ## Tier 3 — AI Editor improvements
 
-Yellow findings are editorial opportunities: formulaic transitions, vague claims, manufactured contrast, and other repeatable patterns. They are not proof of AI use and do not justify changing a clean line.
+Yellow findings are editorial opportunities: formulaic transitions, vague claims, manufactured contrast, and other repeatable patterns. A match never proves AI use. Keep clean lines intact.
 
 ## Tier 4 — output contract
 

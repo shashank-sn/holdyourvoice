@@ -53,10 +53,10 @@ npm run build
 ### Build a local VoiceDNA profile
 
 ```bash
-node dist/cli.js profile profile.json samples/one.md samples/two.md
+node dist/cli.js profile profile.json samples/one.md samples/two.md --avoid=overused-phrase
 ```
 
-Use writing by one person, with a similar audience and format where possible. The command needs at least two samples. It creates a portable JSON profile and keeps the samples on your machine.
+Use writing by one person, with a similar audience and format where possible. The command needs at least two samples. It creates a portable JSON profile and keeps the samples on your machine. Repeat `--avoid=phrase` for each local phrase that must block a candidate.
 
 ### Inspect a draft
 
@@ -90,7 +90,7 @@ Give the brief and draft to a human editor or any model you trust. This reposito
 node dist/cli.js verify draft.md candidate.md profile.json
 ```
 
-`verify` reruns VoiceDNA and AI Editor, identifies newly introduced findings, calculates a coarse preservation score, and exits with status `2` when the candidate fails the dual gate. Treat that non-zero exit code as a release signal in scripts or CI.
+`verify` returns the original and candidate reports, identifies newly introduced findings, calculates a coarse preservation score, and exits with status `2` when the candidate fails the dual gate. It exits with `1` for a usage or runtime error. Treat status `2` as a release signal in scripts or CI.
 
 ## The editing loop
 
@@ -195,6 +195,7 @@ Every file argument can be `-` when the command accepts text input from standard
 | `src/pipeline.ts` | Combines pass states, makes briefs, and verifies candidates. |
 | `src/cli.ts` | Local file and standard-input command adapter. |
 | `src/pipeline.test.ts` | Contract and regression tests. |
+| `CONTRIBUTING.md` | Public-safety rules and the contributor model. |
 | `scripts/release-audit.mjs` | Checks source files for credential and network markers. |
 
 `pipeline.ts` is the sole composition point. It combines pass states and preserves each engine’s separate score.
@@ -231,7 +232,7 @@ npm test
 npm run check:release
 ```
 
-Keep changes narrow. Add tests when code behavior changes. Separate current executable behavior, editorial guidance, historical research, and proposals. Keep private, client, secret, and unlicensed material out of issues, fixtures, tests, and documentation.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep changes narrow. Add tests when code behavior changes. Separate current executable behavior, editorial guidance, historical research, and proposals. Keep private, client, secret, and unlicensed material out of issues, fixtures, tests, and documentation.
 
 ## Support
 
