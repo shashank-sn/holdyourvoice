@@ -1,5 +1,64 @@
-import type { Analysis, Profile, Verification } from './contracts.js'; import { analyzeAiEditor } from './ai-editor.js'; import { analyzeVoiceDna } from './voice-dna.js'; import { words } from './text.js';
-export function analyze(text:string, profile:Profile):Analysis { const voiceDna=analyzeVoiceDna(text,profile), aiEditor=analyzeAiEditor(text); return {version:'1',voiceDna,aiEditor,passed:voiceDna.passed&&aiEditor.passed}; }
-export function rewritePrompt(draft:string, profile:Profile):string { const result=analyze(draft,profile); const findings=[...result.voiceDna.findings,...result.aiEditor.findings]; return ['You are editing a draft. Preserve facts, names, numbers, and every unflagged sentence exactly.','',`VoiceDNA: ${result.voiceDna.score}/100 (${result.voiceDna.passed?'pass':'fail'}).`,`AI Editor: ${result.aiEditor.score}/100 (${result.aiEditor.passed?'pass':'fail'}).`,'','VOICE DNA CONSTRAINTS:',`- Target sentence length: ${profile.averageSentenceWords} words.`,...profile.avoid.map(x=>`- Never use: ${x}`),'','TARGETED FINDINGS:',...findings.map(f=>`- Sentence ${f.sentence} [${f.engine}/${f.id}]: ${f.reason} Repair: ${f.suggestion}`),'','Return only replacement sentences keyed by sentence number. Do not rewrite clean sentences.','',draft].join('\n'); }
-function preservation(original:string,candidate:string){ const a=new Set(words(original.toLowerCase()).filter(w=>w.length>4)), b=new Set(words(candidate.toLowerCase())); return a.size?Math.round([...a].filter(w=>b.has(w)).length/a.size*100):100; }
-export function verify(original:string,candidate:string,profile:Profile):Verification { const baseline=analyze(original,profile), checked=analyze(candidate,profile); const known=new Set([...baseline.voiceDna.findings,...baseline.aiEditor.findings].map(f=>`${f.engine}:${f.id}:${f.sentence}`)); const regressions=[...checked.voiceDna.findings,...checked.aiEditor.findings].filter(f=>!known.has(`${f.engine}:${f.id}:${f.sentence}`)); const preservationScore=preservation(original,candidate); return {...checked,preservationScore,regressions,passed:checked.passed&&regressions.filter(f=>f.severity==='red').length===0&&preservationScore>=70}; }
+import type { Analysis, Finding, Profile, Verification } from './contracts.js';
+import { analyzeAiEditor } from './ai-editor.js';
+import { analyzeVoiceDna } from './voice-dna.js';
+import { words } from './text.js';
+
+export function analyze(text: string, profile: Profile): Analysis {
+  const voiceDna = analyzeVoiceDna(text, profile);
+  const aiEditor = analyzeAiEditor(text);
+  return { version: '2', voiceDna, aiEditor, passed: voiceDna.passed && aiEditor.passed };
+}
+
+function formatFindings(findings: Finding[]): string[] {
+  return findings.map((finding) => `- Sentence ${finding.sentence} [${finding.engine}/${finding.id}]: ${finding.reason} Repair: ${finding.suggestion}`);
+}
+
+export function rewritePrompt(draft: string, profile: Profile): string {
+  const result = analyze(draft, profile);
+  const allFindings = [...result.voiceDna.findings, ...result.aiEditor.findings];
+  const redFindings = allFindings.filter((finding) => finding.severity === 'red');
+  const yellowFindings = allFindings.filter((finding) => finding.severity === 'yellow');
+  const metrics = profile.metrics;
+
+  return [
+    '# Tier 0 — non-negotiable preservation',
+    'Preserve facts, names, numbers, claims, and every unflagged sentence exactly. Do not add claims, examples, sections, hooks, or CTAs.',
+    '',
+    '# Tier 1 — release blockers',
+    `VoiceDNA: ${result.voiceDna.score}/100 (${result.voiceDna.passed ? 'pass' : 'fail'}).`,
+    `AI Editor: ${result.aiEditor.score}/100 (${result.aiEditor.passed ? 'pass' : 'fail'}).`,
+    ...profile.avoid.map((phrase) => `- Never use: ${phrase}`),
+    ...(redFindings.length ? formatFindings(redFindings) : ['- None.']),
+    '',
+    '# Tier 2 — VoiceDNA fidelity',
+    `- Sentence length: ${metrics.sentenceLength}; variation: ${metrics.sentenceVariation}; rhythm: ${metrics.rhythm}.`,
+    `- Paragraph length: ${metrics.paragraphLength}; casing: ${metrics.caseStyle}; point of view: ${metrics.pointOfView}.`,
+    `- Openings: ${metrics.openingMoves.join(', ') || 'none recorded'}.`,
+    `- Vocabulary: ${metrics.vocabulary.join(', ') || 'none recorded'}.`,
+    `- Transitions: ${metrics.transitions.join(', ') || 'none recorded'}.`,
+    '',
+    '# Tier 3 — AI Editor improvements',
+    ...(yellowFindings.length ? formatFindings(yellowFindings) : ['- None.']),
+    '',
+    '# Tier 4 — output contract',
+    'Return only replacement sentences keyed by sentence number. Do not rewrite clean sentences. The candidate will be checked again by both engines.',
+    '',
+    '# Draft',
+    draft,
+  ].join('\n');
+}
+
+function preservationScore(original: string, candidate: string): number {
+  const baseline = new Set(words(original.toLowerCase()).filter((word) => word.length > 4));
+  const rewritten = new Set(words(candidate.toLowerCase()));
+  return baseline.size ? Math.round([...baseline].filter((word) => rewritten.has(word)).length / baseline.size * 100) : 100;
+}
+
+export function verify(original: string, candidate: string, profile: Profile): Verification {
+  const baseline = analyze(original, profile);
+  const checked = analyze(candidate, profile);
+  const known = new Set([...baseline.voiceDna.findings, ...baseline.aiEditor.findings].map((finding) => `${finding.engine}:${finding.id}:${finding.sentence}`));
+  const regressions = [...checked.voiceDna.findings, ...checked.aiEditor.findings].filter((finding) => !known.has(`${finding.engine}:${finding.id}:${finding.sentence}`));
+  const preservation = preservationScore(original, candidate);
+  return { ...checked, preservationScore: preservation, regressions, passed: checked.passed && !regressions.some((finding) => finding.severity === 'red') && preservation >= 70 };
+}
