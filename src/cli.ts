@@ -1,0 +1,9 @@
+#!/usr/bin/env node
+import { readFileSync, writeFileSync } from 'node:fs'; import { buildProfile } from './voice-dna.js'; import { analyze, rewritePrompt, verify } from './pipeline.js'; import { rules } from './ai-editor.js'; import type { Profile } from './contracts.js';
+const [command,...args]=process.argv.slice(2); const input=(path:string)=>path==='-'?readFileSync(0,'utf8'):readFileSync(path,'utf8'); const profile=(path:string)=>JSON.parse(input(path)) as Profile; const json=(value:unknown)=>console.log(JSON.stringify(value,null,2));
+try { if(command==='profile'){ const [output,...samples]=args; if(!output||samples.length<2) throw new Error('Usage: holdyourvoice profile profile.json sample-a.md sample-b.md [sample-c.md]'); writeFileSync(output,JSON.stringify(buildProfile(samples.map(input)),null,2)+'\n'); }
+else if(command==='analyze'){ const [draft,profilePath]=args; if(!draft||!profilePath) throw new Error('Usage: holdyourvoice analyze draft.md profile.json'); json(analyze(input(draft),profile(profilePath))); }
+else if(command==='rewrite-prompt'){ const [draft,profilePath]=args; if(!draft||!profilePath) throw new Error('Usage: holdyourvoice rewrite-prompt draft.md profile.json'); console.log(rewritePrompt(input(draft),profile(profilePath))); }
+else if(command==='verify'){ const [original,candidate,profilePath]=args; if(!original||!candidate||!profilePath) throw new Error('Usage: holdyourvoice verify original.md candidate.md profile.json'); const result=verify(input(original),input(candidate),profile(profilePath)); json(result); if(!result.passed) process.exitCode=2; }
+else if(command==='patterns') json({version:'2026.08.04.1',rules:rules.map(({expression,...rule})=>({...rule,expression:expression.source}))});
+else console.log('Commands: profile, analyze, rewrite-prompt, verify, patterns'); } catch(error){ console.error(error instanceof Error?error.message:String(error)); process.exitCode=1; }
