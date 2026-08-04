@@ -33,7 +33,7 @@ flowchart TB
   G[Candidate] --> H[Dual post-rewrite gate]
 ```
 
-Read [the thesis](docs/THESIS.md), [architecture](docs/ARCHITECTURE.md), [VoiceDNA reference](docs/VOICE-DNA.md), [pattern taxonomy](docs/PATTERN-TAXONOMY.md), and [benchmark policy](docs/BENCHMARKS.md) before extending the gate.
+Read [the thesis](docs/THESIS.md), [architecture](docs/ARCHITECTURE.md), [VoiceDNA reference](docs/VOICE-DNA.md), the [full 220-pattern editorial catalog](docs/patterns/AI-WRITING-PATTERNS-1-220.md), [pattern taxonomy](docs/PATTERN-TAXONOMY.md), and [benchmark policy](docs/BENCHMARKS.md) before extending the gate.
 
 ## Privacy and data rights
 
