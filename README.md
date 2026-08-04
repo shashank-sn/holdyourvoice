@@ -1,65 +1,242 @@
 # Hold Your Voice
 
-An MIT-licensed, local-first writing gate that checks two different problems without blending them into one opaque score.
+Hold Your Voice is an MIT-licensed, local-first writing gate for people who want AI help without losing the parts of their writing that make it theirs.
 
-- **VoiceDNA** compares a draft with 13 observable elements from your local writing samples.
-- **AI Editor** flags versioned editorial patterns that make writing generic, formulaic, or needlessly inflated.
+It checks a draft through two separate programs:
 
-The output is a tiered rewrite brief. A candidate rewrite must pass both engines again before it is accepted.
+- **VoiceDNA** compares the draft with 13 observable elements from your own local writing samples.
+- **AI Editor** flags a small, versioned set of editorial patterns that can make writing generic, formulaic, or inflated.
 
-## What it does
+Those programs keep separate findings, scores, and pass states. A strong result from one never cancels a failure in the other. The tool creates a tiered editing brief, then checks the candidate again before you accept it.
 
-| Command | Outcome |
-| --- | --- |
-| `profile` | Builds a portable VoiceDNA JSON profile from two or more local samples. |
-| `analyze` | Returns separate VoiceDNA and AI Editor scores, findings, and pass states. |
-| `rewrite-prompt` | Produces a priority-ordered editing brief for your chosen model or human editor. |
-| `verify` | Rechecks a candidate, reports regressions, and exits non-zero when the dual gate fails. |
-| `patterns` | Prints the deterministic AI Editor rules currently enabled. |
+Everything runs from local files: accounts, API calls, MCP servers, telemetry, payment collection, and runtime network requests stay out of the core path.
 
-No account, API, MCP server, telemetry, payment collection, or network request is part of the runtime.
+> **Status:** this public source repository ships as a local development CLI. Build it locally and run `node dist/cli.js`; npm publication comes later.
 
-## Quick start
+## Why it exists
+
+A draft can avoid obvious AI-shaped writing and still sound unlike its author. It can also match a writer’s short sentences while leaning on empty persuasion templates. Those are different problems. Treating them as one generic score hides the useful signal.
+
+Hold Your Voice keeps the work visible:
+
+| Question | Program | Result |
+| --- | --- | --- |
+| Does the draft still resemble this writer’s observable mechanics? | VoiceDNA | A profile-based score, findings, and pass state. |
+| Does the draft contain a configured editorial pattern worth inspecting? | AI Editor | A rule-based score, sentence findings, and pass state. |
+| Did the rewrite introduce a new blocker or replace too much? | Verification | Regressions, preservation score, and a release decision. |
+
+Its scope is a local writing gate. Authorship detection, fact checking, plagiarism review, and hosted generation each need their own tools. Hold Your Voice gives a writer or chosen model a narrow editing brief, then asks the same two engines to inspect the result.
+
+## Start here
+
+### Requirements
+
+- Node.js 20 or newer.
+- npm.
+- At least two local writing samples you have the right to use.
+
+### Install and verify
 
 ```bash
+git clone https://github.com/shashank-sn/holdyourvoice.git
+cd holdyourvoice
 npm install
 npm test
-npx holdyourvoice profile profile.json samples/one.md samples/two.md
-npx holdyourvoice analyze draft.md profile.json
-npx holdyourvoice rewrite-prompt draft.md profile.json > rewrite-brief.md
-npx holdyourvoice verify draft.md candidate.md profile.json
 ```
 
-## The rewrite brief
+`npm test` compiles TypeScript and runs the contract tests. Build separately whenever you want to call the CLI directly:
 
-The prompt is deliberately ordered. Lower tiers never override a higher tier.
+```bash
+npm run build
+```
 
-1. **Tier 0 — preservation:** facts, names, numbers, and clean sentences stay intact.
-2. **Tier 1 — blockers:** avoid-list violations and red findings must be fixed.
-3. **Tier 2 — VoiceDNA:** 13 profile elements provide the writer-specific target.
-4. **Tier 3 — AI Editor:** yellow findings offer precise editorial improvements.
-5. **Tier 4 — output:** only targeted replacement sentences are returned.
+### Build a local VoiceDNA profile
 
-This is a prompt generator, not a hosted model. Bring any model or editor you trust, then run `verify` on the result. Read the [full prompt contract](docs/PROMPT-CONTRACT.md) before changing prompt order.
+```bash
+node dist/cli.js profile profile.json samples/one.md samples/two.md
+```
 
-## VoiceDNA
+Use writing by one person, with a similar audience and format where possible. The command needs at least two samples. It creates a portable JSON profile and keeps the samples on your machine.
 
-The profile captures sentence length, sentence variation, sentence structure, rhythm, paragraph length, opening moves, vocabulary, lexical density, point of view, punctuation, case style, question rate, and transitions. Read the full [VoiceDNA reference](docs/VOICE-DNA.md).
+### Inspect a draft
 
-## Pattern catalog and safe automation
+```bash
+node dist/cli.js analyze draft.md profile.json
+```
 
-The owner-authored [220-pattern editorial catalog](docs/patterns/AI-WRITING-PATTERNS-1-220.md) is the complete reference. It includes spotting tests, ugly escalations, and legitimate exceptions. It is not an AI-authorship detector.
+The result is JSON with independent reports:
 
-The automated ruleset is intentionally smaller: a catalog pattern becomes executable only after deduplication, counterexamples, public provenance review, and tests. That keeps the CLI honest about what it can reliably flag.
+```json
+{
+  "voiceDna": { "score": 93, "passed": true, "findings": [] },
+  "aiEditor": { "score": 88, "passed": true, "findings": [] },
+  "passed": true
+}
+```
 
-## Support
+Read both reports. The outer `passed` field means each engine passed. Scores remain independent.
 
-Hold Your Voice stays fully open source. [Sponsor its maintenance on GitHub](https://github.com/sponsors/shashank-sn) with a one-time or recurring sponsorship. Sponsorship does not unlock features, collect donor data here, or alter the privacy contract. See [SUPPORT.md](SUPPORT.md).
+### Create an editing brief
 
-## Contributing and design docs
+```bash
+node dist/cli.js rewrite-prompt draft.md profile.json > rewrite-brief.md
+```
 
-Read [the thesis](docs/THESIS.md), [architecture](docs/ARCHITECTURE.md), [pattern taxonomy](docs/PATTERN-TAXONOMY.md), [benchmark policy](docs/BENCHMARKS.md), and [SUPPORT.md](SUPPORT.md) before contributing.
+Give the brief and draft to a human editor or any model you trust. This repository stays out of that provider call. Ask for replacement sentences keyed by sentence number, then save the output as a separate candidate file.
+
+### Verify the candidate
+
+```bash
+node dist/cli.js verify draft.md candidate.md profile.json
+```
+
+`verify` reruns VoiceDNA and AI Editor, identifies newly introduced findings, calculates a coarse preservation score, and exits with status `2` when the candidate fails the dual gate. Treat that non-zero exit code as a release signal in scripts or CI.
+
+## The editing loop
+
+```mermaid
+flowchart LR
+  S[Your local samples] --> P[Build profile]
+  P --> D[VoiceDNA JSON]
+  T[Draft] --> A[Analyze]
+  D --> A
+  A --> V[VoiceDNA report]
+  A --> E[AI Editor report]
+  V --> B[Tiered brief]
+  E --> B
+  B --> C[Human or chosen model]
+  T --> G[Verify candidate]
+  C --> G
+  D --> G
+  G --> R[Pass or inspect regressions]
+```
+
+The tool never applies changes to your draft. You decide which findings are valid, apply replacement sentences deliberately, and run the final check.
+
+## The five rewrite tiers
+
+The prompt has an order. Lower tiers can refine a higher tier; they cannot override it.
+
+1. **Tier 0: preservation.** Keep facts, names, numbers, claims, and every unflagged sentence exactly. Keep the response within the supplied sentences.
+2. **Tier 1: release blockers.** Resolve profile avoid-list phrases and red findings.
+3. **Tier 2: VoiceDNA.** Use the 13 profile elements as a writer-specific target.
+4. **Tier 3: AI Editor.** Inspect yellow findings. Change a line only when the repair helps.
+5. **Tier 4: output.** Return replacement sentences keyed by sentence number.
+
+This order protects meaning before style. Read the complete [prompt contract](docs/PROMPT-CONTRACT.md) before changing it.
+
+## VoiceDNA: 13 observable elements
+
+VoiceDNA is a local profile of writing mechanics drawn from the samples you choose. It makes no claim about personality.
+
+| # | Element | What it captures | Current gate behavior |
+| --- | --- | --- | --- |
+| 1 | Sentence length | Mean words per sentence | Yellow finding outside the profile band. |
+| 2 | Sentence variation | Spread of sentence lengths | Used to set the sentence-length tolerance. |
+| 3 | Sentence structure | Frequent three-word openings | Profile evidence. |
+| 4 | Rhythm | Change between neighbouring sentence lengths | Profile evidence. |
+| 5 | Paragraph length | Mean sentences per paragraph | Profile evidence. |
+| 6 | Opening moves | Frequent first words | Profile evidence. |
+| 7 | Vocabulary | Frequent non-stop words | Profile evidence and rewrite context. |
+| 8 | Lexical density | Share of non-stop words | Profile evidence. |
+| 9 | Point of view | First, second, third, or mixed | Yellow finding for a dominant-profile mismatch. |
+| 10 | Punctuation | Counts of selected marks | Profile evidence. |
+| 11 | Case style | Lowercase, standard, or mixed | Yellow finding on mismatch. |
+| 12 | Question rate | Sentences ending in questions | Yellow finding for a material difference. |
+| 13 | Transitions | Frequent recognised connectors | Profile evidence and rewrite context. |
+
+An explicit profile avoid list creates red findings. The other evidence-only elements are calculated and shown. Future enforcement needs a written policy, counterexamples, and tests.
+
+Read the full [VoiceDNA reference](docs/VOICE-DNA.md) and [Wiki guide](https://github.com/shashank-sn/holdyourvoice/wiki/VoiceDNA).
+
+## AI Editor: inspectable rules
+
+AI Editor uses a local, deterministic ruleset. Each rule has a stable ID, severity, reason, and repair direction. Run this command to see the rules that actually execute in your checkout:
+
+```bash
+node dist/cli.js patterns
+```
+
+Red findings are release blockers. Yellow findings are a request to inspect a sentence in context. A match never proves who wrote the text, and a clean scan never proves the text is good.
+
+The repository also includes a public [220-pattern editorial catalog](docs/patterns/AI-WRITING-PATTERNS-1-220.md). That catalog is broader than the executable ruleset on purpose. A catalog entry becomes executable only after the project has defined its counterexamples, reviewed public provenance, written tests, and decided the rule is narrow enough to help without creating noise.
+
+## Verification contract
+
+Verification analyzes the original and candidate with the same profile and ruleset. It passes only when:
+
+- VoiceDNA passes.
+- AI Editor passes.
+- The candidate introduces zero new red findings.
+- The lexical preservation score is at least 70.
+
+The preservation score is a guardrail based on retained original words longer than four characters. A human still needs to review facts, source links, intent, and reader value.
+
+## Commands
+
+| Command | Input | Output | Use it when |
+| --- | --- | --- | --- |
+| `profile <profile.json> <sample...>` | Two or more text files | Profile JSON | You need a new local reference. |
+| `analyze <draft> <profile.json>` | Draft and profile | Analysis JSON | You need both reports before editing. |
+| `rewrite-prompt <draft> <profile.json>` | Draft and profile | Markdown editing brief | You need a constrained request for an editor or model. |
+| `verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code | You need the candidate gate. |
+| `patterns` | None | Ruleset JSON | You need the exact enabled rules. |
+
+Every file argument can be `-` when the command accepts text input from standard input. Profile output is always written to the path you give it.
+
+## Project map
+
+| Path | Responsibility |
+| --- | --- |
+| `src/contracts.ts` | Profiles, findings, reports, analysis, and verification data shapes. |
+| `src/text.ts` | Sentence, paragraph, word, and basic statistics helpers. |
+| `src/voice-dna.ts` | Builds profiles and runs VoiceDNA checks. |
+| `src/ai-editor.ts` | Owns the versioned deterministic editorial rules. |
+| `src/pipeline.ts` | Combines pass states, makes briefs, and verifies candidates. |
+| `src/cli.ts` | Local file and standard-input command adapter. |
+| `src/pipeline.test.ts` | Contract and regression tests. |
+| `scripts/release-audit.mjs` | Checks source files for credential and network markers. |
+
+`pipeline.ts` is the sole composition point. It combines pass states and preserves each engine’s separate score.
 
 ## Privacy and data rights
 
-Profiles are generated from files you choose and are never uploaded by this code. Do not commit client samples, edit history, embeddings, or any dataset without explicit rights and a provenance record.
+The runtime uses files on your machine. Samples, drafts, profiles, candidates, feedback history, embeddings, and client data stay there.
+
+Keep writing samples, edit histories, client text, embeddings, and datasets out of public commits unless you hold explicit rights and a provenance record. A profile is aggregated JSON and can still reveal vocabulary and preferences. Store private profiles outside public repositories.
+
+See the [privacy guide](https://github.com/shashank-sn/holdyourvoice/wiki/Privacy-and-Data-Rights) for maintainer and contributor boundaries.
+
+## Benchmarks and claims
+
+The repository preserves historical product material in [docs/BENCHMARKS.md](docs/BENCHMARKS.md), with related public articles about the [Voice Memory Composer](https://holdyourvoice.com/blog/voice-memory-composer) and [Hold Your Voice vs GPT-5.6 writing](https://holdyourvoice.com/blog/hold-your-voice-vs-gpt-5-6-writing).
+
+Treat those as dated reference material. A reproducible benchmark needs rights-cleared data, frozen settings, a published rubric, separate dimensions, and visible limitations. The [benchmark guide](https://github.com/shashank-sn/holdyourvoice/wiki/Benchmarks-and-Research) explains the standard.
+
+## Documentation
+
+| Read this | When you need |
+| --- | --- |
+| [The complete Wiki](https://github.com/shashank-sn/holdyourvoice/wiki) | Product, workflow, and contributor documentation. |
+| [Thesis](docs/THESIS.md) | The design argument for two independent engines. |
+| [Architecture](docs/ARCHITECTURE.md) | Source boundaries and extension rules. |
+| [Prompt contract](docs/PROMPT-CONTRACT.md) | The tier order and editing constraints. |
+| [Pattern taxonomy](docs/PATTERN-TAXONOMY.md) | The catalog/executable-rule boundary. |
+| [Support](SUPPORT.md) | Funding without a feature gate. |
+
+## Contribute
+
+```bash
+npm test
+npm run check:release
+```
+
+Keep changes narrow. Add tests when code behavior changes. Separate current executable behavior, editorial guidance, historical research, and proposals. Keep private, client, secret, and unlicensed material out of issues, fixtures, tests, and documentation.
+
+## Support
+
+Hold Your Voice stays fully open source. [Sponsor maintenance on GitHub](https://github.com/sponsors/shashank-sn) with a one-time or recurring sponsorship. Sponsorship funds maintenance while the feature set and local privacy contract remain the same for everyone.
+
+## License
+
+[MIT](LICENSE). You can use, modify, and distribute the code under its terms. Third-party writing and data retain their own rights.
