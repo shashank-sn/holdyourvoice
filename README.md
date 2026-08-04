@@ -236,7 +236,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep chan
 
 ## Support
 
-Hold Your Voice stays fully open source. [Sponsor maintenance on GitHub](https://github.com/sponsors/shashank-sn) with a one-time or recurring sponsorship. Sponsorship funds maintenance while the feature set and local privacy contract remain the same for everyone.
+Hold Your Voice stays fully open source. Read the [funding policy](FUNDING.md) or [sponsor maintenance on GitHub](https://github.com/sponsors/shashank-sn) with a one-time or recurring sponsorship. Sponsorship funds maintenance while the feature set and local privacy contract remain the same for everyone.
 
 ## License
 
