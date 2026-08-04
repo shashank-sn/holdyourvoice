@@ -127,7 +127,7 @@ This order protects meaning before style. Read the complete [prompt contract](do
 
 ## VoiceDNA: 13 observable elements
 
-VoiceDNA is a local profile of writing mechanics drawn from the samples you choose. It makes no claim about personality.
+VoiceDNA is a local profile of writing mechanics drawn from the samples you choose. It makes no claim about personality. Its structural measurements support Unicode writing; the current point-of-view and transition lists are English-specific evidence.
 
 | # | Element | What it captures | Current gate behavior |
 | --- | --- | --- | --- |

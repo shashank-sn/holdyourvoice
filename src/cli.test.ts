@@ -99,3 +99,24 @@ test('rejects malformed profile enum values and punctuation', () => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test('rejects hand-edited metrics outside their semantic bounds', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
+  try {
+    const first = join(directory, 'first.md');
+    const second = join(directory, 'second.md');
+    const profile = join(directory, 'profile.json');
+    const draft = join(directory, 'draft.md');
+    writeFileSync(first, 'i write plainly.');
+    writeFileSync(second, 'i name the work.');
+    writeFileSync(draft, 'i name the work.');
+    assert.equal(run('profile', profile, first, second).status, 0);
+    const malformed = JSON.parse(readFileSync(profile, 'utf8'));
+    malformed.sampleCount = 2.5;
+    malformed.metrics.questionRate = 1.2;
+    writeFileSync(profile, JSON.stringify(malformed));
+    assert.equal(run('analyze', draft, profile).status, 1);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
