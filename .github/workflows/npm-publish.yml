@@ -1,0 +1,60 @@
+name: Publish npm package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - package-lock.json
+      - src/**
+      - Readme.md
+      - LICENSE
+      - .github/workflows/npm-publish.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm test
+      - run: npm run check:release
+      - name: Check whether this version is already published
+        id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "@holdyourvoice/hyv@${version}" version 2>/dev/null | grep -qxF "$version"; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish version
+        if: steps.version.outputs.publish == 'true'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Verify registry package
+        run: |
+          version=$(node -p "require('./package.json').version")
+          for attempt in 1 2 3 4 5 6; do
+            if npm view "@holdyourvoice/hyv@${version}" version 2>/dev/null | grep -qxF "$version" \
+              && test "$(npm view "@holdyourvoice/hyv@${version}" license)" = "MIT"; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "npm did not expose @holdyourvoice/hyv@${version} with an MIT license"
+          exit 1

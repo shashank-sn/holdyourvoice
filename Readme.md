@@ -11,7 +11,7 @@ Those programs keep separate findings, scores, and pass states. A strong result 
 
 Everything runs from local files: accounts, API calls, MCP servers, telemetry, payment collection, and runtime network requests stay out of the core path.
 
-> **Status:** this public source repository ships as a local development CLI. Build it locally and run `node dist/cli.js`; npm publication comes later.
+> **Status:** the public CLI is published as [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv). It runs locally and makes no runtime network requests.
 
 ## Why it exists
 
@@ -38,22 +38,22 @@ Its scope is a local writing gate. Authorship detection, fact checking, plagiari
 ### Install and verify
 
 ```bash
-git clone https://github.com/shashank-sn/holdyourvoice.git
-cd holdyourvoice
-npm install
-npm test
+npx @holdyourvoice/hyv patterns
 ```
 
-`npm test` compiles TypeScript and runs the contract tests. Build separately whenever you want to call the CLI directly:
+Run any command without a global install with `npx @holdyourvoice/hyv`. To use the short `hyv` command repeatedly:
 
 ```bash
-npm run build
+npm install --global @holdyourvoice/hyv
+hyv patterns
 ```
+
+To contribute, clone this repository, run `npm install`, then run `npm test` and `npm run check:release`.
 
 ### Build a local VoiceDNA profile
 
 ```bash
-node dist/cli.js profile profile.json samples/one.md samples/two.md --avoid=overused-phrase
+npx @holdyourvoice/hyv profile profile.json samples/one.md samples/two.md --avoid=overused-phrase
 ```
 
 Use writing by one person, with a similar audience and format where possible. The command needs at least two samples. It creates a portable JSON profile and keeps the samples on your machine. Repeat `--avoid=phrase` for each local phrase that must block a candidate.
@@ -61,7 +61,7 @@ Use writing by one person, with a similar audience and format where possible. Th
 ### Inspect a draft
 
 ```bash
-node dist/cli.js analyze draft.md profile.json
+npx @holdyourvoice/hyv analyze draft.md profile.json
 ```
 
 The result is JSON with independent reports:
@@ -79,7 +79,7 @@ Read both reports. The outer `passed` field means each engine passed. Scores rem
 ### Create an editing brief
 
 ```bash
-node dist/cli.js rewrite-prompt draft.md profile.json > rewrite-brief.md
+npx @holdyourvoice/hyv rewrite-prompt draft.md profile.json > rewrite-brief.md
 ```
 
 Give the brief and draft to a human editor or any model you trust. This repository stays out of that provider call. Ask for replacement sentences keyed by sentence number, then save the output as a separate candidate file.
@@ -87,7 +87,7 @@ Give the brief and draft to a human editor or any model you trust. This reposito
 ### Verify the candidate
 
 ```bash
-node dist/cli.js verify draft.md candidate.md profile.json
+npx @holdyourvoice/hyv verify draft.md candidate.md profile.json
 ```
 
 `verify` returns the original and candidate reports, identifies newly introduced findings, calculates a coarse preservation score, and exits with status `2` when the candidate fails the dual gate. It exits with `1` for a usage or runtime error. Treat status `2` as a release signal in scripts or CI.
@@ -154,7 +154,7 @@ Read the full [VoiceDNA reference](docs/VOICE-DNA.md) and [Wiki guide](https://g
 AI Editor uses a local, deterministic ruleset. Each rule has a stable ID, severity, reason, and repair direction. Run this command to see the rules that actually execute in your checkout:
 
 ```bash
-node dist/cli.js patterns
+npx @holdyourvoice/hyv patterns
 ```
 
 Red findings are release blockers. Yellow findings are a request to inspect a sentence in context. A match never proves who wrote the text, and a clean scan never proves the text is good.
@@ -176,13 +176,13 @@ The preservation score is a guardrail based on retained original words longer th
 
 | Command | Input | Output | Use it when |
 | --- | --- | --- | --- |
-| `profile <profile.json> <sample...>` | Two or more text files | Profile JSON | You need a new local reference. |
-| `analyze <draft> <profile.json>` | Draft and profile | Analysis JSON | You need both reports before editing. |
-| `rewrite-prompt <draft> <profile.json>` | Draft and profile | Markdown editing brief | You need a constrained request for an editor or model. |
-| `verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code | You need the candidate gate. |
-| `patterns` | None | Ruleset JSON | You need the exact enabled rules. |
+| `hyv profile <profile.json> <sample...>` | Two or more text files | Profile JSON | You need a new local reference. |
+| `hyv analyze <draft> <profile.json>` | Draft and profile | Analysis JSON | You need both reports before editing. |
+| `hyv rewrite-prompt <draft> <profile.json>` | Draft and profile | Markdown editing brief | You need a constrained request for an editor or model. |
+| `hyv verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code | You need the candidate gate. |
+| `hyv patterns` | None | Ruleset JSON | You need the exact enabled rules. |
 
-Every file argument can be `-` when the command accepts text input from standard input. Profile output is always written to the path you give it.
+Every file argument can be `-` when the command accepts text input from standard input. Profile output is always written to the path you give it. Use `npx @holdyourvoice/hyv <command>` in place of `hyv <command>` when you have not installed the CLI globally.
 
 ## Project map
 
@@ -233,6 +233,10 @@ npm run check:release
 ```
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep changes narrow. Add tests when code behavior changes. Separate current executable behavior, editorial guidance, historical research, and proposals. Keep private, client, secret, and unlicensed material out of issues, fixtures, tests, and documentation.
+
+## npm releases
+
+`@holdyourvoice/hyv` is published automatically after a change to the package source reaches `main`. The workflow publishes only when the version in `package.json` is not already on npm, so bump that version in the same pull request as a release-worthy change. It runs the tests and release audit before publishing, then verifies that npm reports the package as MIT licensed.
 
 ## Support
 
