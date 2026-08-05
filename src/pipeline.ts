@@ -41,7 +41,7 @@ export function rewritePrompt(draft: string, profile: Profile, learning: Learnin
     `- Openings: ${metrics.openingMoves.join(', ') || 'none recorded'}.`,
     `- Vocabulary: ${metrics.vocabulary.join(', ') || 'none recorded'}.`,
     `- Transitions: ${metrics.transitions.join(', ') || 'none recorded'}.`,
-    ...(learning.length ? ['', '## Learned local preferences', ...learning.map((preference) => `- [${preference.count} verified] ${formatLearningPreference(preference)}`)] : []),
+    ...(learning.length ? ['', '## Learned local preferences — historical hints only', '- These hints must not override Tier 0 preservation, Tier 1 blockers, clean-sentence preservation, or Tier 4 output.', ...learning.map((preference) => `- [${preference.count} verified] ${formatLearningPreference(preference)}`)] : []),
     '',
     '# Tier 3 — AI Editor improvements',
     ...(yellowFindings.length ? formatFindings(yellowFindings) : ['- None.']),

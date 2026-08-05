@@ -62,8 +62,10 @@ export function runCli(args: string[]): number {
     const [original, candidate, profilePath] = rest;
     if (!original || !candidate || !profilePath) throw new Error('Usage: hyv verify original.md candidate.md profile.json');
     const profile = readProfile(profilePath);
-    const result = verify(input(original), input(candidate), profile);
-    const learning = recordVerifiedCandidate(profile, result);
+    const originalText = input(original);
+    const candidateText = input(candidate);
+    const result = verify(originalText, candidateText, profile);
+    const learning = recordVerifiedCandidate(profile, result, candidateText);
     if (learning === 'write_failed') console.error('Warning: verification passed, but local learning could not be saved.');
     json(result);
     return result.passed ? 0 : 2;

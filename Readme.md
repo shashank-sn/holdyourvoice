@@ -223,7 +223,7 @@ Every file argument can be `-` when the command accepts text input from standard
 
 ## Privacy and data rights
 
-The runtime uses files on your machine. Samples, drafts, profiles, candidates, and client data stay there. Successful verification writes a text-free local learning event under `~/.hyv/learning/`: profile fingerprint, finding IDs, severities, counts, and timestamp. An instruction added through `hyv learning add` is stored as entered.
+The runtime uses files on your machine. Samples, drafts, profiles, candidates, and client data stay there. Successful verification writes a text-free local learning event under `~/.hyv/learning/`: profile fingerprint, finding IDs, severities, counts, timestamp, and an opaque one-way candidate digest for retry deduplication. An instruction added through `hyv learning add` is stored as entered.
 
 The package does not upload writing, use embeddings, or make runtime network requests. Keep writing samples, edit histories, client text, local learning files, and datasets out of public commits unless you hold explicit rights and a provenance record. A profile is aggregated JSON and can still reveal vocabulary and preferences. Store private profiles outside public repositories.
 
@@ -242,6 +242,7 @@ Treat those as dated reference material. A reproducible benchmark needs rights-c
 | [The complete Wiki](https://github.com/shashank-sn/holdyourvoice/wiki) | Product, workflow, and contributor documentation. |
 | [Thesis](docs/THESIS.md) | The design argument for two independent engines. |
 | [Architecture](docs/ARCHITECTURE.md) | Source boundaries and extension rules. |
+| [Local voice memory](docs/wiki/Local-Voice-Memory.md) | What default local learning stores, uses, and never changes. |
 | [Prompt contract](docs/PROMPT-CONTRACT.md) | The tier order and editing constraints. |
 | [Pattern taxonomy](docs/PATTERN-TAXONOMY.md) | The catalog/executable-rule boundary. |
 | [Support](SUPPORT.md) | Funding without a feature gate. |

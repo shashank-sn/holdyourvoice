@@ -59,6 +59,10 @@ function eventFile(profile: Profile, options: LearningOptions = {}): string {
   return join(learningDirectory(options), `${profileFingerprint(profile)}.jsonl`);
 }
 
+function normalizeInstruction(instruction: string): string {
+  return instruction.replace(/\s+/g, ' ').trim();
+}
+
 function isResolvedFinding(value: unknown): value is ResolvedFinding {
   if (!value || typeof value !== 'object') return false;
   const finding = value as Partial<ResolvedFinding>;
@@ -72,8 +76,9 @@ function parseEvent(line: string): LearningEvent | undefined {
   try {
     const event = JSON.parse(line) as Partial<LearningEvent>;
     if (!event || event.version !== '1' || typeof event.timestamp !== 'string') return undefined;
-    if (event.kind === 'instruction' && typeof event.instruction === 'string' && event.instruction.trim().length > 0 && event.instruction.length <= MAX_INSTRUCTION_CHARACTERS) {
-      return { version: '1', timestamp: event.timestamp, kind: 'instruction', instruction: event.instruction };
+    if (event.kind === 'instruction' && typeof event.instruction === 'string') {
+      const instruction = normalizeInstruction(event.instruction);
+      if (instruction.length > 0 && instruction.length <= MAX_INSTRUCTION_CHARACTERS) return { version: '1', timestamp: event.timestamp, kind: 'instruction', instruction };
     }
     const resolved = event.resolved;
     if (event.kind === 'verified_candidate' && Array.isArray(resolved) && resolved.length > 0 && resolved.every(isResolvedFinding) && typeof event.outcome === 'string') {
@@ -114,6 +119,25 @@ function serialize(events: LearningEvent[]): string {
   return `${events.map((event) => JSON.stringify(event)).join('\n')}\n`;
 }
 
+function withCompactionLock<T>(file: string, operation: () => T): T | undefined {
+  const lock = `${file}.lock`;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      const descriptor = openSync(lock, 'wx', 0o600);
+      try {
+        return operation();
+      } finally {
+        closeSync(descriptor);
+        unlinkSync(lock);
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') return undefined;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    }
+  }
+  return undefined;
+}
+
 function appendEvent(profile: Profile, event: LearningEvent, options: LearningOptions = {}): boolean {
   try {
     const directory = learningDirectory(options);
@@ -123,9 +147,12 @@ function appendEvent(profile: Profile, event: LearningEvent, options: LearningOp
     const events = readEvents(profile, options);
     const needsCompaction = events.length >= MAX_EVENTS || (statSync(file, { throwIfNoEntry: false })?.size ?? 0) + Buffer.byteLength(line) > MAX_STORAGE_BYTES;
     if (needsCompaction) {
-      const retained = [...events, event].slice(-MAX_EVENTS);
-      while (Buffer.byteLength(serialize(retained)) > MAX_STORAGE_BYTES) retained.shift();
-      writeFileSync(file, serialize(retained), { encoding: 'utf8', mode: 0o600 });
+      const compacted = withCompactionLock(file, () => {
+        const retained = [...readEvents(profile, options), event].slice(-MAX_EVENTS);
+        while (Buffer.byteLength(serialize(retained)) > MAX_STORAGE_BYTES) retained.shift();
+        writeFileSync(file, serialize(retained), { encoding: 'utf8', mode: 0o600 });
+      });
+      if (compacted === undefined) return false;
     } else {
       appendFileSync(file, line, { encoding: 'utf8', mode: 0o600 });
     }
@@ -146,23 +173,23 @@ function countFindings(findings: Finding[]): Map<string, { finding: Finding; cou
   return counted;
 }
 
-export function recordVerifiedCandidate(profile: Profile, verification: Verification, options: LearningOptions = {}): LearningCaptureStatus {
+export function recordVerifiedCandidate(profile: Profile, verification: Verification, candidate: string, options: LearningOptions = {}): LearningCaptureStatus {
   if (!verification.passed) return 'nothing_to_learn';
   const original = countFindings([...verification.original.voiceDna.findings, ...verification.original.aiEditor.findings]);
-  const candidate = countFindings([...verification.candidate.voiceDna.findings, ...verification.candidate.aiEditor.findings]);
+  const candidateFindings = countFindings([...verification.candidate.voiceDna.findings, ...verification.candidate.aiEditor.findings]);
   const resolved = [...original].flatMap(([key, entry]) => {
-    const count = entry.count - (candidate.get(key)?.count ?? 0);
+    const count = entry.count - (candidateFindings.get(key)?.count ?? 0);
     return count > 0 ? [{ engine: entry.finding.engine, id: entry.finding.id, severity: entry.finding.severity, count }] : [];
   });
   if (!resolved.length) return 'nothing_to_learn';
   const bounded = resolved.slice(0, MAX_RESOLVED_FINDINGS);
-  const outcome = createHash('sha256').update(canonicalJson(bounded)).digest('hex');
+  const outcome = createHash('sha256').update(`${profileFingerprint(profile)}\0${candidate}`).digest('hex');
   if (readEvents(profile, options).some((event) => event.kind === 'verified_candidate' && event.outcome === outcome)) return 'nothing_to_learn';
   return appendEvent(profile, { version: '1', timestamp: new Date().toISOString(), kind: 'verified_candidate', resolved: bounded, outcome }, options) ? 'recorded' : 'write_failed';
 }
 
 export function addLearningInstruction(profile: Profile, instruction: string, options: LearningOptions = {}): boolean {
-  const trimmed = instruction.replace(/\s+/g, ' ').trim();
+  const trimmed = normalizeInstruction(instruction);
   if (!trimmed) throw new Error('Learning instructions cannot be empty.');
   if (trimmed.length > MAX_INSTRUCTION_CHARACTERS) throw new Error(`Learning instructions must be ${MAX_INSTRUCTION_CHARACTERS} characters or fewer.`);
   return appendEvent(profile, { version: '1', timestamp: new Date().toISOString(), kind: 'instruction', instruction: trimmed }, options);

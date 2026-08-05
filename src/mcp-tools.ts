@@ -28,7 +28,7 @@ export function rewritePromptForMcp(draft: string, profileJson: string, options:
 export function verifyForMcp(original: string, candidate: string, profileJson: string, options: LearningOptions = {}) {
   const profile = profileFromJson(profileJson);
   const result = verify(original, candidate, profile);
-  return { ...result, learning: recordVerifiedCandidate(profile, result, options) };
+  return { ...result, learning: recordVerifiedCandidate(profile, result, candidate, options) };
 }
 
 export function patternsForMcp() {

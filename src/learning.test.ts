@@ -23,7 +23,7 @@ test('records only resolved findings from successful verification without draft 
     const candidate = 'I use the answer with useful detail and clear mechanism.';
     const result = verify(original, candidate, profile);
     assert.equal(result.passed, true);
-    assert.equal(recordVerifiedCandidate(profile, result, { root }), 'recorded');
+    assert.equal(recordVerifiedCandidate(profile, result, candidate, { root }), 'recorded');
 
     const eventFile = join(root, 'learning', `${profileFingerprint(profile)}.jsonl`);
     const stored = readFileSync(eventFile, 'utf8');
@@ -56,7 +56,7 @@ test('does not create an event for a failed candidate and clears a single profil
   try {
     const failed = verify('I name the work.', 'I leverage the work.', profile);
     assert.equal(failed.passed, false);
-    assert.equal(recordVerifiedCandidate(profile, failed, { root }), 'nothing_to_learn');
+    assert.equal(recordVerifiedCandidate(profile, failed, 'I leverage the work.', { root }), 'nothing_to_learn');
     assert.equal(existsSync(join(root, 'learning', `${profileFingerprint(profile)}.jsonl`)), false);
 
     addLearningInstruction(profile, 'Keep it direct.', { root });
@@ -93,10 +93,25 @@ test('skips malformed local events without breaking composition', () => {
 test('does not raise confidence when the same verified outcome repeats', () => {
   const root = directory();
   try {
-    const result = verify('I leverage the answer with useful detail and clear mechanism.', 'I use the answer with useful detail and clear mechanism.', profile);
-    assert.equal(recordVerifiedCandidate(profile, result, { root }), 'recorded');
-    assert.equal(recordVerifiedCandidate(profile, result, { root }), 'nothing_to_learn');
+    const original = 'I leverage the answer with useful detail and clear mechanism.';
+    const candidate = 'I use the answer with useful detail and clear mechanism.';
+    const result = verify(original, candidate, profile);
+    assert.equal(recordVerifiedCandidate(profile, result, candidate, { root }), 'recorded');
+    assert.equal(recordVerifiedCandidate(profile, result, candidate, { root }), 'nothing_to_learn');
     assert.equal(composeLearning(profile, { root }).find((item) => item.text.includes('ai_editor/ai.leverage'))?.count, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('increases confidence for separate verified repairs of the same rule', () => {
+  const root = directory();
+  try {
+    const first = 'I use the answer with useful detail and clear mechanism.';
+    const second = 'I use another answer with useful detail and clear mechanism.';
+    assert.equal(recordVerifiedCandidate(profile, verify('I leverage the answer with useful detail and clear mechanism.', first, profile), first, { root }), 'recorded');
+    assert.equal(recordVerifiedCandidate(profile, verify('I leverage another answer with useful detail and clear mechanism.', second, profile), second, { root }), 'recorded');
+    assert.equal(composeLearning(profile, { root }).find((item) => item.text.includes('ai_editor/ai.leverage'))?.count, 2);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
