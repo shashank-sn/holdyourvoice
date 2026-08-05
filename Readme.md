@@ -2,8 +2,11 @@
 
 [![npm downloads](https://img.shields.io/npm/dt/%40holdyourvoice%2Fhyv?label=npm%20downloads&color=2f81f7)](https://www.npmjs.com/package/@holdyourvoice/hyv)
 
+> **Keep your writing voice when you use AI.**
+>
+> Hold Your Voice is a local-first writing gate for people who want AI help without publishing generic copy or losing the mechanics that make their writing theirs.
 
-Hold Your Voice is an MIT-licensed, local-first writing gate for people who want AI help without losing the parts of their writing that make it theirs.
+It is MIT-licensed and checks two different problems: a draft can sound unlike you, and it can lean on empty AI-shaped writing even when it mimics your sentence length.
 
 It checks a draft through two separate programs:
 
@@ -15,6 +18,18 @@ Those programs keep separate findings, scores, and pass states. A strong result 
 Everything runs from local files: accounts, API calls, MCP servers, telemetry, payment collection, and runtime network requests stay out of the core path.
 
 > **Status:** the public CLI is published as [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv). It runs locally and makes no runtime network requests.
+
+## Before → after
+
+**Before — a generic candidate**
+
+> In today’s fast-paced world, this powerful approach unlocks new possibilities and helps teams thrive.
+
+**After — a specific candidate**
+
+> We stopped treating every update like a launch. The useful work was smaller: name the trade-off, make the call, ship it.
+
+Treat the pair as an illustrative edit. Voice is writer-specific: the target comes from local samples. You or a model you choose make the replacement. Hold Your Voice creates the constrained editing brief, then checks the candidate against the writer’s local VoiceDNA profile and its separate AI Editor rules.
 
 ## Why it exists
 
