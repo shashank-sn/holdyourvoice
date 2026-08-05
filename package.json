@@ -1,6 +1,6 @@
 {
   "name": "@holdyourvoice/hyv",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "A local-first dual-engine writing gate that protects voice and catches generic AI patterns.",
   "type": "module",
   "bin": { "hyv": "dist/cli.js" },
