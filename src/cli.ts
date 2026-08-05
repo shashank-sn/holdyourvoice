@@ -2,11 +2,12 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { rules, RULESET_VERSION } from './ai-editor.js';
 import type { Profile } from './contracts.js';
+import { addLearningInstruction, clearLearning, composeLearning, profileFingerprint, recordVerifiedCandidate } from './learning.js';
 import { analyze, rewritePrompt, verify } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { buildProfile } from './voice-dna.js';
 
-const usage = 'Commands: profile, analyze, rewrite-prompt, verify, patterns, mcp';
+const usage = 'Commands: profile, analyze, rewrite-prompt, verify, learning, patterns, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -53,15 +54,41 @@ export async function runCli(args: string[]): Promise<number> {
   if (command === 'rewrite-prompt') {
     const [draft, profilePath] = rest;
     if (!draft || !profilePath) throw new Error('Usage: hyv rewrite-prompt draft.md profile.json');
-    console.log(rewritePrompt(input(draft), readProfile(profilePath)));
+    const profile = readProfile(profilePath);
+    console.log(rewritePrompt(input(draft), profile, composeLearning(profile)));
     return 0;
   }
   if (command === 'verify') {
     const [original, candidate, profilePath] = rest;
     if (!original || !candidate || !profilePath) throw new Error('Usage: hyv verify original.md candidate.md profile.json');
-    const result = verify(input(original), input(candidate), readProfile(profilePath));
+    const profile = readProfile(profilePath);
+    const originalText = input(original);
+    const candidateText = input(candidate);
+    const result = verify(originalText, candidateText, profile);
+    const learning = recordVerifiedCandidate(profile, result, candidateText);
+    if (learning === 'write_failed') console.error('Warning: verification passed, but local learning could not be saved.');
     json(result);
     return result.passed ? 0 : 2;
+  }
+  if (command === 'learning') {
+    const [action, profilePath, ...instruction] = rest;
+    if (!action || !profilePath) throw new Error('Usage: hyv learning <show|add|clear> profile.json [instruction]');
+    const profile = readProfile(profilePath);
+    if (action === 'show') {
+      json({ profile: profileFingerprint(profile), preferences: composeLearning(profile) });
+      return 0;
+    }
+    if (action === 'add') {
+      const text = instruction.join(' ').trim();
+      if (!text) throw new Error('Usage: hyv learning add profile.json "instruction"');
+      json({ added: addLearningInstruction(profile, text) });
+      return 0;
+    }
+    if (action === 'clear') {
+      json({ cleared: clearLearning(profile) });
+      return 0;
+    }
+    throw new Error('Usage: hyv learning <show|add|clear> profile.json [instruction]');
   }
   if (command === 'patterns') {
     json({ version: RULESET_VERSION, rules: rules.map(({ expression, ...rule }) => ({ ...rule, expression: expression.source })) });

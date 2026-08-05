@@ -55,18 +55,7 @@ To contribute, clone this repository, run `npm install`, then run `npm test` and
 
 ### Use it in Claude Desktop
 
-Build the fully local Claude Desktop extension with `npm run pack:claude`, then install `dist/hold-your-voice.mcpb` from **Settings → Extensions → Advanced settings → Install Extension**. The extension accepts text and portable profile JSON in the current conversation only. It does not read or write files, make network requests, or retain writing. See the [Claude Desktop guide](docs/CLAUDE-DESKTOP.md).
-
-### Use it in Claude Code
-
-Hold Your Voice is also a free Claude Code plugin. It starts the same local MCP server through the public npm package; drafts, samples, and profiles stay on your machine.
-
-```text
-/plugin marketplace add shashank-sn/holdyourvoice
-/plugin install hold-your-voice@hold-your-voice
-```
-
-It requires Node.js 20 or newer and npm. See the [Claude Code guide](docs/CLAUDE-CODE.md).
+Build the fully local Claude Desktop extension with `npm run pack:claude`, then install `dist/hold-your-voice.mcpb` from **Settings → Extensions → Advanced settings → Install Extension**. The extension accepts text and portable profile JSON in the current conversation only. A successful verification records resolved finding IDs in local learning state; it never retains writing text or makes network requests. See the [Claude Desktop guide](docs/CLAUDE-DESKTOP.md).
 
 ### Build a local VoiceDNA profile
 
@@ -108,7 +97,19 @@ Give the brief and draft to a human editor or any model you trust. This reposito
 npx @holdyourvoice/hyv verify draft.md candidate.md profile.json
 ```
 
-`verify` returns the original and candidate reports, identifies newly introduced findings, calculates a coarse preservation score, and exits with status `2` when the candidate fails the dual gate. It exits with `1` for a usage or runtime error. Treat status `2` as a release signal in scripts or CI.
+`verify` returns the original and candidate reports, identifies newly introduced findings, calculates a coarse preservation score, and exits with status `2` when the candidate fails the dual gate. A passing verification automatically records only the resolved finding IDs for that profile in local learning state. It exits with `1` for a usage or runtime error. Treat status `2` as a release signal in scripts or CI.
+
+### Local voice memory
+
+Learning is on by default. After a successful `verify`, Hold Your Voice records resolved rule IDs under `~/.hyv/learning/`, scoped to a fingerprint of the portable profile. It stores no draft or candidate text. The next `rewrite-prompt` uses a bounded list of those verified repairs.
+
+```bash
+hyv learning show profile.json
+hyv learning add profile.json "Keep the direct opening."
+hyv learning clear profile.json
+```
+
+`show` lets you inspect the exact local preferences. `clear` removes only that profile's learning file. Set `HYV_HOME` to place this local state elsewhere.
 
 ## The editing loop
 
@@ -198,6 +199,7 @@ The preservation score is a guardrail based on retained original words longer th
 | `hyv analyze <draft> <profile.json>` | Draft and profile | Analysis JSON | You need both reports before editing. |
 | `hyv rewrite-prompt <draft> <profile.json>` | Draft and profile | Markdown editing brief | You need a constrained request for an editor or model. |
 | `hyv verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code | You need the candidate gate. |
+| `hyv learning <show\|add\|clear> <profile.json>` | Profile and optional instruction | Local learning JSON | You need to inspect or manage profile-scoped learning. |
 | `hyv patterns` | None | Ruleset JSON | You need the exact enabled rules. |
 
 Every file argument can be `-` when the command accepts text input from standard input. Profile output is always written to the path you give it. Use `npx @holdyourvoice/hyv <command>` in place of `hyv <command>` when you have not installed the CLI globally.
@@ -210,6 +212,7 @@ Every file argument can be `-` when the command accepts text input from standard
 | `src/text.ts` | Sentence, paragraph, word, and basic statistics helpers. |
 | `src/voice-dna.ts` | Builds profiles and runs VoiceDNA checks. |
 | `src/ai-editor.ts` | Owns the versioned deterministic editorial rules. |
+| `src/learning.ts` | Stores text-free, profile-scoped verified repairs and composes bounded local preferences. |
 | `src/pipeline.ts` | Combines pass states, makes briefs, and verifies candidates. |
 | `src/cli.ts` | Local file and standard-input command adapter. |
 | `src/pipeline.test.ts` | Contract and regression tests. |
@@ -220,9 +223,9 @@ Every file argument can be `-` when the command accepts text input from standard
 
 ## Privacy and data rights
 
-The runtime uses files on your machine. Samples, drafts, profiles, candidates, feedback history, embeddings, and client data stay there.
+The runtime uses files on your machine. Samples, drafts, profiles, candidates, and client data stay there. Successful verification writes a text-free local learning event under `~/.hyv/learning/`: profile fingerprint, finding IDs, severities, counts, timestamp, and an opaque one-way candidate digest for retry deduplication. An instruction added through `hyv learning add` is stored as entered.
 
-Keep writing samples, edit histories, client text, embeddings, and datasets out of public commits unless you hold explicit rights and a provenance record. A profile is aggregated JSON and can still reveal vocabulary and preferences. Store private profiles outside public repositories.
+The package does not upload writing, use embeddings, or make runtime network requests. Keep writing samples, edit histories, client text, local learning files, and datasets out of public commits unless you hold explicit rights and a provenance record. A profile is aggregated JSON and can still reveal vocabulary and preferences. Store private profiles outside public repositories.
 
 See the [privacy guide](https://github.com/shashank-sn/holdyourvoice/wiki/Privacy-and-Data-Rights) for maintainer and contributor boundaries.
 
@@ -239,6 +242,7 @@ Treat those as dated reference material. A reproducible benchmark needs rights-c
 | [The complete Wiki](https://github.com/shashank-sn/holdyourvoice/wiki) | Product, workflow, and contributor documentation. |
 | [Thesis](docs/THESIS.md) | The design argument for two independent engines. |
 | [Architecture](docs/ARCHITECTURE.md) | Source boundaries and extension rules. |
+| [Local voice memory](docs/wiki/Local-Voice-Memory.md) | What default local learning stores, uses, and never changes. |
 | [Prompt contract](docs/PROMPT-CONTRACT.md) | The tier order and editing constraints. |
 | [Pattern taxonomy](docs/PATTERN-TAXONOMY.md) | The catalog/executable-rule boundary. |
 | [Support](SUPPORT.md) | Funding without a feature gate. |

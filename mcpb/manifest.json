@@ -3,9 +3,9 @@
   "manifest_version": "0.4",
   "name": "hold-your-voice",
   "display_name": "Hold Your Voice",
-  "version": "3.0.2",
+  "version": "3.1.0",
   "description": "Keep your writing voice when you use Claude.",
-  "long_description": "A fully local writing gate for Claude Desktop. Build a VoiceDNA profile from your own samples, inspect a draft with separate VoiceDNA and AI Editor checks, create a constrained editing brief, and verify a revised candidate. The extension stores no drafts or samples and makes no network requests.",
+  "long_description": "A fully local writing gate for Claude Desktop. Build a VoiceDNA profile from your own samples, inspect a draft with separate VoiceDNA and AI Editor checks, create a constrained editing brief, and verify a revised candidate. A passing verification stores only resolved finding IDs in local profile-scoped learning state; it stores no drafts or samples and makes no network requests.",
   "author": {
     "name": "Shashank SN",
     "url": "https://github.com/shashank-sn"

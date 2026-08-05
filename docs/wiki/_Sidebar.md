@@ -16,6 +16,8 @@
 
 [verification and quality gates](Verification-and-Quality-Gates)
 
+[local voice memory](Local-Voice-Memory)
+
 [pattern catalog](Pattern-Catalog)
 
 [architecture](Architecture)

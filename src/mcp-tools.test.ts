@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import { analyzeForMcp, buildProfileForMcp, patternsForMcp, rewritePromptForMcp, verifyForMcp } from './mcp-tools.js';
 
@@ -17,10 +20,17 @@ test('keeps the dual-engine analysis shape through MCP tools', () => {
 });
 
 test('creates and verifies an editing loop through MCP tools', () => {
-  const brief = rewritePromptForMcp('I leverage a clear plan.', profileJson);
-  const result = verifyForMcp('I make the call.', 'I make the call.', profileJson);
-  assert.match(brief.prompt, /Tier 0/);
-  assert.equal(result.preservationScore, 100);
+  const root = mkdtempSync(join(tmpdir(), 'holdyourvoice-mcp-'));
+  try {
+    const result = verifyForMcp('I leverage the answer with useful detail and clear mechanism.', 'I use the answer with useful detail and clear mechanism.', profileJson, { root });
+    const brief = rewritePromptForMcp('I leverage a clear plan.', profileJson, { root });
+    assert.match(brief.prompt, /Tier 0/);
+    assert.match(brief.prompt, /Learned local preferences/);
+    assert.equal(result.preservationScore >= 70, true);
+    assert.equal(result.learning, 'recorded');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('exposes the executable pattern IDs through MCP tools', () => {
