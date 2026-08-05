@@ -9,7 +9,7 @@ import { profileFingerprint } from './learning.js';
 import { buildProfile } from './voice-dna.js';
 
 test('serves local Claude tools over stdio', async () => {
-  const server = spawn(process.execPath, [new URL('./mcp.js', import.meta.url).pathname], { stdio: ['pipe', 'pipe', 'pipe'] });
+  const server = spawn(process.execPath, [new URL('./cli.js', import.meta.url).pathname, 'mcp'], { stdio: ['pipe', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
   server.stdout.on('data', (chunk) => { stdout += chunk; });
@@ -32,7 +32,7 @@ test('uses default local learning through the registered MCP tools', async () =>
   const root = mkdtempSync(join(tmpdir(), 'holdyourvoice-mcp-server-'));
   try {
     const profile = buildProfile(['I write plainly. I name the work.', 'I keep the mechanism clear. I avoid filler.'], ['leverage']);
-    const server = spawn(process.execPath, [new URL('./mcp.js', import.meta.url).pathname], {
+    const server = spawn(process.execPath, [new URL('./cli.js', import.meta.url).pathname, 'mcp'], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, HYV_HOME: root },
     });

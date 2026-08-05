@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hold-your-voice": {
+      "command": "npm",
+      "args": ["exec", "--yes", "--package=@holdyourvoice/hyv@3.0.2", "--", "hyv", "mcp"]
+    }
+  }
+}

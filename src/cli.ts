@@ -7,7 +7,7 @@ import { analyze, rewritePrompt, verify } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { buildProfile } from './voice-dna.js';
 
-const usage = 'Commands: profile, analyze, rewrite-prompt, verify, learning, patterns';
+const usage = 'Commands: profile, analyze, rewrite-prompt, verify, learning, patterns, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -38,7 +38,7 @@ function profileArguments(args: string[]): { output: string; samples: string[]; 
   return { output, samples, avoid };
 }
 
-export function runCli(args: string[]): number {
+export async function runCli(args: string[]): Promise<number> {
   const [command, ...rest] = args;
   if (command === 'profile') {
     const { output, samples, avoid } = profileArguments(rest);
@@ -94,12 +94,19 @@ export function runCli(args: string[]): number {
     json({ version: RULESET_VERSION, rules: rules.map(({ expression, ...rule }) => ({ ...rule, expression: expression.source })) });
     return 0;
   }
+  if (command === 'mcp') {
+    if (rest.length > 0) throw new Error('Usage: hyv mcp');
+    await import('./mcp.js');
+    return 0;
+  }
   throw new Error(`${usage}.`);
 }
 
-try {
-  process.exitCode = runCli(process.argv.slice(2));
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-}
+void (async () => {
+  try {
+    process.exitCode = await runCli(process.argv.slice(2));
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  }
+})();
