@@ -62,7 +62,7 @@ function profileArguments(args: string[]): { output: string; samples: string[]; 
       samples.push(argument);
     }
   }
-  if (!output || samples.length < 2) throw new Error('Usage: holdyourvoice profile profile.json sample-a.md sample-b.md [sample-c.md] [--avoid=phrase]');
+  if (!output || samples.length < 2) throw new Error('Usage: hyv profile profile.json sample-a.md sample-b.md [sample-c.md] [--avoid=phrase]');
   return { output, samples, avoid };
 }
 
@@ -75,19 +75,19 @@ export function runCli(args: string[]): number {
   }
   if (command === 'analyze') {
     const [draft, profilePath] = rest;
-    if (!draft || !profilePath) throw new Error('Usage: holdyourvoice analyze draft.md profile.json');
+    if (!draft || !profilePath) throw new Error('Usage: hyv analyze draft.md profile.json');
     json(analyze(input(draft), readProfile(profilePath)));
     return 0;
   }
   if (command === 'rewrite-prompt') {
     const [draft, profilePath] = rest;
-    if (!draft || !profilePath) throw new Error('Usage: holdyourvoice rewrite-prompt draft.md profile.json');
+    if (!draft || !profilePath) throw new Error('Usage: hyv rewrite-prompt draft.md profile.json');
     console.log(rewritePrompt(input(draft), readProfile(profilePath)));
     return 0;
   }
   if (command === 'verify') {
     const [original, candidate, profilePath] = rest;
-    if (!original || !candidate || !profilePath) throw new Error('Usage: holdyourvoice verify original.md candidate.md profile.json');
+    if (!original || !candidate || !profilePath) throw new Error('Usage: hyv verify original.md candidate.md profile.json');
     const result = verify(input(original), input(candidate), readProfile(profilePath));
     json(result);
     return result.passed ? 0 : 2;
