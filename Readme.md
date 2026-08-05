@@ -1,5 +1,8 @@
 # Hold Your Voice
 
+[![npm downloads](https://img.shields.io/npm/dt/%40holdyourvoice%2Fhyv?label=npm%20downloads&color=2f81f7)](https://www.npmjs.com/package/@holdyourvoice/hyv)
+
+
 Hold Your Voice is an MIT-licensed, local-first writing gate for people who want AI help without losing the parts of their writing that make it theirs.
 
 It checks a draft through two separate programs:
