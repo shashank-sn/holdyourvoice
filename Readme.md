@@ -12,7 +12,7 @@ It checks a draft through two separate programs:
 
 Those programs keep separate findings, scores, and pass states. A strong result from one never cancels a failure in the other. The tool creates a tiered editing brief, then checks the candidate again before you accept it.
 
-Everything runs from local files: accounts, API calls, MCP servers, telemetry, payment collection, and runtime network requests stay out of the core path.
+Everything in the CLI runs from local files: accounts, API calls, telemetry, payment collection, and runtime network requests stay out of the core path. The optional Claude extension adds a local stdio MCP adapter around that same engine; it is not a hosted service.
 
 > **Status:** the public CLI is published as [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv). It runs locally and makes no runtime network requests.
 
@@ -52,6 +52,10 @@ hyv patterns
 ```
 
 To contribute, clone this repository, run `npm install`, then run `npm test` and `npm run check:release`.
+
+### Use it in Claude Desktop
+
+Build the fully local Claude Desktop extension with `npm run pack:claude`, then install `dist/hold-your-voice.mcpb` from **Settings → Extensions → Advanced settings → Install Extension**. The extension accepts text and portable profile JSON in the current conversation only. It does not read or write files, make network requests, or retain writing. See the [Claude Desktop guide](docs/CLAUDE-DESKTOP.md).
 
 ### Build a local VoiceDNA profile
 
