@@ -1,0 +1,27 @@
+name: Publish Claude Desktop extension
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  attach-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run check:release
+      - run: npm run pack:claude
+      - run: gh release upload "${{ github.event.release.tag_name }}" dist/hold-your-voice.mcpb --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}

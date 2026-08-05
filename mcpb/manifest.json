@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/mcpb/main/schemas/mcpb-manifest-v0.4.schema.json",
+  "manifest_version": "0.4",
+  "name": "hold-your-voice",
+  "display_name": "Hold Your Voice",
+  "version": "3.0.1",
+  "description": "Keep your writing voice when you use Claude.",
+  "long_description": "A fully local writing gate for Claude Desktop. Build a VoiceDNA profile from your own samples, inspect a draft with separate VoiceDNA and AI Editor checks, create a constrained editing brief, and verify a revised candidate. The extension stores no drafts or samples and makes no network requests.",
+  "author": {
+    "name": "Shashank SN",
+    "url": "https://github.com/shashank-sn"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/shashank-sn/holdyourvoice",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shashank-sn/holdyourvoice.git"
+  },
+  "documentation": "https://github.com/shashank-sn/holdyourvoice/blob/main/docs/CLAUDE-DESKTOP.md",
+  "privacy_policies": [
+    "https://github.com/shashank-sn/holdyourvoice/blob/main/docs/wiki/Privacy-and-Data-Rights.md"
+  ],
+  "keywords": ["writing", "voice", "editing", "local-first", "privacy"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"]
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=20"
+    }
+  }
+}
