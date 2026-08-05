@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "hold-your-voice",
+  "description": "Local-first writing tools for Claude Code.",
+  "owner": {
+    "name": "Shashank SN"
+  },
+  "plugins": [
+    {
+      "name": "hold-your-voice",
+      "source": "./claude-plugin",
+      "description": "Keep a writer's voice while using Claude.",
+      "version": "3.0.2",
+      "author": {
+        "name": "Shashank SN"
+      }
+    }
+  ]
+}

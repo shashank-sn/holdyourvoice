@@ -57,6 +57,17 @@ To contribute, clone this repository, run `npm install`, then run `npm test` and
 
 Build the fully local Claude Desktop extension with `npm run pack:claude`, then install `dist/hold-your-voice.mcpb` from **Settings → Extensions → Advanced settings → Install Extension**. The extension accepts text and portable profile JSON in the current conversation only. It does not read or write files, make network requests, or retain writing. See the [Claude Desktop guide](docs/CLAUDE-DESKTOP.md).
 
+### Use it in Claude Code
+
+Hold Your Voice is also a free Claude Code plugin. It starts the same local MCP server through the public npm package; drafts, samples, and profiles stay on your machine.
+
+```text
+/plugin marketplace add shashank-sn/holdyourvoice
+/plugin install hold-your-voice@hold-your-voice
+```
+
+It requires Node.js 20 or newer and npm. See the [Claude Code guide](docs/CLAUDE-CODE.md).
+
 ### Build a local VoiceDNA profile
 
 ```bash

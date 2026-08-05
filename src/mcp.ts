@@ -16,7 +16,7 @@ function failure(error: unknown) {
   return { content: [{ type: 'text' as const, text: error instanceof Error ? error.message : String(error) }], isError: true };
 }
 
-const server = new McpServer({ name: 'hold-your-voice', version: '3.0.1' });
+const server = new McpServer({ name: 'hold-your-voice', version: '3.0.2' });
 
 server.registerTool('hyv_build_profile', {
   description: 'Build a portable VoiceDNA profile from at least two writing samples. The samples stay in memory and are not saved.',

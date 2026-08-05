@@ -48,6 +48,7 @@ test('uses exit code 2 for a failed candidate gate and 1 for misuse', () => {
     assert.equal(verification.status, 2);
     assert.deepEqual(Object.keys(JSON.parse(verification.stdout)).sort(), ['candidate', 'original', 'passed', 'preservationScore', 'regressions', 'version']);
     assert.equal(run('unknown-command').status, 1);
+    assert.equal(run('mcp', 'unexpected').status, 1);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
