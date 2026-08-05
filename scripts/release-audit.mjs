@@ -21,7 +21,22 @@ function urls(text) {
   return [...text.matchAll(/https?:\/\/[^\s)'"<>]+/g)].map((match) => match[0]);
 }
 
+const packageManifest = JSON.parse(readFileSync('package.json', 'utf8'));
+const mitLicense = readFileSync('LICENSE', 'utf8');
+const mitRequiredClauses = [
+  'Permission is hereby granted, free of charge, to any person obtaining a copy',
+  'The above copyright notice and this permission notice shall be included in all',
+  'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND',
+];
+
 const failures = [];
+if (packageManifest.license !== 'MIT') failures.push('package.json must declare the MIT license');
+if (!Array.isArray(packageManifest.files) || !packageManifest.files.includes('LICENSE')) {
+  failures.push('npm package must include LICENSE');
+}
+for (const clause of mitRequiredClauses) {
+  if (!mitLicense.includes(clause)) failures.push(`LICENSE is missing an MIT-required clause: ${clause}`);
+}
 for (const file of candidateFiles()) {
   if (forbiddenPaths.some((pattern) => pattern.test(file))) failures.push(`private or secret-bearing path: ${file}`);
   if (!textExtensions.has(extname(file))) continue;
