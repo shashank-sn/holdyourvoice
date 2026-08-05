@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin.json",
+  "name": "hold-your-voice",
+  "displayName": "Hold Your Voice",
+  "version": "3.0.2",
+  "description": "A local-first writing gate that checks VoiceDNA and AI-editor patterns separately.",
+  "author": {
+    "name": "Shashank SN",
+    "url": "https://github.com/shashank-sn"
+  },
+  "homepage": "https://github.com/shashank-sn/holdyourvoice",
+  "repository": "https://github.com/shashank-sn/holdyourvoice",
+  "license": "MIT",
+  "keywords": ["writing", "voice", "editing", "privacy"],
+  "mcpServers": "./.mcp.json"
+}

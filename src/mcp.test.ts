@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import test from 'node:test';
 
 test('serves the read-only Claude tools over stdio', async () => {
-  const server = spawn(process.execPath, [new URL('./mcp.js', import.meta.url).pathname], { stdio: ['pipe', 'pipe', 'pipe'] });
+  const server = spawn(process.execPath, [new URL('./cli.js', import.meta.url).pathname, 'mcp'], { stdio: ['pipe', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
   server.stdout.on('data', (chunk) => { stdout += chunk; });
