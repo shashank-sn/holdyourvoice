@@ -1,4 +1,5 @@
 import { rules, RULESET_VERSION } from './ai-editor.js';
+import { composeLearning, type LearningOptions, recordVerifiedCandidate } from './learning.js';
 import { analyze, rewritePrompt, verify } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { buildProfile } from './voice-dna.js';
@@ -19,12 +20,15 @@ export function analyzeForMcp(draft: string, profileJson: string) {
   return analyze(draft, profileFromJson(profileJson));
 }
 
-export function rewritePromptForMcp(draft: string, profileJson: string) {
-  return { prompt: rewritePrompt(draft, profileFromJson(profileJson)) };
+export function rewritePromptForMcp(draft: string, profileJson: string, options: LearningOptions = {}) {
+  const profile = profileFromJson(profileJson);
+  return { prompt: rewritePrompt(draft, profile, composeLearning(profile, options)) };
 }
 
-export function verifyForMcp(original: string, candidate: string, profileJson: string) {
-  return verify(original, candidate, profileFromJson(profileJson));
+export function verifyForMcp(original: string, candidate: string, profileJson: string, options: LearningOptions = {}) {
+  const profile = profileFromJson(profileJson);
+  const result = verify(original, candidate, profile);
+  return { ...result, learning: recordVerifiedCandidate(profile, result, options) };
 }
 
 export function patternsForMcp() {

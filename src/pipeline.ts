@@ -1,6 +1,7 @@
 import type { Analysis, Finding, Profile, Verification } from './contracts.js';
 import { analyzeAiEditor } from './ai-editor.js';
 import { analyzeVoiceDna } from './voice-dna.js';
+import type { LearningPreference } from './learning.js';
 import { words } from './text.js';
 
 export function analyze(text: string, profile: Profile): Analysis {
@@ -13,7 +14,11 @@ function formatFindings(findings: Finding[]): string[] {
   return findings.map((finding) => `- Sentence ${finding.sentence} [${finding.engine}/${finding.id}]: ${finding.reason} Repair: ${finding.suggestion}`);
 }
 
-export function rewritePrompt(draft: string, profile: Profile): string {
+function formatLearningPreference(preference: LearningPreference): string {
+  return preference.text.replace(/[\\`*_{\[\]}<>#]/g, '\\$&');
+}
+
+export function rewritePrompt(draft: string, profile: Profile, learning: LearningPreference[] = []): string {
   const result = analyze(draft, profile);
   const allFindings = [...result.voiceDna.findings, ...result.aiEditor.findings];
   const redFindings = allFindings.filter((finding) => finding.severity === 'red');
@@ -36,6 +41,7 @@ export function rewritePrompt(draft: string, profile: Profile): string {
     `- Openings: ${metrics.openingMoves.join(', ') || 'none recorded'}.`,
     `- Vocabulary: ${metrics.vocabulary.join(', ') || 'none recorded'}.`,
     `- Transitions: ${metrics.transitions.join(', ') || 'none recorded'}.`,
+    ...(learning.length ? ['', '## Learned local preferences', ...learning.map((preference) => `- [${preference.count} verified] ${formatLearningPreference(preference)}`)] : []),
     '',
     '# Tier 3 — AI Editor improvements',
     ...(yellowFindings.length ? formatFindings(yellowFindings) : ['- None.']),

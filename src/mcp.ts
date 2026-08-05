@@ -16,7 +16,7 @@ function failure(error: unknown) {
   return { content: [{ type: 'text' as const, text: error instanceof Error ? error.message : String(error) }], isError: true };
 }
 
-const server = new McpServer({ name: 'hold-your-voice', version: '3.0.1' });
+const server = new McpServer({ name: 'hold-your-voice', version: '3.1.0' });
 
 server.registerTool('hyv_build_profile', {
   description: 'Build a portable VoiceDNA profile from at least two writing samples. The samples stay in memory and are not saved.',
@@ -55,9 +55,9 @@ server.registerTool('hyv_rewrite_prompt', {
 });
 
 server.registerTool('hyv_verify', {
-  description: 'Verify a revised candidate against an original draft and portable profile. Reports regressions and preservation without saving either text.',
+  description: 'Verify a revised candidate against an original draft and portable profile. On a successful check, it stores only resolved finding IDs in local profile-scoped learning state; it never retains either text.',
   inputSchema: { original: writing, candidate: writing, profile_json: profileJson },
-  annotations: { readOnlyHint: true },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 }, async ({ original, candidate, profile_json }) => {
   try {
     return json(verifyForMcp(original, candidate, profile_json));

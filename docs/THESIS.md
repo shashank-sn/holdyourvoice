@@ -10,4 +10,4 @@ The rewrite brief is a coordination layer. It receives both reports, tells a mod
 
 The acceptance policy is fail-closed: a candidate needs both engine passes, no newly introduced critical finding, and a minimum lexical-preservation score. This is intentionally stricter than averaging scores; an excellent AI Editor score cannot conceal a VoiceDNA failure.
 
-The source product also explored feedback-derived voice memory. This repository excludes feedback history, accepted edits, embeddings, client profiles, and cloud storage. A future local memory feature must be opt-in, inspectable, bounded, and stored only by the user.
+The source product also explored feedback-derived voice memory. This repository includes a narrower local form by default: a passing verification records resolved finding IDs against a fingerprint of the writer's portable profile. The next brief can prioritize those repeatedly verified repairs. It is inspectable, bounded, stored only on the user's machine, and contains no draft text, candidate text, embeddings, client profiles, cloud storage, accounts, or telemetry.

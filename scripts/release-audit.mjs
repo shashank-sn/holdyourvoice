@@ -22,6 +22,7 @@ function urls(text) {
 }
 
 const packageManifest = JSON.parse(readFileSync('package.json', 'utf8'));
+const mcpbManifest = JSON.parse(readFileSync('mcpb/manifest.json', 'utf8'));
 const mitLicense = readFileSync('LICENSE', 'utf8');
 const mitRequiredClauses = [
   'Permission is hereby granted, free of charge, to any person obtaining a copy',
@@ -31,6 +32,7 @@ const mitRequiredClauses = [
 
 const failures = [];
 if (packageManifest.license !== 'MIT') failures.push('package.json must declare the MIT license');
+if (mcpbManifest.version !== packageManifest.version) failures.push('MCPB manifest version must match package.json');
 if (!Array.isArray(packageManifest.files) || !packageManifest.files.includes('LICENSE')) {
   failures.push('npm package must include LICENSE');
 }

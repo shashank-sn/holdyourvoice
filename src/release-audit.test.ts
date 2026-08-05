@@ -12,6 +12,7 @@ function fixture(files: Record<string, string>) {
   execFileSync('git', ['init', '--quiet'], { cwd: directory });
   const defaults = {
     'package.json': JSON.stringify({ license: 'MIT', files: ['LICENSE'] }),
+    'mcpb/manifest.json': JSON.stringify({ version: '1.0.0' }),
     LICENSE: [
       'Permission is hereby granted, free of charge, to any person obtaining a copy',
       'The above copyright notice and this permission notice shall be included in all',
@@ -33,6 +34,21 @@ test('rejects unquoted credentials in an untracked source file', () => {
     const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /credential marker: src\/unsafe\.ts/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('requires the Claude extension version to match npm', () => {
+  const directory = fixture({
+    'README.md': '# public',
+    'package.json': JSON.stringify({ license: 'MIT', files: ['LICENSE'], version: '1.0.0' }),
+    'mcpb/manifest.json': JSON.stringify({ version: '1.0.1' }),
+  });
+  try {
+    const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /MCPB manifest version must match package\.json/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
