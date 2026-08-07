@@ -148,6 +148,6 @@ export interface RewriteApplyResult {
 }
 
 export interface RewriteEvaluation extends Omit<RewriteApplyResult, 'status'> {
-  status: 'accepted' | 'repairable' | 'needs_escalation';
+  status: 'accepted' | 'repairable' | 'needs_escalation' | 'needs_semantic_review';
   verification?: Verification | CopySpecVerification;
 }

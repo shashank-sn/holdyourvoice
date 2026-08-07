@@ -52,6 +52,6 @@ test('prepares and applies the rewrite task through MCP helpers', () => {
   const result = applyRewriteForMcp(JSON.stringify(task), JSON.stringify({
     version: '1', taskFingerprint: task.fingerprint, replacements: [{ sentenceId: 1, text: 'I use the answer with useful detail and clear mechanism.' }],
   }), profileJson);
-  assert.equal(result.status, 'accepted');
+  assert.equal(result.status, 'needs_semantic_review');
   assert.equal(result.candidate, 'I use the answer with useful detail and clear mechanism.');
 });

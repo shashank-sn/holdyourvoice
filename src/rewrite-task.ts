@@ -65,6 +65,12 @@ function repairStringifiedReplacements(value: unknown): { value: unknown; adapte
   }
 }
 
+function repairFencedJson(value: unknown): { value: unknown; adapterId?: string } {
+  if (typeof value !== 'string') return { value };
+  const match = value.match(/^```json\s*\n([\s\S]*?)\n```\s*$/i);
+  return match ? { value: match[1], adapterId: 'fenced_json_v1' } : { value };
+}
+
 export function prepareRewriteTask(draft: string, profile: Profile, copySpec?: CopySpec): RewriteTask {
   const analysis = rewritePrompt(draft, profile);
   const mapped = sentences(draft);
@@ -100,7 +106,8 @@ function rejected(task: RewriteTask, raw: unknown, failures: RewriteFailure[], a
 export function applyRewriteResponse(task: RewriteTask, raw: unknown): RewriteApplyResult {
   const source = typeof raw === 'string' ? parseJson(raw) : raw;
   const parsed = isFailure(source) ? source : parseResponse(source);
-  const repaired = isFailure(parsed) && parsed.code === 'invalid_response_shape' ? repairStringifiedReplacements(source) : { value: source };
+  const fenced = isFailure(parsed) && parsed.code === 'invalid_json' ? repairFencedJson(raw) : { value: source };
+  const repaired = isFailure(parsed) && parsed.code === 'invalid_response_shape' ? repairStringifiedReplacements(source) : fenced;
   const response = repaired.adapterId ? parseResponse(repaired.value) : parsed;
   const adapterIds = repaired.adapterId ? [repaired.adapterId] : [];
   if (isFailure(response)) return rejected(task, raw, [response], adapterIds);
@@ -130,5 +137,6 @@ export function evaluateRewriteResponse(task: RewriteTask, raw: unknown, profile
   const verification = task.copySpec
     ? verifyWithCopySpec(task.draft, applied.candidate, profile, task.copySpec)
     : verify(task.draft, applied.candidate, profile);
-  return verification.passed ? { ...applied, verification } : { ...applied, status: 'needs_escalation', verification };
+  if (!verification.passed) return { ...applied, status: 'needs_escalation', verification };
+  return { ...applied, status: 'needs_semantic_review', verification };
 }

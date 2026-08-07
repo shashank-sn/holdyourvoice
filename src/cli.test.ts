@@ -83,8 +83,10 @@ test('prepares and applies the same constrained rewrite task without a provider 
     const prepared = JSON.parse(readFileSync(task, 'utf8'));
     writeFileSync(response, JSON.stringify({ version: '1', taskFingerprint: prepared.fingerprint, replacements: [{ sentenceId: 1, text: 'I use the answer with useful detail and clear mechanism.' }] }));
     const result = run(['apply-rewrite', task, response, profile]);
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(JSON.parse(result.stdout).candidate, 'I use the answer with useful detail and clear mechanism.');
+    assert.equal(result.status, 2, result.stderr);
+    const applied = JSON.parse(result.stdout);
+    assert.equal(applied.status, 'needs_semantic_review');
+    assert.equal(applied.candidate, 'I use the answer with useful detail and clear mechanism.');
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

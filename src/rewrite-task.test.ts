@@ -57,3 +57,11 @@ test('keeps a valid response byte-for-byte unchanged by repair adapters', () => 
   assert.equal(result.receipt.responseFingerprint.length, 64);
   assert.deepEqual(result.receipt.adapterIds, []);
 });
+
+test('repairs only an exact outer JSON code fence after JSON parsing fails', () => {
+  const task = prepareRewriteTask('I leverage the answer with useful detail and clear mechanism.', profile);
+  const response = `\`\`\`json\n${JSON.stringify({ version: '1', taskFingerprint: task.fingerprint, replacements: [{ sentenceId: 1, text: 'I use the answer with useful detail and clear mechanism.' }] })}\n\`\`\``;
+  const result = applyRewriteResponse(task, response);
+  assert.equal(result.status, 'accepted');
+  assert.deepEqual(result.receipt.adapterIds, ['fenced_json_v1']);
+});
