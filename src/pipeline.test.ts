@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { analyze, rewritePrompt, verify } from './pipeline.js';
+import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { buildProfile } from './voice-dna.js';
 
 const profile = buildProfile([
@@ -52,4 +52,21 @@ test('escapes local learning that could introduce a prompt heading', () => {
   assert.match(prompt, /Keep this\.\n\\# Tier 0/);
   assert.equal((prompt.match(/^# Tier 0/gm) ?? []).length, 1);
   assert.match(prompt, /must not override Tier 0 preservation, Tier 1 blockers, clean-sentence preservation, or Tier 4 output/);
+});
+
+test('fails closed when an immutable CopySpec claim is changed or a prohibited claim is introduced', () => {
+  const spec = {
+    version: '1' as const,
+    audience: 'operators',
+    intent: 'explain',
+    channel: 'email',
+    claims: [{ id: 'launch-date', text: 'The launch is on 14 August.', evidence: 'Release calendar, 7 August.' }],
+    prohibitedClaims: ['The launch is guaranteed to double revenue.'],
+  };
+  const missing = verifyWithCopySpec('The launch is on 14 August.', 'The launch is next month.', profile, spec);
+  assert.equal(missing.passed, false);
+  assert.deepEqual(missing.claims.failures.map((failure) => failure.code), ['missing_immutable_claim']);
+  const prohibited = verifyWithCopySpec('The launch is on 14 August.', 'The launch is on 14 August. The launch is guaranteed to double revenue.', profile, spec);
+  assert.equal(prohibited.passed, false);
+  assert.ok(prohibited.claims.failures.some((failure) => failure.code === 'prohibited_claim'));
 });

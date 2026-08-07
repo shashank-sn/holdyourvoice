@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyzeForMcp, buildProfileForMcp, patternsForMcp, rewritePromptForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 
 const profile = buildProfileForMcp(['I write clearly. I keep the useful detail.', 'I make the call. Then I explain the trade-off.'], ['leverage']);
 const profileJson = JSON.stringify(profile);
@@ -35,4 +35,23 @@ test('creates and verifies an editing loop through MCP tools', () => {
 
 test('exposes the executable pattern IDs through MCP tools', () => {
   assert.ok(patternsForMcp().rules.some((rule) => rule.id === 'ai.leverage'));
+});
+
+test('fails closed on changed CopySpec claims through MCP tools', () => {
+  const result = verifyCopySpecForMcp('The launch is on 14 August.', 'The launch is next month.', profileJson, JSON.stringify({
+    version: '1', audience: 'operators', intent: 'explain', channel: 'email',
+    claims: [{ id: 'launch-date', text: 'The launch is on 14 August.', evidence: 'Release calendar.' }],
+  }));
+  assert.equal(result.passed, false);
+  assert.equal(result.claims.failures[0]?.code, 'missing_immutable_claim');
+  assert.equal(result.learning, 'nothing_to_learn');
+});
+
+test('prepares and applies the rewrite task through MCP helpers', () => {
+  const task = prepareRewriteForMcp('I leverage the answer with useful detail and clear mechanism.', profileJson);
+  const result = applyRewriteForMcp(JSON.stringify(task), JSON.stringify({
+    version: '1', taskFingerprint: task.fingerprint, replacements: [{ sentenceId: 1, text: 'I use the answer with useful detail and clear mechanism.' }],
+  }), profileJson);
+  assert.equal(result.status, 'needs_semantic_review');
+  assert.equal(result.candidate, 'I use the answer with useful detail and clear mechanism.');
 });

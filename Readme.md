@@ -99,6 +99,33 @@ npx @holdyourvoice/hyv verify draft.md candidate.md profile.json
 
 `verify` returns the original and candidate reports, identifies newly introduced findings, calculates a coarse preservation score, and exits with status `2` when the candidate fails the dual gate. A passing verification automatically records only the resolved finding IDs for that profile in local learning state. It exits with `1` for a usage or runtime error. Treat status `2` as a release signal in scripts or CI.
 
+### Lock factual claims with a CopySpec
+
+Use `verify-spec` when a draft has claims that must remain exact. A local CopySpec records each immutable claim alongside its evidence, then blocks a candidate if that claim is absent, changed, or joined by a prohibited claim.
+
+```json
+{
+  "version": "1",
+  "audience": "operators",
+  "intent": "explain a launch date",
+  "channel": "email",
+  "claims": [
+    {
+      "id": "launch-date",
+      "text": "The launch is on 14 August.",
+      "evidence": "Release calendar, checked 7 August."
+    }
+  ],
+  "prohibitedClaims": ["The launch is guaranteed to double revenue."]
+}
+```
+
+```bash
+hyv verify-spec original.md candidate.md profile.json copy-spec.json
+```
+
+The check is deterministic. It covers declared claims and prohibited text; arbitrary unsupported assertions need a separate factual evaluator.
+
 ### Local voice memory
 
 Learning is on by default. After a successful `verify`, Hold Your Voice records resolved rule IDs under `~/.hyv/learning/`, scoped to a fingerprint of the portable profile. It stores no draft or candidate text. The next `rewrite-prompt` uses a bounded list of those verified repairs.
@@ -199,6 +226,7 @@ The preservation score is a guardrail based on retained original words longer th
 | `hyv analyze <draft> <profile.json>` | Draft and profile | Analysis JSON | You need both reports before editing. |
 | `hyv rewrite-prompt <draft> <profile.json>` | Draft and profile | Markdown editing brief | You need a constrained request for an editor or model. |
 | `hyv verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code | You need the candidate gate. |
+| `hyv verify-spec <original> <candidate> <profile.json> <copy-spec.json>` | Original, candidate, profile, CopySpec | Verification JSON with hard claim gate | A brief contains locked facts or prohibited claims. |
 | `hyv learning <show\|add\|clear> <profile.json>` | Profile and optional instruction | Local learning JSON | You need to inspect or manage profile-scoped learning. |
 | `hyv patterns` | None | Ruleset JSON | You need the exact enabled rules. |
 

@@ -1,5 +1,6 @@
-import type { Analysis, Finding, Profile, Verification } from './contracts.js';
+import type { Analysis, CopySpec, CopySpecVerification, Finding, Profile, Verification } from './contracts.js';
 import { analyzeAiEditor } from './ai-editor.js';
+import { verifyClaims } from './copy-spec.js';
 import { analyzeVoiceDna } from './voice-dna.js';
 import type { LearningPreference } from './learning.js';
 import { words } from './text.js';
@@ -74,4 +75,10 @@ export function verify(original: string, candidate: string, profile: Profile): V
     regressions,
     passed: checked.passed && !regressions.some((finding) => finding.severity === 'red') && preservation >= 70,
   };
+}
+
+export function verifyWithCopySpec(original: string, candidate: string, profile: Profile, spec: CopySpec): CopySpecVerification {
+  const verification = verify(original, candidate, profile);
+  const claims = verifyClaims(candidate, spec);
+  return { ...verification, claims, passed: verification.passed && claims.passed };
 }

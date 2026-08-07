@@ -54,6 +54,44 @@ test('uses exit code 2 for a failed candidate gate and 1 for misuse', () => {
   }
 });
 
+test('fails the CopySpec gate when a locked claim changes', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
+  try {
+    const first = join(directory, 'first.md'); const second = join(directory, 'second.md'); const profile = join(directory, 'profile.json');
+    const original = join(directory, 'original.md'); const candidate = join(directory, 'candidate.md'); const spec = join(directory, 'copy-spec.json');
+    writeFileSync(first, 'I write plainly. I name the work.'); writeFileSync(second, 'I keep the mechanism clear. I avoid filler.');
+    writeFileSync(original, 'The launch is on 14 August.'); writeFileSync(candidate, 'The launch is next month.');
+    writeFileSync(spec, JSON.stringify({ version: '1', audience: 'operators', intent: 'explain', channel: 'email', claims: [{ id: 'launch-date', text: 'The launch is on 14 August.', evidence: 'Release calendar.' }] }));
+    assert.equal(run(['profile', profile, first, second]).status, 0);
+    const result = run(['verify-spec', original, candidate, profile, spec]);
+    assert.equal(result.status, 2);
+    assert.equal(JSON.parse(result.stdout).claims.failures[0].code, 'missing_immutable_claim');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('prepares and applies the same constrained rewrite task without a provider call', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
+  try {
+    const first = join(directory, 'first.md'); const second = join(directory, 'second.md'); const profile = join(directory, 'profile.json');
+    const draft = join(directory, 'draft.md'); const task = join(directory, 'task.json'); const response = join(directory, 'response.json');
+    writeFileSync(first, 'I write plainly. I name the work.'); writeFileSync(second, 'I keep the mechanism clear. I avoid filler.');
+    writeFileSync(draft, 'I leverage the answer with useful detail and clear mechanism.');
+    assert.equal(run(['profile', profile, first, second, '--avoid=leverage']).status, 0);
+    assert.equal(run(['prepare-rewrite', draft, profile, task]).status, 0);
+    const prepared = JSON.parse(readFileSync(task, 'utf8'));
+    writeFileSync(response, JSON.stringify({ version: '1', taskFingerprint: prepared.fingerprint, replacements: [{ sentenceId: 1, text: 'I use the answer with useful detail and clear mechanism.' }] }));
+    const result = run(['apply-rewrite', task, response, profile]);
+    assert.equal(result.status, 2, result.stderr);
+    const applied = JSON.parse(result.stdout);
+    assert.equal(applied.status, 'needs_semantic_review');
+    assert.equal(applied.candidate, 'I use the answer with useful detail and clear mechanism.');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('rejects a malformed hand-edited profile before analysis', () => {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
   try {

@@ -23,9 +23,10 @@ test('serves local Claude tools over stdio', async () => {
   assert.equal(code, 0);
   const responses = stdout.trim().split('\n').map((line) => JSON.parse(line) as { id: number; result?: { tools?: Array<{ name: string; annotations?: { readOnlyHint?: boolean } }> } });
   const tools = responses.find((response) => response.id === 2)?.result?.tools;
-  assert.deepEqual(tools?.map((tool) => tool.name), ['hyv_build_profile', 'hyv_analyze', 'hyv_rewrite_prompt', 'hyv_verify', 'hyv_patterns']);
-  assert.ok(tools?.filter((tool) => tool.name !== 'hyv_verify').every((tool) => tool.annotations?.readOnlyHint));
+  assert.deepEqual(tools?.map((tool) => tool.name), ['hyv_build_profile', 'hyv_analyze', 'hyv_rewrite_prompt', 'hyv_prepare_rewrite', 'hyv_apply_rewrite', 'hyv_verify', 'hyv_verify_copy_spec', 'hyv_patterns']);
+  assert.ok(tools?.filter((tool) => tool.name !== 'hyv_verify' && tool.name !== 'hyv_verify_copy_spec').every((tool) => tool.annotations?.readOnlyHint));
   assert.equal(tools?.find((tool) => tool.name === 'hyv_verify')?.annotations?.readOnlyHint, false);
+  assert.equal(tools?.find((tool) => tool.name === 'hyv_verify_copy_spec')?.annotations?.readOnlyHint, false);
 });
 
 test('uses default local learning through the registered MCP tools', async () => {
