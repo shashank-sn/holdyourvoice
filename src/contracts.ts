@@ -151,3 +151,17 @@ export interface RewriteEvaluation extends Omit<RewriteApplyResult, 'status'> {
   status: 'accepted' | 'repairable' | 'needs_escalation' | 'needs_semantic_review';
   verification?: Verification | CopySpecVerification;
 }
+
+export type SemanticViolation = 'action_change' | 'dropped_object' | 'unsupported_claim' | 'constraint_weakened' | 'clarity_regression';
+
+export interface SemanticVerdict {
+  evaluatorId: string;
+  approved: boolean;
+  violations: SemanticViolation[];
+}
+
+export interface SemanticReview {
+  status: 'accepted' | 'needs_escalation';
+  verdicts: SemanticVerdict[];
+  reason?: 'insufficient_evaluators' | 'evaluator_disagreement' | 'semantic_violation';
+}
