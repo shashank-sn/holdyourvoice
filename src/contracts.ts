@@ -64,3 +64,36 @@ export interface Verification {
   regressions: Finding[];
   passed: boolean;
 }
+
+export interface CopyClaim {
+  id: string;
+  text: string;
+  evidence: string;
+  mutable?: boolean;
+}
+
+export interface CopySpec {
+  version: '1';
+  audience: string;
+  intent: string;
+  channel: string;
+  claims: CopyClaim[];
+  prohibitedClaims?: string[];
+}
+
+export interface ClaimFailure {
+  id: string;
+  code: 'missing_immutable_claim' | 'prohibited_claim';
+  message: string;
+  evidence?: string;
+}
+
+export interface ClaimVerification {
+  passed: boolean;
+  failures: ClaimFailure[];
+  sentenceClaims: Record<number, string[]>;
+}
+
+export interface CopySpecVerification extends Verification {
+  claims: ClaimVerification;
+}

@@ -1,10 +1,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { analyzeForMcp, buildProfileForMcp, patternsForMcp, rewritePromptForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeForMcp, buildProfileForMcp, patternsForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 
 const writing = z.string().min(1).max(100_000);
 const profileJson = z.string().min(1).max(50_000);
+const copySpecJson = z.string().min(1).max(250_000);
 const samples = z.array(writing).min(2).max(20);
 const avoid = z.array(z.string().min(1).max(200)).max(50).optional();
 
@@ -61,6 +62,18 @@ server.registerTool('hyv_verify', {
 }, async ({ original, candidate, profile_json }) => {
   try {
     return json(verifyForMcp(original, candidate, profile_json));
+  } catch (error) {
+    return failure(error);
+  }
+});
+
+server.registerTool('hyv_verify_copy_spec', {
+  description: 'Verify a candidate against the existing voice gates and a local CopySpec. Immutable claims must remain verbatim and each carries local evidence; prohibited claims fail closed.',
+  inputSchema: { original: writing, candidate: writing, profile_json: profileJson, copy_spec_json: copySpecJson },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+}, async ({ original, candidate, profile_json, copy_spec_json }) => {
+  try {
+    return json(verifyCopySpecForMcp(original, candidate, profile_json, copy_spec_json));
   } catch (error) {
     return failure(error);
   }
