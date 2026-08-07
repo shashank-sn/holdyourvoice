@@ -97,3 +97,57 @@ export interface ClaimVerification {
 export interface CopySpecVerification extends Verification {
   claims: ClaimVerification;
 }
+
+export interface RewriteTaskSentence {
+  id: number;
+  text: string;
+  eligible: boolean;
+}
+
+export interface RewriteTask {
+  version: '1';
+  fingerprint: string;
+  draft: string;
+  sentences: RewriteTaskSentence[];
+  eligibleSentenceIds: number[];
+  prompt: string;
+  copySpec?: CopySpec;
+}
+
+export interface RewriteReplacement {
+  sentenceId: number;
+  text: string;
+}
+
+export interface RewriteResponse {
+  version: '1';
+  taskFingerprint: string;
+  replacements: RewriteReplacement[];
+}
+
+export type RewriteFailureCode = 'invalid_json' | 'invalid_response_shape' | 'invalid_response_version' | 'task_fingerprint_mismatch' | 'duplicate_sentence_id' | 'unknown_sentence_id' | 'ineligible_sentence_id' | 'invalid_replacement_text' | 'response_too_large';
+
+export interface RewriteFailure {
+  code: RewriteFailureCode;
+  message: string;
+  path?: string;
+}
+
+export interface RewriteReceipt {
+  version: '1';
+  taskFingerprint: string;
+  responseFingerprint: string;
+  adapterIds: string[];
+}
+
+export interface RewriteApplyResult {
+  status: 'accepted' | 'repairable';
+  candidate?: string;
+  failures: RewriteFailure[];
+  receipt: RewriteReceipt;
+}
+
+export interface RewriteEvaluation extends Omit<RewriteApplyResult, 'status'> {
+  status: 'accepted' | 'repairable' | 'needs_escalation';
+  verification?: Verification | CopySpecVerification;
+}

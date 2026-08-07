@@ -71,6 +71,25 @@ test('fails the CopySpec gate when a locked claim changes', () => {
   }
 });
 
+test('prepares and applies the same constrained rewrite task without a provider call', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
+  try {
+    const first = join(directory, 'first.md'); const second = join(directory, 'second.md'); const profile = join(directory, 'profile.json');
+    const draft = join(directory, 'draft.md'); const task = join(directory, 'task.json'); const response = join(directory, 'response.json');
+    writeFileSync(first, 'I write plainly. I name the work.'); writeFileSync(second, 'I keep the mechanism clear. I avoid filler.');
+    writeFileSync(draft, 'I leverage the answer with useful detail and clear mechanism.');
+    assert.equal(run(['profile', profile, first, second, '--avoid=leverage']).status, 0);
+    assert.equal(run(['prepare-rewrite', draft, profile, task]).status, 0);
+    const prepared = JSON.parse(readFileSync(task, 'utf8'));
+    writeFileSync(response, JSON.stringify({ version: '1', taskFingerprint: prepared.fingerprint, replacements: [{ sentenceId: 1, text: 'I use the answer with useful detail and clear mechanism.' }] }));
+    const result = run(['apply-rewrite', task, response, profile]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).candidate, 'I use the answer with useful detail and clear mechanism.');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('rejects a malformed hand-edited profile before analysis', () => {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
   try {

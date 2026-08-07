@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { analyzeForMcp, buildProfileForMcp, patternsForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 
 const writing = z.string().min(1).max(100_000);
 const profileJson = z.string().min(1).max(50_000);
@@ -50,6 +50,30 @@ server.registerTool('hyv_rewrite_prompt', {
 }, async ({ draft, profile_json }) => {
   try {
     return json(rewritePromptForMcp(draft, profile_json));
+  } catch (error) {
+    return failure(error);
+  }
+});
+
+server.registerTool('hyv_prepare_rewrite', {
+  description: 'Prepare a local, versioned rewrite task. The caller may forward it to a provider; doing so shares the draft and must be an explicit choice.',
+  inputSchema: { draft: writing, profile_json: profileJson, copy_spec_json: copySpecJson.optional() },
+  annotations: { readOnlyHint: true },
+}, async ({ draft, profile_json, copy_spec_json }) => {
+  try {
+    return json(prepareRewriteForMcp(draft, profile_json, copy_spec_json));
+  } catch (error) {
+    return failure(error);
+  }
+});
+
+server.registerTool('hyv_apply_rewrite', {
+  description: 'Validate and apply a model response to a prepared task, then run the local gates. It never calls a provider or stores source or candidate text.',
+  inputSchema: { task_json: z.string().min(1).max(250_000), response_json: z.string().min(1).max(100_000), profile_json: profileJson },
+  annotations: { readOnlyHint: true },
+}, async ({ task_json, response_json, profile_json }) => {
+  try {
+    return json(applyRewriteForMcp(task_json, response_json, profile_json));
   } catch (error) {
     return failure(error);
   }

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyzeForMcp, buildProfileForMcp, patternsForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 
 const profile = buildProfileForMcp(['I write clearly. I keep the useful detail.', 'I make the call. Then I explain the trade-off.'], ['leverage']);
 const profileJson = JSON.stringify(profile);
@@ -45,4 +45,13 @@ test('fails closed on changed CopySpec claims through MCP tools', () => {
   assert.equal(result.passed, false);
   assert.equal(result.claims.failures[0]?.code, 'missing_immutable_claim');
   assert.equal(result.learning, 'nothing_to_learn');
+});
+
+test('prepares and applies the rewrite task through MCP helpers', () => {
+  const task = prepareRewriteForMcp('I leverage the answer with useful detail and clear mechanism.', profileJson);
+  const result = applyRewriteForMcp(JSON.stringify(task), JSON.stringify({
+    version: '1', taskFingerprint: task.fingerprint, replacements: [{ sentenceId: 1, text: 'I use the answer with useful detail and clear mechanism.' }],
+  }), profileJson);
+  assert.equal(result.status, 'accepted');
+  assert.equal(result.candidate, 'I use the answer with useful detail and clear mechanism.');
 });

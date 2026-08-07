@@ -6,9 +6,10 @@ import type { Profile } from './contracts.js';
 import { addLearningInstruction, clearLearning, composeLearning, profileFingerprint, recordVerifiedCandidate } from './learning.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { parseProfile } from './profile.js';
+import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
 import { buildProfile } from './voice-dna.js';
 
-const usage = 'Commands: profile, analyze, rewrite-prompt, verify, verify-spec, learning, patterns, mcp';
+const usage = 'Commands: profile, analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, verify, verify-spec, learning, patterns, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -58,6 +59,21 @@ export async function runCli(args: string[]): Promise<number> {
     const profile = readProfile(profilePath);
     console.log(rewritePrompt(input(draft), profile, composeLearning(profile)));
     return 0;
+  }
+  if (command === 'prepare-rewrite') {
+    const [draft, profilePath, output, specPath] = rest;
+    if (!draft || !profilePath || !output) throw new Error('Usage: hyv prepare-rewrite draft.md profile.json task.json [copy-spec.json]');
+    const task = prepareRewriteTask(input(draft), readProfile(profilePath), specPath ? parseCopySpec(JSON.parse(input(specPath))) : undefined);
+    writeFileSync(output, `${JSON.stringify(task, null, 2)}\n`);
+    json({ version: task.version, fingerprint: task.fingerprint, eligibleSentenceIds: task.eligibleSentenceIds });
+    return 0;
+  }
+  if (command === 'apply-rewrite') {
+    const [taskPath, responsePath, profilePath] = rest;
+    if (!taskPath || !responsePath || !profilePath) throw new Error('Usage: hyv apply-rewrite task.json response.json profile.json');
+    const result = evaluateRewriteResponse(parseRewriteTask(JSON.parse(input(taskPath))), input(responsePath), readProfile(profilePath));
+    json(result);
+    return result.status === 'accepted' ? 0 : 2;
   }
   if (command === 'verify') {
     const [original, candidate, profilePath] = rest;
