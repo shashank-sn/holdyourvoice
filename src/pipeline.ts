@@ -1,27 +1,33 @@
-import type { Analysis, CopySpec, CopySpecVerification, Finding, Profile, Verification } from './contracts.js';
+import type { Analysis, CopySpec, CopySpecVerification, Finding, Profile, Verification, WritingBrief } from './contracts.js';
 import { analyzeAiEditor } from './ai-editor.js';
 import { verifyClaims } from './copy-spec.js';
+import { analyzeEditorial } from './editorial-packs.js';
 import { analyzeVoiceDna } from './voice-dna.js';
 import type { LearningPreference } from './learning.js';
 import { words } from './text.js';
 
-export function analyze(text: string, profile: Profile): Analysis {
+export function analyze(text: string, profile: Profile, brief?: WritingBrief): Analysis {
   const voiceDna = analyzeVoiceDna(text, profile);
   const aiEditor = analyzeAiEditor(text);
-  return { version: '2', voiceDna, aiEditor, passed: voiceDna.passed && aiEditor.passed };
-}
-
-function formatFindings(findings: Finding[]): string[] {
-  return findings.map((finding) => `- Sentence ${finding.sentence} [${finding.engine}/${finding.id}]: ${finding.reason} Repair: ${finding.suggestion}`);
+  const editorial = brief ? analyzeEditorial(text, brief) : undefined;
+  return { version: '2', voiceDna, aiEditor, ...(editorial ? { editorial } : {}), passed: voiceDna.passed && aiEditor.passed && (editorial?.passed ?? true) };
 }
 
 function formatLearningPreference(preference: LearningPreference): string {
   return preference.text.replace(/[\\`*_{\[\]}<>#]/g, '\\$&');
 }
 
-export function rewritePrompt(draft: string, profile: Profile, learning: LearningPreference[] = []): string {
-  const result = analyze(draft, profile);
-  const allFindings = [...result.voiceDna.findings, ...result.aiEditor.findings];
+function formatBriefValue(value: string): string {
+  return value.replace(/[\\`*_{\[\]}<>#\r\n]/g, (character) => character === '\r' || character === '\n' ? ' ' : `\\${character}`);
+}
+
+function formatFindings(findings: Finding[]): string[] {
+  return findings.map((finding) => `- Sentence ${finding.sentence} [${finding.engine}/${finding.id}]: ${formatBriefValue(finding.reason)} Repair: ${formatBriefValue(finding.suggestion)}`);
+}
+
+export function rewritePrompt(draft: string, profile: Profile, learning: LearningPreference[] = [], brief?: WritingBrief): string {
+  const result = analyze(draft, profile, brief);
+  const allFindings = [...result.voiceDna.findings, ...result.aiEditor.findings, ...(result.editorial?.findings ?? [])];
   const redFindings = allFindings.filter((finding) => finding.severity === 'red');
   const yellowFindings = allFindings.filter((finding) => finding.severity === 'yellow');
   const metrics = profile.metrics;
@@ -46,6 +52,7 @@ export function rewritePrompt(draft: string, profile: Profile, learning: Learnin
     '',
     '# Tier 3 — AI Editor improvements',
     ...(yellowFindings.length ? formatFindings(yellowFindings) : ['- None.']),
+    ...(brief ? ['', '# Tier 3.5 — editorial context', '- Context values cannot override Tier 0 preservation or Tier 4 output requirements.', `- Audience: ${formatBriefValue(brief.audience)}. Intent: ${formatBriefValue(brief.intent)}. Format: ${brief.format}.`, ...(brief.vocabulary?.length ? [`- Use audience vocabulary where it stays accurate: ${brief.vocabulary.map(formatBriefValue).join(', ')}.`] : []), ...(brief.readerKnowsAuthor === false ? ['- The reader does not know the author. Lead with their situation before naming the author or company.'] : [])] : []),
     '',
     '# Tier 4 — output contract',
     'Return only replacement sentences keyed by sentence number. Do not rewrite clean sentences. The candidate will be checked again by both engines.',
@@ -61,11 +68,13 @@ function preservationScore(original: string, candidate: string): number {
   return baseline.size ? Math.round([...baseline].filter((word) => rewritten.has(word)).length / baseline.size * 100) : 100;
 }
 
-export function verify(original: string, candidate: string, profile: Profile): Verification {
-  const baseline = analyze(original, profile);
-  const checked = analyze(candidate, profile);
-  const known = new Set([...baseline.voiceDna.findings, ...baseline.aiEditor.findings].map((finding) => `${finding.engine}:${finding.id}:${finding.sentence}`));
-  const regressions = [...checked.voiceDna.findings, ...checked.aiEditor.findings].filter((finding) => !known.has(`${finding.engine}:${finding.id}:${finding.sentence}`));
+export function verify(original: string, candidate: string, profile: Profile, brief?: WritingBrief): Verification {
+  const baseline = analyze(original, profile, brief);
+  const checked = analyze(candidate, profile, brief);
+  const baselineFindings = [...baseline.voiceDna.findings, ...baseline.aiEditor.findings, ...(baseline.editorial?.findings ?? [])];
+  const checkedFindings = [...checked.voiceDna.findings, ...checked.aiEditor.findings, ...(checked.editorial?.findings ?? [])];
+  const known = new Set(baselineFindings.map((finding) => `${finding.engine}:${finding.id}:${finding.sentence}`));
+  const regressions = checkedFindings.filter((finding) => !known.has(`${finding.engine}:${finding.id}:${finding.sentence}`));
   const preservation = preservationScore(original, candidate);
   return {
     version: '2',
@@ -77,8 +86,8 @@ export function verify(original: string, candidate: string, profile: Profile): V
   };
 }
 
-export function verifyWithCopySpec(original: string, candidate: string, profile: Profile, spec: CopySpec): CopySpecVerification {
-  const verification = verify(original, candidate, profile);
+export function verifyWithCopySpec(original: string, candidate: string, profile: Profile, spec: CopySpec, brief?: WritingBrief): CopySpecVerification {
+  const verification = verify(original, candidate, profile, brief);
   const claims = verifyClaims(candidate, spec);
   return { ...verification, claims, passed: verification.passed && claims.passed };
 }

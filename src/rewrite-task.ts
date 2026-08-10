@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { CopySpec, Profile, RewriteApplyResult, RewriteEvaluation, RewriteFailure, RewriteReplacement, RewriteResponse, RewriteTask } from './contracts.js';
+import type { CopySpec, Profile, RewriteApplyResult, RewriteEvaluation, RewriteFailure, RewriteReplacement, RewriteResponse, RewriteTask, WritingBrief } from './contracts.js';
+import { parseWritingBrief } from './editorial-packs.js';
 import { rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { sentences } from './text.js';
 
@@ -71,8 +72,8 @@ function repairFencedJson(value: unknown): { value: unknown; adapterId?: string 
   return match ? { value: match[1], adapterId: 'fenced_json_v1' } : { value };
 }
 
-export function prepareRewriteTask(draft: string, profile: Profile, copySpec?: CopySpec): RewriteTask {
-  const analysis = rewritePrompt(draft, profile);
+export function prepareRewriteTask(draft: string, profile: Profile, copySpec?: CopySpec, writingBrief?: WritingBrief): RewriteTask {
+  const analysis = rewritePrompt(draft, profile, [], writingBrief);
   const mapped = sentences(draft);
   const eligibleSentenceIds = new Set([
     ...analysis.matchAll(/^- Sentence (\d+) \[/gm),
@@ -84,6 +85,7 @@ export function prepareRewriteTask(draft: string, profile: Profile, copySpec?: C
     eligibleSentenceIds: [...eligibleSentenceIds].sort((left, right) => left - right),
     prompt: analysis,
     ...(copySpec ? { copySpec } : {}),
+    ...(writingBrief ? { writingBrief } : {}),
   };
   return { ...taskBase, fingerprint: fingerprint(taskBase) };
 }
@@ -96,6 +98,7 @@ export function parseRewriteTask(value: unknown): RewriteTask {
   }
   const { fingerprint: suppliedFingerprint, ...base } = task;
   if (fingerprint(base) !== suppliedFingerprint) throw new Error('Rewrite task fingerprint does not match its contents.');
+  if (task.writingBrief !== undefined) parseWritingBrief(task.writingBrief);
   return task as RewriteTask;
 }
 
@@ -135,8 +138,8 @@ export function evaluateRewriteResponse(task: RewriteTask, raw: unknown, profile
   const applied = applyRewriteResponse(task, raw);
   if (applied.status !== 'accepted' || !applied.candidate) return applied;
   const verification = task.copySpec
-    ? verifyWithCopySpec(task.draft, applied.candidate, profile, task.copySpec)
-    : verify(task.draft, applied.candidate, profile);
+    ? verifyWithCopySpec(task.draft, applied.candidate, profile, task.copySpec, task.writingBrief)
+    : verify(task.draft, applied.candidate, profile, task.writingBrief);
   if (!verification.passed) return { ...applied, status: 'needs_escalation', verification };
   return { ...applied, status: 'needs_semantic_review', verification };
 }

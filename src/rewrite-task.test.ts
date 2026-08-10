@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
-import { applyRewriteResponse, prepareRewriteTask } from './rewrite-task.js';
+import { applyRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
+import { parseWritingBrief } from './editorial-packs.js';
 import { buildProfile } from './voice-dna.js';
 
 const profile = buildProfile([
@@ -18,6 +20,29 @@ test('applies only eligible numbered replacements and preserves all clean bytes'
   assert.equal(result.status, 'accepted');
   assert.equal(result.candidate, 'I use the answer. The launch is on 14 August.');
   assert.deepEqual(result.receipt.adapterIds, []);
+});
+
+test('carries WritingBrief context into a fingerprinted rewrite task', () => {
+  const brief = parseWritingBrief({ version: '1', audience: 'founders', intent: 'start a discussion', format: 'social' });
+  const task = prepareRewriteTask('A pattern I keep seeing in founder posts is vague advice.', profile, undefined, brief);
+  assert.equal(task.writingBrief?.format, 'social');
+  assert.ok(task.eligibleSentenceIds.includes(1));
+});
+
+test('rejects a fingerprint-valid rewrite task with malformed WritingBrief data', () => {
+  const task = prepareRewriteTask('I leverage the answer.', profile);
+  const { fingerprint: _fingerprint, ...taskBase } = task;
+  const base = { ...taskBase, writingBrief: { version: '1', audience: 'operators', intent: 'write', format: 'general', prohibitedTerms: [42] } };
+  const malformed = { ...base, fingerprint: createHash('sha256').update(JSON.stringify(base)).digest('hex') };
+  assert.throws(() => parseRewriteTask(malformed), /WritingBrief/);
+});
+
+test('rejects a fingerprint-valid rewrite task with a null WritingBrief', () => {
+  const task = prepareRewriteTask('I leverage the answer.', profile);
+  const { fingerprint: _fingerprint, ...taskBase } = task;
+  const base = { ...taskBase, writingBrief: null };
+  const malformed = { ...base, fingerprint: createHash('sha256').update(JSON.stringify(base)).digest('hex') };
+  assert.throws(() => parseRewriteTask(malformed), /WritingBrief/);
 });
 
 test('rejects a duplicate, unknown, or clean sentence replacement before it creates a candidate', () => {

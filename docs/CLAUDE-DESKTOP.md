@@ -1,6 +1,6 @@
 # Claude Desktop extension
 
-Hold Your Voice can run as a local Claude Desktop extension. It accepts writing samples, drafts, and portable profile JSON only in the current tool call. A successful verification writes a text-free resolved-finding event to local profile-scoped learning state. It does not retain writing text or make network requests.
+Hold Your Voice runs as a local Claude Desktop extension. Writing samples, drafts, and portable profile JSON stay in the current tool call. Successful verification stores a text-free resolved-finding event in local profile-scoped learning state. The extension has no network requests and retains no writing text.
 
 ## Build the extension
 
@@ -25,9 +25,13 @@ Published GitHub Releases attach that same file automatically.
 | Tool | What it does |
 | --- | --- |
 | `hyv_build_profile` | Builds a portable VoiceDNA profile from two or more supplied samples. |
-| `hyv_analyze` | Runs separate VoiceDNA and AI Editor checks. |
-| `hyv_rewrite_prompt` | Creates a constrained editing brief; it does not call a model or rewrite text. |
-| `hyv_verify` | Checks a candidate for regressions and lexical preservation, then records resolved finding IDs locally when it passes. |
+| `hyv_analyze` | Runs VoiceDNA and AI Editor checks, plus optional local WritingBrief context. |
+| `hyv_rewrite_prompt` | Creates a constrained editing brief with optional local WritingBrief context; it makes no model call or rewrite. |
+| `hyv_prepare_rewrite` | Creates a versioned local rewrite task with optional CopySpec and WritingBrief context. |
+| `hyv_apply_rewrite` | Applies an eligible response to a prepared task and rechecks it locally. |
+| `hyv_verify` | Checks a candidate for regressions and lexical preservation, with optional WritingBrief context, then records resolved finding IDs locally when it passes. |
+| `hyv_verify_copy_spec` | Adds immutable-claim and prohibited-claim checks to local verification. |
+| `hyv_batch_analyze` | Checks two to one hundred supplied drafts for repeated openings and endings without storing them. |
 | `hyv_patterns` | Lists the exact executable AI Editor rules. |
 
-The extension never changes a draft and never receives a filesystem path, shell command, API key, or account credential. `hyv_verify` is the one tool that writes local state; the event has a profile fingerprint and resolved rule IDs, never the supplied writing.
+Tool calls contain writing, profile JSON, and optional local context. Filesystem paths, shell commands, API keys, and account credentials stay outside the extension. Drafts remain read-only to it. A WritingBrief stays local to the tool call and leaves VoiceDNA measurements, preservation, and output requirements intact. `hyv_verify` and `hyv_verify_copy_spec` may write local state; each event carries a profile fingerprint and resolved rule IDs while excluding the supplied writing.

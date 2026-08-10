@@ -31,6 +31,26 @@ test('creates an explicit local avoid list and exposes the ruleset', () => {
   }
 });
 
+test('runs contextual analysis and batch analysis without changing the profile contract', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
+  try {
+    const first = join(directory, 'first.md'); const second = join(directory, 'second.md'); const profile = join(directory, 'profile.json');
+    const brief = join(directory, 'brief.json'); const draft = join(directory, 'draft.md'); const duplicate = join(directory, 'duplicate.md'); const task = join(directory, 'task.json');
+    writeFileSync(first, 'I write plainly. I name the work.'); writeFileSync(second, 'I keep the mechanism clear. I avoid filler.');
+    writeFileSync(brief, JSON.stringify({ version: '1', audience: 'founders', intent: 'start a discussion', format: 'social' }));
+    writeFileSync(draft, 'A pattern I keep seeing in founder posts is vague advice.'); writeFileSync(duplicate, 'A pattern I keep seeing in founder posts is vague advice.');
+    assert.equal(run(['profile', profile, first, second]).status, 0);
+    const contextual = JSON.parse(run(['analyze', draft, profile, brief]).stdout);
+    assert.equal(contextual.editorial.findings[0].id, 'editorial.social.generic-opener');
+    const batch = JSON.parse(run(['batch-analyze', draft, duplicate]).stdout);
+    assert.equal(batch.findings.length, 2);
+    assert.equal(run(['prepare-rewrite', draft, profile, task, brief]).status, 0);
+    assert.equal(JSON.parse(readFileSync(task, 'utf8')).writingBrief.format, 'social');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('uses exit code 2 for a failed candidate gate and 1 for misuse', () => {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
   try {

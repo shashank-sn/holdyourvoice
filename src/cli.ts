@@ -2,14 +2,15 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { rules, RULESET_VERSION } from './ai-editor.js';
 import { parseCopySpec } from './copy-spec.js';
-import type { Profile } from './contracts.js';
+import type { Profile, WritingBrief } from './contracts.js';
+import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
 import { addLearningInstruction, clearLearning, composeLearning, profileFingerprint, recordVerifiedCandidate } from './learning.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
 import { buildProfile } from './voice-dna.js';
 
-const usage = 'Commands: profile, analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, verify, verify-spec, learning, patterns, mcp';
+const usage = 'Commands: profile, analyze, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, verify, verify-spec, learning, patterns, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -17,6 +18,35 @@ function input(path: string): string {
 
 function readProfile(path: string): Profile {
   return parseProfile(JSON.parse(input(path)));
+}
+
+function readBrief(path: string | undefined): WritingBrief | undefined {
+  return path ? parseWritingBrief(JSON.parse(input(path))) : undefined;
+}
+
+function prepareContext(paths: string[]): { copySpec?: ReturnType<typeof parseCopySpec>; writingBrief?: WritingBrief } {
+  let copySpec: ReturnType<typeof parseCopySpec> | undefined;
+  let writingBrief: WritingBrief | undefined;
+  for (const path of paths) {
+    const value = JSON.parse(input(path));
+    try {
+      const parsed = parseCopySpec(value);
+      if (copySpec) throw new Error('Prepare-rewrite accepts at most one CopySpec.');
+      copySpec = parsed;
+      continue;
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Prepare-rewrite accepts at most one CopySpec.') throw error;
+    }
+    try {
+      const parsed = parseWritingBrief(value);
+      if (writingBrief) throw new Error('Prepare-rewrite accepts at most one WritingBrief.');
+      writingBrief = parsed;
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Prepare-rewrite accepts at most one WritingBrief.') throw error;
+      throw new Error(`Expected a valid CopySpec or WritingBrief at ${path}.`);
+    }
+  }
+  return { copySpec, writingBrief };
 }
 
 function json(value: unknown): void {
@@ -48,22 +78,28 @@ export async function runCli(args: string[]): Promise<number> {
     return 0;
   }
   if (command === 'analyze') {
-    const [draft, profilePath] = rest;
-    if (!draft || !profilePath) throw new Error('Usage: hyv analyze draft.md profile.json');
-    json(analyze(input(draft), readProfile(profilePath)));
+    const [draft, profilePath, briefPath] = rest;
+    if (!draft || !profilePath) throw new Error('Usage: hyv analyze draft.md profile.json [writing-brief.json]');
+    json(analyze(input(draft), readProfile(profilePath), readBrief(briefPath)));
+    return 0;
+  }
+  if (command === 'batch-analyze') {
+    if (rest.length < 2) throw new Error('Usage: hyv batch-analyze draft-a.md draft-b.md [draft-c.md]');
+    json(analyzeBatch(rest.map(input)));
     return 0;
   }
   if (command === 'rewrite-prompt') {
-    const [draft, profilePath] = rest;
-    if (!draft || !profilePath) throw new Error('Usage: hyv rewrite-prompt draft.md profile.json');
+    const [draft, profilePath, briefPath] = rest;
+    if (!draft || !profilePath) throw new Error('Usage: hyv rewrite-prompt draft.md profile.json [writing-brief.json]');
     const profile = readProfile(profilePath);
-    console.log(rewritePrompt(input(draft), profile, composeLearning(profile)));
+    console.log(rewritePrompt(input(draft), profile, composeLearning(profile), readBrief(briefPath)));
     return 0;
   }
   if (command === 'prepare-rewrite') {
-    const [draft, profilePath, output, specPath] = rest;
-    if (!draft || !profilePath || !output) throw new Error('Usage: hyv prepare-rewrite draft.md profile.json task.json [copy-spec.json]');
-    const task = prepareRewriteTask(input(draft), readProfile(profilePath), specPath ? parseCopySpec(JSON.parse(input(specPath))) : undefined);
+    const [draft, profilePath, output, ...contextPaths] = rest;
+    if (!draft || !profilePath || !output) throw new Error('Usage: hyv prepare-rewrite draft.md profile.json task.json [copy-spec.json] [writing-brief.json]');
+    const context = prepareContext(contextPaths);
+    const task = prepareRewriteTask(input(draft), readProfile(profilePath), context.copySpec, context.writingBrief);
     writeFileSync(output, `${JSON.stringify(task, null, 2)}\n`);
     json({ version: task.version, fingerprint: task.fingerprint, eligibleSentenceIds: task.eligibleSentenceIds });
     return 0;
@@ -76,23 +112,23 @@ export async function runCli(args: string[]): Promise<number> {
     return result.status === 'accepted' ? 0 : 2;
   }
   if (command === 'verify') {
-    const [original, candidate, profilePath] = rest;
-    if (!original || !candidate || !profilePath) throw new Error('Usage: hyv verify original.md candidate.md profile.json');
+    const [original, candidate, profilePath, briefPath] = rest;
+    if (!original || !candidate || !profilePath) throw new Error('Usage: hyv verify original.md candidate.md profile.json [writing-brief.json]');
     const profile = readProfile(profilePath);
     const originalText = input(original);
     const candidateText = input(candidate);
-    const result = verify(originalText, candidateText, profile);
+    const result = verify(originalText, candidateText, profile, readBrief(briefPath));
     const learning = recordVerifiedCandidate(profile, result, candidateText);
     if (learning === 'write_failed') console.error('Warning: verification passed, but local learning could not be saved.');
     json(result);
     return result.passed ? 0 : 2;
   }
   if (command === 'verify-spec') {
-    const [original, candidate, profilePath, specPath] = rest;
-    if (!original || !candidate || !profilePath || !specPath) throw new Error('Usage: hyv verify-spec original.md candidate.md profile.json copy-spec.json');
+    const [original, candidate, profilePath, specPath, briefPath] = rest;
+    if (!original || !candidate || !profilePath || !specPath) throw new Error('Usage: hyv verify-spec original.md candidate.md profile.json copy-spec.json [writing-brief.json]');
     const profile = readProfile(profilePath);
     const candidateText = input(candidate);
-    const result = verifyWithCopySpec(input(original), candidateText, profile, parseCopySpec(JSON.parse(input(specPath))));
+    const result = verifyWithCopySpec(input(original), candidateText, profile, parseCopySpec(JSON.parse(input(specPath))), readBrief(briefPath));
     if (result.passed) {
       const learning = recordVerifiedCandidate(profile, result, candidateText);
       if (learning === 'write_failed') console.error('Warning: verification passed, but local learning could not be saved.');
