@@ -95,7 +95,14 @@ Use an optional local WritingBrief when the same writer needs different guidance
   "format": "social",
   "readerKnowsAuthor": false,
   "vocabulary": ["deployment", "incident"],
-  "prohibitedTerms": ["internal contract value"]
+  "prohibitedTerms": ["internal contract value"],
+  "evidenceStatus": "attributed",
+  "argumentMap": {
+    "observation": "A worker fails during a live request.",
+    "mechanism": "Its in-memory state is lost.",
+    "consequence": "The request restarts instead of resuming.",
+    "readerValue": "Avoid the cost of a cold restart."
+  }
 }
 ```
 
@@ -105,7 +112,7 @@ hyv rewrite-prompt draft.md profile.json writing-brief.json > rewrite-brief.md
 hyv verify original.md candidate.md profile.json writing-brief.json
 ```
 
-Format checks are yellow review cues. Explicit `prohibitedTerms` are red release blockers. Keep client-specific briefs outside public repositories unless you have the right to publish them.
+Format checks, an `unverified` evidence state, and a missing configured reader-value cue are yellow review cues. `argumentMap` is a soft editorial contract surfaced to the rewrite prompt; it does not become a universal formula. Explicit `prohibitedTerms` are red release blockers. Keep client-specific briefs outside public repositories unless you have the right to publish them.
 
 ### Inspect a batch
 
@@ -133,7 +140,7 @@ npx @holdyourvoice/hyv verify draft.md candidate.md profile.json
 
 ### Lock factual claims with a CopySpec
 
-Use `verify-spec` when a draft has claims that must remain exact. A local CopySpec records each immutable claim alongside its evidence, then blocks a candidate if that claim is absent, changed, or joined by a prohibited claim.
+Use `verify-spec` when a draft has claims that must remain verbatim unless they declare atomic facts. A local CopySpec records each immutable claim alongside its evidence, then blocks a candidate if its required text or atoms are absent, or if it is joined by a prohibited claim.
 
 ```json
 {
@@ -145,6 +152,7 @@ Use `verify-spec` when a draft has claims that must remain exact. A local CopySp
     {
       "id": "launch-date",
       "text": "The launch is on 14 August.",
+      "atoms": ["The launch is on 14 August."],
       "evidence": "Release calendar, checked 7 August."
     }
   ],
@@ -156,7 +164,7 @@ Use `verify-spec` when a draft has claims that must remain exact. A local CopySp
 hyv verify-spec original.md candidate.md profile.json copy-spec.json
 ```
 
-The check is deterministic. It covers declared claims and prohibited text; arbitrary unsupported assertions need a separate factual evaluator.
+The check is deterministic. Without `atoms`, an immutable claim remains a verbatim sentence check. With `atoms`, every declared phrase must remain somewhere in the candidate, allowing independent facts to be split or reordered. Atoms are lexical-presence checks, not factual validation: put the whole relationship in one atom when it must stay true (for example, `Kimi K2.6 uses INT4 weights` rather than `INT4`). It covers declared claims and prohibited text; arbitrary unsupported assertions need a separate factual evaluator.
 
 ### Local voice memory
 

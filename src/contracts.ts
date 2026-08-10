@@ -50,6 +50,14 @@ export interface Profile {
 }
 
 export type WritingFormat = 'general' | 'social' | 'deck' | 'outreach' | 'blog' | 'audit' | 'website';
+export type EvidenceStatus = 'primary' | 'attributed' | 'internal' | 'unverified';
+
+export interface ArgumentMap {
+  observation: string;
+  mechanism: string;
+  consequence: string;
+  readerValue: string;
+}
 
 export interface WritingBrief {
   version: '1';
@@ -60,6 +68,8 @@ export interface WritingBrief {
   vocabulary?: string[];
   prohibitedTerms?: string[];
   title?: string;
+  evidenceStatus?: EvidenceStatus;
+  argumentMap?: ArgumentMap;
 }
 
 export interface BatchFinding {
@@ -98,6 +108,7 @@ export interface CopyClaim {
   text: string;
   evidence: string;
   mutable?: boolean;
+  atoms?: string[];
 }
 
 export interface CopySpec {
@@ -111,7 +122,7 @@ export interface CopySpec {
 
 export interface ClaimFailure {
   id: string;
-  code: 'missing_immutable_claim' | 'prohibited_claim';
+  code: 'missing_immutable_claim' | 'missing_immutable_atom' | 'prohibited_claim';
   message: string;
   evidence?: string;
 }

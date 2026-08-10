@@ -1,7 +1,8 @@
-import type { BatchFinding, BatchReport, EngineReport, Finding, Sentence, Severity, WritingBrief, WritingFormat } from './contracts.js';
+import type { ArgumentMap, BatchFinding, BatchReport, EngineReport, Finding, Sentence, Severity, WritingBrief, WritingFormat } from './contracts.js';
 import { paragraphs, sentences, words } from './text.js';
 
 const formats: WritingFormat[] = ['general', 'social', 'deck', 'outreach', 'blog', 'audit', 'website'];
+const evidenceStatuses = ['primary', 'attributed', 'internal', 'unverified'] as const;
 
 function isText(value: unknown, limit: number): value is string {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= limit;
@@ -11,6 +12,12 @@ function isTerms(value: unknown): value is string[] {
   return Array.isArray(value) && value.length <= 100 && value.every((term) => isText(term, 200));
 }
 
+function isArgumentMap(value: unknown): value is ArgumentMap {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const map = value as Partial<ArgumentMap>;
+  return isText(map.observation, 500) && isText(map.mechanism, 500) && isText(map.consequence, 500) && isText(map.readerValue, 500);
+}
+
 export function parseWritingBrief(value: unknown): WritingBrief {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('WritingBrief must be a JSON object.');
   const brief = value as Partial<WritingBrief>;
@@ -18,10 +25,16 @@ export function parseWritingBrief(value: unknown): WritingBrief {
     || (brief.readerKnowsAuthor !== undefined && typeof brief.readerKnowsAuthor !== 'boolean')
     || (brief.vocabulary !== undefined && !isTerms(brief.vocabulary))
     || (brief.prohibitedTerms !== undefined && !isTerms(brief.prohibitedTerms))
-    || (brief.title !== undefined && !isText(brief.title, 500))) {
+    || (brief.title !== undefined && !isText(brief.title, 500))
+    || (brief.evidenceStatus !== undefined && !evidenceStatuses.includes(brief.evidenceStatus))
+    || (brief.argumentMap !== undefined && !isArgumentMap(brief.argumentMap))) {
     throw new Error('WritingBrief needs version "1", audience, intent, a known format, and optional bounded context fields.');
   }
   return brief as WritingBrief;
+}
+
+function meaningfulTerms(value: string): string[] {
+  return [...new Set(words(value.toLowerCase()).filter((word) => word.length > 3 && !['that', 'this', 'with', 'from', 'your', 'when', 'what', 'into', 'their'].includes(word)))];
 }
 
 function finding(id: string, severity: Severity, sentence: number, excerpt: string, reason: string, suggestion: string): Finding {
@@ -31,6 +44,20 @@ function finding(id: string, severity: Severity, sentence: number, excerpt: stri
 function formatFindings(text: string, draftSentences: Sentence[], brief: WritingBrief): Finding[] {
   const findings: Finding[] = [];
   const first = draftSentences[0];
+
+  if (brief.evidenceStatus === 'unverified' && first) {
+    findings.push(finding('editorial.evidence.unverified', 'yellow', first.index, first.text, 'The brief marks the source state as unverified.', 'Keep attribution explicit and verify the source before treating the claim as established.'));
+  }
+
+  if (brief.argumentMap && first) {
+    const expected = meaningfulTerms(brief.argumentMap.readerValue);
+    const draftWords = new Set(words(text.toLowerCase()));
+    const matchedTerms = expected.filter((term) => draftWords.has(term)).length;
+    const requiredTerms = expected.length === 1 ? 1 : Math.min(2, expected.length);
+    if (expected.length && matchedTerms < requiredTerms) {
+      findings.push(finding('editorial.argument-map.reader-value-missing', 'yellow', first.index, first.text, 'The draft does not carry a concrete reader-value cue from the brief.', 'Connect the observation to the operational consequence the reader can act on.'));
+    }
+  }
 
   if (brief.format === 'social') {
     for (const sentence of draftSentences) {
