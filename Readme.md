@@ -83,6 +83,38 @@ The result is JSON with independent reports:
 
 Read both reports. The outer `passed` field means each engine passed. Scores remain independent.
 
+### Add contextual editorial guidance
+
+Use an optional local WritingBrief when the same writer needs different guidance for a social post, deck, outreach note, blog, audit, or website. A brief activates only the relevant advisory format checks and can block explicitly prohibited local terms. It never changes your VoiceDNA profile or the default two-engine analysis.
+
+```json
+{
+  "version": "1",
+  "audience": "technical founders",
+  "intent": "start a useful discussion",
+  "format": "social",
+  "readerKnowsAuthor": false,
+  "vocabulary": ["deployment", "incident"],
+  "prohibitedTerms": ["internal contract value"]
+}
+```
+
+```bash
+hyv analyze draft.md profile.json writing-brief.json
+hyv rewrite-prompt draft.md profile.json writing-brief.json > rewrite-brief.md
+hyv verify original.md candidate.md profile.json writing-brief.json
+```
+
+Format checks are yellow review cues. Explicit `prohibitedTerms` are red release blockers. Keep client-specific briefs outside public repositories unless you have the right to publish them.
+
+### Inspect a batch
+
+Use batch analysis to catch exact repeated opening or closing sentences across two or more drafts. It is advisory and keeps all drafts local.
+
+```bash
+hyv batch-analyze posts/one.md posts/two.md posts/three.md
+```
+
 ### Create an editing brief
 
 ```bash
@@ -240,6 +272,7 @@ Every file argument can be `-` when the command accepts text input from standard
 | `src/text.ts` | Sentence, paragraph, word, and basic statistics helpers. |
 | `src/voice-dna.ts` | Builds profiles and runs VoiceDNA checks. |
 | `src/ai-editor.ts` | Owns the versioned deterministic editorial rules. |
+| `src/editorial-packs.ts` | Parses WritingBrief context and runs format and batch checks. |
 | `src/learning.ts` | Stores text-free, profile-scoped verified repairs and composes bounded local preferences. |
 | `src/pipeline.ts` | Combines pass states, makes briefs, and verifies candidates. |
 | `src/cli.ts` | Local file and standard-input command adapter. |

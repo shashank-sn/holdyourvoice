@@ -1,5 +1,5 @@
 export type Severity = 'red' | 'yellow';
-export type Engine = 'voice_dna' | 'ai_editor';
+export type Engine = 'voice_dna' | 'ai_editor' | 'editorial';
 
 export interface Sentence {
   index: number;
@@ -49,10 +49,38 @@ export interface Profile {
   avoid: string[];
 }
 
+export type WritingFormat = 'general' | 'social' | 'deck' | 'outreach' | 'blog' | 'audit' | 'website';
+
+export interface WritingBrief {
+  version: '1';
+  audience: string;
+  intent: string;
+  format: WritingFormat;
+  readerKnowsAuthor?: boolean;
+  vocabulary?: string[];
+  prohibitedTerms?: string[];
+  title?: string;
+}
+
+export interface BatchFinding {
+  id: 'batch.repeated-opening' | 'batch.repeated-ending';
+  severity: 'yellow';
+  draftIndexes: number[];
+  reason: string;
+  suggestion: string;
+}
+
+export interface BatchReport {
+  version: '1';
+  findings: BatchFinding[];
+  passed: true;
+}
+
 export interface Analysis {
   version: string;
   voiceDna: EngineReport;
   aiEditor: EngineReport;
+  editorial?: EngineReport;
   passed: boolean;
 }
 
@@ -112,6 +140,7 @@ export interface RewriteTask {
   eligibleSentenceIds: number[];
   prompt: string;
   copySpec?: CopySpec;
+  writingBrief?: WritingBrief;
 }
 
 export interface RewriteReplacement {

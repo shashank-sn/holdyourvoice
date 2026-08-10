@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 
 const profile = buildProfileForMcp(['I write clearly. I keep the useful detail.', 'I make the call. Then I explain the trade-off.'], ['leverage']);
 const profileJson = JSON.stringify(profile);
@@ -17,6 +17,14 @@ test('keeps the dual-engine analysis shape through MCP tools', () => {
   const result = analyzeForMcp('I leverage a clear plan.', profileJson);
   assert.equal(result.voiceDna.engine, 'voice_dna');
   assert.equal(result.aiEditor.engine, 'ai_editor');
+});
+
+test('accepts optional WritingBrief context and exposes batch findings through MCP helpers', () => {
+  const brief = JSON.stringify({ version: '1', audience: 'founders', intent: 'start a discussion', format: 'social' });
+  const analysis = analyzeForMcp('A pattern I keep seeing in founder posts is vague advice.', profileJson, brief);
+  assert.equal(analysis.editorial?.findings[0]?.id, 'editorial.social.generic-opener');
+  const batch = analyzeBatchForMcp(['The launch needs a clear owner.', 'The launch needs a clear owner.']);
+  assert.equal(batch.findings.length, 2);
 });
 
 test('creates and verifies an editing loop through MCP tools', () => {

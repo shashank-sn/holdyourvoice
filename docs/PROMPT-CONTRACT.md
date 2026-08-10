@@ -1,6 +1,6 @@
 # Tiered prompt contract
 
-`rewrite-prompt` sends evidence in five tiers and leaves the writing to an editor or model outside the package. A lower tier may refine a higher tier, but never override it.
+`rewrite-prompt` sends evidence in five tiers, with an optional editorial-context section, and leaves the writing to an editor or model outside the package. A lower tier may refine a higher tier, but never override it.
 
 ## Tier 0 — preservation
 
@@ -17,6 +17,10 @@ The profile supplies the 13 observable elements of the writer’s mechanics. Tre
 ## Tier 3 — AI Editor improvements
 
 Yellow findings are editorial opportunities: formulaic transitions, vague claims, manufactured contrast, and other repeatable patterns. A match never proves AI use. Keep clean lines intact.
+
+## Tier 3.5 — editorial context
+
+When a WritingBrief is supplied, the prompt names the reader, intent, format, approved vocabulary, and whether the reader knows the author. Format-pack findings stay advisory unless the brief names an explicit prohibited term. This context leaves VoiceDNA measurements and its pass state unchanged.
 
 ## Tier 4 — output contract
 
