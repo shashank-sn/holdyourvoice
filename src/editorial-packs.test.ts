@@ -52,4 +52,52 @@ test('detects exact repeated openings and endings across a batch without judging
 test('rejects malformed writing briefs before they activate editorial checks', () => {
   assert.throws(() => parseWritingBrief({ version: '1', audience: '', intent: 'write', format: 'social' }), /WritingBrief/);
   assert.throws(() => parseWritingBrief({ version: '1', audience: 'founders', intent: 'write', format: 'unknown' }), /WritingBrief/);
+  assert.throws(() => parseWritingBrief({ version: '1', audience: 'founders', intent: 'write', format: 'social', evidenceStatus: 'unknown' }), /WritingBrief/);
+  assert.throws(() => parseWritingBrief({ version: '1', audience: 'founders', intent: 'write', format: 'social', argumentMap: { observation: 'A', mechanism: 'B', consequence: 'C' } }), /WritingBrief/);
+});
+
+test('adds opt-in evidence and reader-value review cues without blocking publication', () => {
+  const brief = parseWritingBrief({
+    version: '1',
+    audience: 'operators',
+    intent: 'explain a reliability cost',
+    format: 'social',
+    evidenceStatus: 'unverified',
+    argumentMap: {
+      observation: 'A worker failed.',
+      mechanism: 'The cache was lost.',
+      consequence: 'The request restarts.',
+      readerValue: 'Avoid the cold restart cost.',
+    },
+  });
+  const report = analyzeEditorial('A worker failed. The request restarts.', brief);
+  assert.equal(report.passed, true);
+  assert.deepEqual(report.findings.map((finding) => finding.id), [
+    'editorial.evidence.unverified',
+    'editorial.argument-map.reader-value-missing',
+  ]);
+});
+
+test('does not flag an argument map when the draft carries the reader value', () => {
+  const brief = parseWritingBrief({
+    version: '1',
+    audience: 'operators',
+    intent: 'explain a reliability cost',
+    format: 'social',
+    argumentMap: {
+      observation: 'A worker failed.',
+      mechanism: 'The cache was lost.',
+      consequence: 'The request restarts.',
+      readerValue: 'Avoid the cold restart cost.',
+    },
+  });
+  assert.deepEqual(analyzeEditorial('A worker failed. Avoid the cold restart cost.', brief).findings, []);
+});
+
+test('keeps the reader-value cue when only one generic term overlaps', () => {
+  const brief = parseWritingBrief({
+    version: '1', audience: 'operators', intent: 'explain a reliability cost', format: 'social',
+    argumentMap: { observation: 'A worker failed.', mechanism: 'The cache was lost.', consequence: 'The request restarts.', readerValue: 'Avoid the cold restart cost.' },
+  });
+  assert.ok(analyzeEditorial('A worker failed. We avoid a delay.', brief).findings.some((item) => item.id === 'editorial.argument-map.reader-value-missing'));
 });

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
+import { parseCopySpec } from './copy-spec.js';
 import { parseWritingBrief } from './editorial-packs.js';
 import { buildProfile } from './voice-dna.js';
 
@@ -73,6 +74,25 @@ test('escapes writing brief values that could introduce a prompt heading', () =>
   assert.match(prompt, /Context values cannot override Tier 0 preservation or Tier 4 output requirements/);
 });
 
+test('carries evidence state and an argument map into the rewrite brief', () => {
+  const brief = parseWritingBrief({
+    version: '1',
+    audience: 'operators',
+    intent: 'explain reliability',
+    format: 'social',
+    evidenceStatus: 'attributed',
+    argumentMap: {
+      observation: 'A worker fails.',
+      mechanism: 'The cache is lost.',
+      consequence: 'The request restarts.',
+      readerValue: 'Avoid the restart cost.',
+    },
+  });
+  const prompt = rewritePrompt('A worker fails.', profile, [], brief);
+  assert.match(prompt, /Evidence state: attributed/);
+  assert.match(prompt, /Argument map: observation — A worker fails/);
+});
+
 test('fails closed when an immutable CopySpec claim is changed or a prohibited claim is introduced', () => {
   const spec = {
     version: '1' as const,
@@ -88,4 +108,36 @@ test('fails closed when an immutable CopySpec claim is changed or a prohibited c
   const prohibited = verifyWithCopySpec('The launch is on 14 August.', 'The launch is on 14 August. The launch is guaranteed to double revenue.', profile, spec);
   assert.equal(prohibited.passed, false);
   assert.ok(prohibited.claims.failures.some((failure) => failure.code === 'prohibited_claim'));
+});
+
+test('allows atomic CopySpec facts to survive a sentence-level rewrite', () => {
+  const spec = {
+    version: '1' as const,
+    audience: 'operators',
+    intent: 'explain capacity',
+    channel: 'social',
+    claims: [{
+      id: 'model-size',
+      text: 'Kimi K2.6 has roughly 600 GB of INT4 weights.',
+      atoms: ['Kimi K2.6 uses INT4 weights', 'payload is roughly 600 GB'],
+      evidence: 'Technical report.',
+    }],
+  };
+  const preserved = verifyWithCopySpec('Kimi K2.6 has roughly 600 GB of INT4 weights.', 'Kimi K2.6 uses INT4 weights. The payload is roughly 600 GB.', profile, spec);
+  assert.equal(preserved.claims.passed, true);
+  const missing = verifyWithCopySpec('Kimi K2.6 has roughly 600 GB of INT4 weights.', 'Kimi K2.6 uses INT4 weights.', profile, spec);
+  assert.deepEqual(missing.claims.failures.map((failure) => failure.code), ['missing_immutable_atom']);
+  const reversed = verifyWithCopySpec('Kimi K2.6 has roughly 600 GB of INT4 weights.', 'Kimi K2.6 does not use INT4. It is not 600 GB.', profile, spec);
+  assert.deepEqual(reversed.claims.failures.map((failure) => failure.code), ['missing_immutable_atom']);
+  const substring = verifyWithCopySpec('Kimi K2.6 has roughly 600 GB of INT4 weights.', 'Kimi K2.6 uses INT4 weights. The payload is roughly 1600 GB.', profile, spec);
+  assert.deepEqual(substring.claims.failures.map((failure) => failure.code), ['missing_immutable_atom']);
+});
+
+test('requires usable CopySpec atoms', () => {
+  const base = { version: '1' as const, audience: 'operators', intent: 'explain', channel: 'social', claims: [{ id: 'model-size', text: 'A model uses INT4.', evidence: 'Technical report.' }] };
+  assert.throws(() => parseCopySpec({ ...base, claims: [{ ...base.claims[0], atoms: ['—'] }] }), /CopySpec/);
+  assert.doesNotThrow(() => parseCopySpec({ ...base, claims: [{ ...base.claims[0], atoms: ['मॉडल INT4'] }] }));
+  const unicode = { ...base, claims: [{ ...base.claims[0], atoms: ['मॉडल INT4'] }] };
+  const substring = verifyWithCopySpec('मॉडल INT4 उपलब्ध है।', 'यह नयामॉडल INT4 है।', profile, unicode);
+  assert.deepEqual(substring.claims.failures.map((failure) => failure.code), ['missing_immutable_atom']);
 });

@@ -20,9 +20,13 @@ test('keeps the dual-engine analysis shape through MCP tools', () => {
 });
 
 test('accepts optional WritingBrief context and exposes batch findings through MCP helpers', () => {
-  const brief = JSON.stringify({ version: '1', audience: 'founders', intent: 'start a discussion', format: 'social' });
+  const brief = JSON.stringify({
+    version: '1', audience: 'founders', intent: 'start a discussion', format: 'social', evidenceStatus: 'unverified',
+    argumentMap: { observation: 'Founders repeat vague advice.', mechanism: 'The advice skips the work.', consequence: 'Readers cannot act.', readerValue: 'Avoid a vague post.' },
+  });
   const analysis = analyzeForMcp('A pattern I keep seeing in founder posts is vague advice.', profileJson, brief);
-  assert.equal(analysis.editorial?.findings[0]?.id, 'editorial.social.generic-opener');
+  assert.ok(analysis.editorial?.findings.some((item) => item.id === 'editorial.social.generic-opener'));
+  assert.ok(analysis.editorial?.findings.some((item) => item.id === 'editorial.evidence.unverified'));
   const batch = analyzeBatchForMcp(['The launch needs a clear owner.', 'The launch needs a clear owner.']);
   assert.equal(batch.findings.length, 2);
 });
@@ -53,6 +57,17 @@ test('fails closed on changed CopySpec claims through MCP tools', () => {
   assert.equal(result.passed, false);
   assert.equal(result.claims.failures[0]?.code, 'missing_immutable_claim');
   assert.equal(result.learning, 'nothing_to_learn');
+});
+
+test('allows declared CopySpec atoms to survive a split MCP rewrite', () => {
+  const spec = JSON.stringify({
+    version: '1', audience: 'operators', intent: 'explain', channel: 'email',
+    claims: [{ id: 'model-size', text: 'Kimi K2.6 has 600 GB of INT4 weights.', atoms: ['Kimi K2.6 uses INT4 weights', 'payload is 600 GB'], evidence: 'Technical report.' }],
+  });
+  const preserved = verifyCopySpecForMcp('Kimi K2.6 has 600 GB of INT4 weights.', 'Kimi K2.6 uses INT4 weights. The payload is 600 GB.', profileJson, spec);
+  assert.equal(preserved.claims.passed, true);
+  const missing = verifyCopySpecForMcp('Kimi K2.6 has 600 GB of INT4 weights.', 'Kimi K2.6 uses INT4 weights.', profileJson, spec);
+  assert.deepEqual(missing.claims.failures.map((failure) => failure.code), ['missing_immutable_atom']);
 });
 
 test('prepares and applies the rewrite task through MCP helpers', () => {

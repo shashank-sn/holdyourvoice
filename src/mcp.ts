@@ -93,7 +93,7 @@ server.registerTool('hyv_verify', {
 });
 
 server.registerTool('hyv_verify_copy_spec', {
-  description: 'Verify a candidate against the existing voice gates and a local CopySpec. Immutable claims must remain verbatim and each carries local evidence; prohibited claims fail closed.',
+  description: 'Verify a candidate against the existing voice gates and a local CopySpec. Immutable claims remain verbatim unless atoms are supplied; then each declared atom must remain. Prohibited claims fail closed.',
   inputSchema: { original: writing, candidate: writing, profile_json: profileJson, copy_spec_json: copySpecJson, writing_brief_json: writingBriefJson.optional() },
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 }, async ({ original, candidate, profile_json, copy_spec_json, writing_brief_json }) => {
