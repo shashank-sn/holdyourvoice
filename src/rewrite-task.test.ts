@@ -22,6 +22,21 @@ test('applies only eligible numbered replacements and preserves all clean bytes'
   assert.deepEqual(result.receipt.adapterIds, []);
 });
 
+test('makes only the sentence with a broad catalog match eligible', () => {
+  const task = prepareRewriteTask('I write clear notes. This work is meaningful. I keep the mechanism visible.', profile);
+  assert.deepEqual(task.eligibleSentenceIds, [2]);
+  assert.deepEqual(task.sentences.map((sentence) => sentence.eligible), [false, true, false]);
+});
+
+test('preserves a clean draft byte-for-byte when the rewrite response is empty', () => {
+  const draft = 'I write clear notes.\n\nI keep the mechanism visible.\n';
+  const task = prepareRewriteTask(draft, profile);
+  assert.deepEqual(task.eligibleSentenceIds, []);
+  const result = applyRewriteResponse(task, { version: '1', taskFingerprint: task.fingerprint, replacements: [] });
+  assert.equal(result.status, 'accepted');
+  assert.equal(result.candidate, draft);
+});
+
 test('carries WritingBrief context into a fingerprinted rewrite task', () => {
   const brief = parseWritingBrief({ version: '1', audience: 'founders', intent: 'start a discussion', format: 'social' });
   const task = prepareRewriteTask('A pattern I keep seeing in founder posts is vague advice.', profile, undefined, brief);

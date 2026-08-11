@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from 'node:fs';
-import { rules, RULESET_VERSION } from './ai-editor.js';
+import { RULESET_VERSION, serializedRules } from './ai-editor.js';
 import { parseCopySpec } from './copy-spec.js';
 import type { Profile, WritingBrief } from './contracts.js';
 import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
@@ -157,7 +157,7 @@ export async function runCli(args: string[]): Promise<number> {
     throw new Error('Usage: hyv learning <show|add|clear> profile.json [instruction]');
   }
   if (command === 'patterns') {
-    json({ version: RULESET_VERSION, rules: rules.map(({ expression, ...rule }) => ({ ...rule, expression: expression.source })) });
+    json({ version: RULESET_VERSION, rules: serializedRules() });
     return 0;
   }
   if (command === 'mcp') {

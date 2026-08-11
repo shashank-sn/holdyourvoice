@@ -46,7 +46,8 @@ test('creates and verifies an editing loop through MCP tools', () => {
 });
 
 test('exposes the executable pattern IDs through MCP tools', () => {
-  assert.ok(patternsForMcp().rules.some((rule) => rule.id === 'ai.leverage'));
+  const catalog = patternsForMcp();
+  assert.ok(catalog.rules.some((rule) => rule.id === 'ai.leverage'));
 });
 
 test('fails closed on changed CopySpec claims through MCP tools', () => {

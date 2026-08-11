@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { patternsForMcp } from './mcp-tools.js';
 
 const cli = new URL('./cli.js', import.meta.url).pathname;
 
@@ -29,6 +30,16 @@ test('creates an explicit local avoid list and exposes the ruleset', () => {
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test('publishes the same normalized 145-rule catalog and version through CLI and MCP', () => {
+  const result = run(['patterns']);
+  assert.equal(result.status, 0, result.stderr);
+  const cliCatalog = JSON.parse(result.stdout);
+  const mcpCatalog = patternsForMcp();
+  assert.equal(cliCatalog.version, '2.9.24-static.2');
+  assert.equal(cliCatalog.rules.length, 145);
+  assert.deepEqual(cliCatalog, mcpCatalog);
 });
 
 test('runs contextual analysis and batch analysis without changing the profile contract', () => {

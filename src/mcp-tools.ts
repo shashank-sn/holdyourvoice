@@ -1,4 +1,4 @@
-import { rules, RULESET_VERSION } from './ai-editor.js';
+import { RULESET_VERSION, serializedRules } from './ai-editor.js';
 import { parseCopySpec } from './copy-spec.js';
 import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
 import { composeLearning, type LearningOptions, recordVerifiedCandidate } from './learning.js';
@@ -66,7 +66,7 @@ export function verifyCopySpecForMcp(original: string, candidate: string, profil
 }
 
 export function patternsForMcp() {
-  return { version: RULESET_VERSION, rules: rules.map(({ expression, ...rule }) => ({ ...rule, expression: expression.source })) };
+  return { version: RULESET_VERSION, rules: serializedRules() };
 }
 
 export function analyzeBatchForMcp(drafts: string[]) {

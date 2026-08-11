@@ -1,7 +1,69 @@
-import type { EngineReport, Finding, Severity } from './contracts.js'; import { sentences } from './text.js';
-export interface Rule { id:string; severity:Severity; expression:RegExp; reason:string; suggestion:string; }
-export const RULESET_VERSION='2026.08.04.1';
-export const rules:Rule[]=[
- ['ai.delve','red',/\bdelve\b/i,'Generic AI verb.','Use a concrete verb.'],['ai.leverage','red',/\bleverage\b/i,'Business-jargon default.','Say what is being used.'],['ai.tapestry','red',/\btapestry\b/i,'Abstract metaphor without content.','Name the thing.'],['ai.holistic','red',/\bholistic\b/i,'Vague qualifier.','Describe the actual approach.'],['ai.robust','yellow',/\brobust\b/i,'Claims strength without evidence.','State what makes it strong.'],['ai.landscape','yellow',/\blandscape\b/i,'Generic context word.','Name the field.'],['ai.game-changer','red',/\bgame[ -]changer\b/i,'Promotional cliche.','Explain what changed.'],['ai.formulaic-connector','yellow',/\b(firstly|secondly|moreover|furthermore|in conclusion)\b/i,'Formulaic connector.','State the next point directly.'],['ai.hedging','yellow',/\b(arguably|perhaps|it is worth noting|some might say)\b/i,'Hedge hides the claim.','Make or remove the claim.'],['ai.signpost','yellow',/\b(this is why|this is how|here.?s why)\b/i,'Meta-signpost.','Lead with the observation.'],['ai.not-just','red',/\bnot just\b.{0,80}\bbut\b/i,'Binary persuasion template.','State the point plainly.'],['ai.truth-setup','yellow',/\b(the hard|the brutal|the uncomfortable) truth\b/i,'Manufactured revelation.','Name the fact.'],['ai.em-dash','yellow',/—/,'Dramatic em-dash use.','Use a sentence break when needed.'],['ai.question-hook','yellow',/^(have you|do you|what if|why do|how do)\b/i,'Question opener instead of a concrete start.','Open from an observation.'],['ai.abstract-cluster','yellow',/\b(alignment|authenticity|clarity|strategy|value)\b.*\b(alignment|authenticity|clarity|strategy|value)\b/i,'Abstract nouns pile up.','Use concrete nouns and actions.']
-].map(([id,severity,expression,reason,suggestion])=>({id:id as string,severity:severity as Severity,expression:expression as RegExp,reason:reason as string,suggestion:suggestion as string}));
-export function analyzeAiEditor(text:string):EngineReport { const findings:Finding[]=[]; for(const s of sentences(text)) for(const r of rules) if(r.expression.test(s.text)) findings.push({engine:'ai_editor',id:r.id,severity:r.severity,sentence:s.index,excerpt:s.text,reason:r.reason,suggestion:r.suggestion}); const reds=findings.filter(f=>f.severity==='red').length, score=Math.max(0,100-reds*18-(findings.length-reds)*6); return {engine:'ai_editor',version:RULESET_VERSION,score,passed:reds===0,findings}; }
+import type { EngineReport, Finding } from './contracts.js';
+import { rules } from './ai-editor-rules.js';
+import { sentences } from './text.js';
+
+export type { Rule } from './ai-editor-rules.js';
+export { rules } from './ai-editor-rules.js';
+
+export const RULESET_VERSION = '2.9.24-static.2';
+const sentenceRules = rules.filter((rule) => rule.scope !== 'line');
+const lineRules = rules.filter((rule) => rule.scope === 'line');
+const ruleOrder = new Map(rules.map((rule, index) => [rule.id, index]));
+
+export function serializedRules() {
+  return rules.map((rule) => ({
+    id: rule.id,
+    severity: rule.severity,
+    reason: rule.reason,
+    suggestion: rule.suggestion,
+    expression: { source: rule.expression.source, flags: rule.expression.flags },
+    scope: rule.scope ?? 'sentence',
+  }));
+}
+
+export function analyzeAiEditor(text: string): EngineReport {
+  const findings: Finding[] = [];
+  const mapped = sentences(text);
+  for (const sentence of mapped) {
+    for (const rule of sentenceRules) {
+      if (rule.expression.test(sentence.text)) {
+        findings.push({
+          engine: 'ai_editor',
+          id: rule.id,
+          severity: rule.severity,
+          sentence: sentence.index,
+          excerpt: sentence.text,
+          reason: rule.reason,
+          suggestion: rule.suggestion,
+        });
+      }
+    }
+  }
+
+  let lineStart = 0;
+  for (const line of text.split('\n')) {
+    for (const rule of lineRules) {
+      const result = rule.expression.exec(line);
+      if (!result) continue;
+      const matchStart = lineStart + result.index;
+      const sentence = mapped.find((candidate) => candidate.start <= matchStart && matchStart < candidate.end);
+      if (!sentence) continue;
+      findings.push({
+        engine: 'ai_editor',
+        id: rule.id,
+        severity: rule.severity,
+        sentence: sentence.index,
+        excerpt: sentence.text,
+        reason: rule.reason,
+        suggestion: rule.suggestion,
+      });
+    }
+    lineStart += line.length + 1;
+  }
+
+  findings.sort((left, right) => left.sentence - right.sentence || (ruleOrder.get(left.id) ?? 0) - (ruleOrder.get(right.id) ?? 0));
+
+  const reds = findings.reduce((count, finding) => count + Number(finding.severity === 'red'), 0);
+  const score = Math.max(0, 100 - reds * 18 - (findings.length - reds) * 6);
+  return { engine: 'ai_editor', version: RULESET_VERSION, score, passed: reds === 0, findings };
+}

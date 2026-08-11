@@ -8,7 +8,7 @@ Hold Your Voice is an MIT-licensed, local-first writing gate for people who want
 It checks a draft through two separate programs:
 
 - **VoiceDNA** compares the draft with 13 observable elements from your own local writing samples.
-- **AI Editor** flags a small, versioned set of editorial patterns that can make writing generic, formulaic, or inflated.
+- **AI Editor** flags a reviewed, versioned set of editorial patterns that can make writing generic, formulaic, or inflated.
 
 Those programs keep separate findings, scores, and pass states. A strong result from one never cancels a failure in the other. The tool creates a tiered editing brief, then checks the candidate again before you accept it.
 
@@ -237,15 +237,19 @@ Read the full [VoiceDNA reference](docs/VOICE-DNA.md) and [Wiki guide](https://g
 
 ## AI Editor: inspectable rules
 
-AI Editor uses a local, deterministic ruleset. Each rule has a stable ID, severity, reason, and repair direction. Run this command to see the rules that actually execute in your checkout:
+AI Editor uses a local, deterministic ruleset. The current `2.9.24-static.2` ruleset restores the reviewed 143-rule static catalog from the published `@holdyourvoice/hyv@2.9.24` `signals.ts` artifact and retains two detectors introduced in 3.1, for 145 rules total. Most rules inspect sentences; selected inherited rules inspect one physical line to preserve multi-sentence and line-start behavior. Each rule has a stable ID, severity, reason, repair direction, reconstructable expression, and explicit scope. Intentional inherited overlaps remain visible as separate findings.
+
+Run this command to see the rules and ruleset version that actually execute in the published CLI:
 
 ```bash
 npx @holdyourvoice/hyv patterns
 ```
 
+From a built source checkout, run `node dist/cli.js patterns` instead.
+
 Red findings are release blockers. Yellow findings are a request to inspect a sentence in context. A match never proves who wrote the text, and a clean scan never proves the text is good.
 
-The repository also includes a public [220-pattern editorial catalog](docs/patterns/AI-WRITING-PATTERNS-1-220.md). That catalog is broader than the executable ruleset on purpose. A catalog entry becomes executable only after the project has defined its counterexamples, reviewed public provenance, written tests, and decided the rule is narrow enough to help without creating noise.
+The repository also includes a public [220-pattern editorial catalog](docs/patterns/AI-WRITING-PATTERNS-1-220.md). It is broader editorial guidance, not a claim that all 220 entries execute. A catalog entry becomes executable only after the project has defined its counterexamples, reviewed public provenance, written tests, and decided the rule is narrow enough to help without creating noise. Neither the executable rules nor the editorial catalog can prove authorship.
 
 ## Verification contract
 
