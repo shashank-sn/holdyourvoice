@@ -1,7 +1,9 @@
 # ai editor
 
-AI Editor uses a small, deterministic, versioned ruleset. every executable rule has a stable ID, severity, reason, repair direction, and sentence-level finding. run `node dist/cli.js patterns` to inspect the rules installed in your checkout.
+AI Editor uses a reviewed, deterministic, versioned ruleset. the current `2.9.24-static.2` ruleset restores the 143-rule static catalog from the published `@holdyourvoice/hyv@2.9.24` `signals.ts` artifact and retains two 3.1 detectors, for 145 rules total. most rules inspect one sentence; selected inherited rules inspect one physical line and still return stable sentence locations. every rule has a stable ID, severity, reason, repair direction, reconstructable expression, and explicit scope. intentional inherited overlaps remain separate findings.
+
+run `hyv patterns` to inspect an installed release, or `node dist/cli.js patterns` in a built source checkout. the JSON output records the ruleset version and exact executable catalog.
 
 red findings block release. yellow findings invite review and never trigger an automatic rewrite. a rule match is editorial evidence and never proves AI authorship.
 
-the public 220-pattern catalog is broader editorial guidance. the CLI implements a much smaller set of deterministic checks.
+the public 220-pattern catalog is broader editorial guidance. it does not mean all 220 entries execute, and it cannot prove authorship. the restored catalog stays local-only: it does not restore 2.9 hosted analysis, telemetry, profile sync, provider calls, or automatic file mutation. rewrite preparation can target flagged sentences only; clean and unflagged text stays unchanged.
