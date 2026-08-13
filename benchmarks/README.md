@@ -12,7 +12,7 @@ The private lane is disabled by default and must stay outside every repository a
 
 ## Stage 1 checkpoint setup
 
-MAR-362 pins the unchanged baseline to `4e6269121d551c008a34db73077e1e4fea41b3f9` and the Stage 1 candidate to `550ea24f652291dca13757fdbd2f0fa0b5e3f621`. The evaluator validates captured JSON and NDJSON but never calls a provider.
+MAR-362 pins the unchanged, checkoutable baseline to `4e6269121d551c008a34db73077e1e4fea41b3f9`. The hardcoded `STAGE1_COMMIT` is `550ea24f652291dca13757fdbd2f0fa0b5e3f621`; it is not retrievable from origin after the PR #27 squash merge. The merged head is `32d35eb35246696f0a56e7732d714ca6c22060f7`. No committed locked-human protocol digest exists. Do not create one until a rights-approved non-synthetic corpus and the rest of the protocol inputs are available. The evaluator validates captured JSON and NDJSON but never calls a provider.
 
 Run the synthetic calibration packet outside the repository:
 
@@ -21,6 +21,14 @@ npm run stage1:dry-run -- --out /absolute/path/outside-the-repository/stage1-dry
 ```
 
 The expected result is `BLOCKED`, `promotable: false`, with `human_writer_evidence_deferred`, `synthetic_fixture_evidence`, and `locked_human_evidence_required`. This checks the protocol, run, blind mapping, reviewer log, ratings seal, report, and release-audit bindings. It is development evidence only.
+
+Emit the human-study operator kit outside the repository and every worktree:
+
+```bash
+npm run stage1:human-packet -- --out /absolute/path/outside-the-repository/stage1-human-packet
+```
+
+This kit does not pass MAR-362. The automated harness is not human evidence. `hyv_score` and ratings produced by a model or agent are not writer evidence. Kit `--out` is emit-only and is not approved encrypted custody. Do not capture the Stage 1 arm until `STAGE1_COMMIT` is checkoutable; do not label merged-HEAD bytes as that commit. Shape-checked receipts remain unverified until an external verifier exists.
 
 The lower-level commands operate on the emitted artifacts:
 
@@ -32,8 +40,10 @@ npm run stage1:evaluate -- freeze-blind --protocol <protocol.json> --runs <runs>
 npm run stage1:evaluate -- record-rating --packet <packet.json> --ratings <ratings.ndjson> --rating <signed-rating.json>
 npm run stage1:evaluate -- seal-ratings --packet <packet.json> --mapping <mapping.json> --ratings <ratings.ndjson>
 npm run stage1:evaluate -- reduce --protocol <protocol.json> --runs <runs> --packet <packet.json> --mapping <mapping.json> --ratings <ratings.ndjson> --seal <seal.json> --release-audit <audit.json>
-npm run stage1:evaluate -- record-checkpoint-disposition --report <report.json> --disposition <PROCEED_TO_MAR_363|STOP|REPEAT_PROTOCOL> --attestation <external-receipt.json>
+npm run stage1:evaluate -- record-checkpoint-disposition --report <report.json> --disposition <STOP|REPEAT_PROTOCOL> --attestation <external-receipt.json>
 ```
+
+While `human_writer_evidence_deferred` is forced, the report decision is `BLOCKED` and `PASS` is unreachable. The only accepted checkpoint dispositions are `STOP` and `REPEAT_PROTOCOL`. `PROCEED_TO_MAR_363` is rejected with `human_evidence_deferred`.
 
 Before the locked partition runs, commit the canonical protocol digest. It freezes corpus and per-case provenance/rights digests, provider/model/revision/settings, task/ruleset/rubric digests, randomization commitment, statistic, margin, sample and rating minima, missingness, tie, retry and routing policies, disclosure and derived-retention scopes, and the release-audit contract. No field may be filled from observed results.
 
@@ -60,10 +70,10 @@ Promotion requires the committed confidence method, sample/rating minimums, revi
 Automation stops before locked evidence. A locked run still needs:
 
 1. A rights-approved, non-synthetic corpus with per-case provenance and provider/reviewer disclosure permission.
-2. An approved encrypted root, custodian, retention/deletion plan, mapping custodian, reviewer roster, and trusted external signing keys.
+2. Approved encrypted custody, a retention/deletion plan, a mapping custodian, a reviewer roster, and trusted external signing keys.
 3. Pre-registered model revision, route, statistic, margin, sample/rating minimums, missingness, tie, retry, and routing policies.
-4. Real provider captures and blind human ratings with externally verified receipts.
-5. A human Stage 1 checkpoint disposition after the bound release audit.
+4. Real provider captures and blind human ratings with external receipts.
+5. A mapping-custody attestation and a human checkpoint disposition after the bound release audit.
 
 Synthetic fixtures, model-generated ballots, unsigned records, missing assignments, or digest drift can never produce `PROCEED_TO_MAR_363`.
 The current harness rejects `PROCEED_TO_MAR_363` unconditionally. MAR-362 stays open until the external verifier and reviewer-roster check are implemented and the real writer study is complete.
