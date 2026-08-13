@@ -1,8 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, finalOutputCheckForMcp, inspectHygieneForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, migrateLearningForMcp, patternsForMcp, prepareLifecycleForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { HYV_VERSION } from './version.js';
+import { loadApprovalContext } from './approval-context.js';
 
 const writing = z.string().min(1).max(100_000);
 const hygieneText = z.string().max(100_000);
@@ -11,6 +12,21 @@ const copySpecJson = z.string().min(1).max(250_000);
 const writingBriefJson = z.string().min(1).max(50_000);
 const samples = z.array(writing).min(2).max(20);
 const avoid = z.array(z.string().min(1).max(200)).max(50).optional();
+const lifecycleJson = z.string().min(1).max(1_048_576);
+const approvedLearningText = z.string().min(1).max(1_048_576);
+const evaluatorId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/);
+const semanticViolation = z.enum(['action_change', 'dropped_object', 'unsupported_claim', 'constraint_weakened', 'clarity_regression']);
+const redactsSensitiveInputs = process.env.HYV_MCP_SENSITIVE_INPUT_REDACTION === '1';
+const learningOptions = {
+  mutation_id: z.string().min(1).max(200).optional(),
+  authority: z.enum(['founder', 'team', 'system']).optional(),
+  provenance: z.string().min(1).max(500).optional(),
+  weight: z.number().positive().finite().optional(),
+  compatibility: z.enum(['same-or-newer', 'exact']).optional(),
+};
+function learningArgs(value: { mutation_id?: string; authority?: 'founder' | 'team' | 'system'; provenance?: string; weight?: number; compatibility?: 'same-or-newer' | 'exact' }) {
+  return { mutationId: value.mutation_id, authority: value.authority, provenance: value.provenance, weight: value.weight, compatibility: value.compatibility };
+}
 
 function json(value: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] };
@@ -18,6 +34,10 @@ function json(value: unknown) {
 
 function failure(error: unknown) {
   return { content: [{ type: 'text' as const, text: error instanceof Error ? error.message : String(error) }], isError: true };
+}
+
+function lifecycleResult(result: ReturnType<typeof submitSemanticVerdictForMcp>) {
+  return json(result.ok ? result.artifact : { error: result.error });
 }
 
 const server = new McpServer({ name: 'hold-your-voice', version: HYV_VERSION });
@@ -95,12 +115,12 @@ server.registerTool('hyv_apply_rewrite', {
 });
 
 server.registerTool('hyv_verify', {
-  description: 'Verify a revised candidate against an original draft and portable profile. On a successful check, it stores only resolved finding IDs in local profile-scoped learning state; it never retains either text.',
+  description: 'Verify a revised candidate against an original draft and portable profile without changing learning state.',
   inputSchema: { original: writing, candidate: writing, profile_json: profileJson, writing_brief_json: writingBriefJson.optional() },
-  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 }, async ({ original, candidate, profile_json, writing_brief_json }) => {
   try {
-    return json(verifyForMcp(original, candidate, profile_json, {}, writing_brief_json));
+    return json(verifyForMcp(original, candidate, profile_json, writing_brief_json));
   } catch (error) {
     return failure(error);
   }
@@ -109,10 +129,10 @@ server.registerTool('hyv_verify', {
 server.registerTool('hyv_verify_copy_spec', {
   description: 'Verify a candidate against the existing voice gates and a local CopySpec. Immutable claims remain verbatim unless atoms are supplied; then each declared atom must remain. Prohibited claims fail closed.',
   inputSchema: { original: writing, candidate: writing, profile_json: profileJson, copy_spec_json: copySpecJson, writing_brief_json: writingBriefJson.optional() },
-  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 }, async ({ original, candidate, profile_json, copy_spec_json, writing_brief_json }) => {
   try {
-    return json(verifyCopySpecForMcp(original, candidate, profile_json, copy_spec_json, {}, writing_brief_json));
+    return json(verifyCopySpecForMcp(original, candidate, profile_json, copy_spec_json, writing_brief_json));
   } catch (error) {
     return failure(error);
   }
@@ -135,5 +155,78 @@ server.registerTool('hyv_patterns', {
   inputSchema: {},
   annotations: { readOnlyHint: true },
 }, async () => json(patternsForMcp()));
+
+server.registerTool('hyv_learning_inspect', {
+  description: 'Inspect profile-scoped learning receipts without returning stored instruction or draft text.',
+  inputSchema: { profile_json: profileJson }, annotations: { readOnlyHint: true },
+}, async ({ profile_json }) => { try { return json(inspectLearningForMcp(profile_json)); } catch (error) { return failure(error); } });
+
+server.registerTool('hyv_learning_record', {
+  description: 'Record an explicit profile-scoped learning instruction with authority and provenance metadata.',
+  inputSchema: { profile_json: profileJson, instruction: z.string().min(1).max(240), ...learningOptions }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+}, async (args) => { try { return json(recordLearningForMcp(args.profile_json, args.instruction, learningArgs(args))); } catch (error) { return failure(error); } });
+
+server.registerTool('hyv_learning_ratify', {
+  description: 'Ratify a learning event for a Profile v3 revision.',
+  inputSchema: { profile_json: profileJson, event_id: z.string().min(1).max(200), ...learningOptions }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+}, async (args) => { try { return json(ratifyLearningForMcp(args.profile_json, args.event_id, learningArgs(args))); } catch (error) { return failure(error); } });
+
+server.registerTool('hyv_learning_supersede', {
+  description: 'Supersede a learning event for a Profile v3 revision.',
+  inputSchema: { profile_json: profileJson, event_id: z.string().min(1).max(200), ...learningOptions }, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+}, async (args) => { try { return json(supersedeLearningForMcp(args.profile_json, args.event_id, learningArgs(args))); } catch (error) { return failure(error); } });
+
+server.registerTool('hyv_learning_migrate', {
+  description: 'Migrate Profile v2 learning into a Profile v3 identity.',
+  inputSchema: { source_profile_json: profileJson, target_profile_json: profileJson, ...learningOptions }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+}, async (args) => { try { return json(migrateLearningForMcp(args.source_profile_json, args.target_profile_json, learningArgs(args))); } catch (error) { return failure(error); } });
+
+server.registerTool('hyv_learning_clear', {
+  description: 'Delete all local learning state for a profile.',
+  inputSchema: { profile_json: profileJson }, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+}, async ({ profile_json }) => { try { return json(clearLearningForMcp(profile_json)); } catch (error) { return failure(error); } });
+
+server.registerTool('hyv_lifecycle_prepare_semantic', {
+  description: 'Prepare a normal semantic-review task and its initial immutable lifecycle artifact.',
+  inputSchema: { deterministic_json: lifecycleJson, binding_json: lifecycleJson, receipt_json: lifecycleJson, policy: z.literal('normal'), allowed_violations: z.array(semanticViolation).max(5) },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+}, async (args) => { try { return json(prepareLifecycleForMcp(args.deterministic_json, args.binding_json, args.receipt_json, args.policy, args.allowed_violations)); } catch (error) { return failure(error); } });
+
+server.registerTool('hyv_lifecycle_submit_verdict', {
+  description: 'Submit one normal-policy semantic verdict using the server-installed evaluator authorization context.',
+  inputSchema: { artifact_json: lifecycleJson, task_json: lifecycleJson, evaluator_id: evaluatorId, verdict_json: lifecycleJson },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+}, async (args) => { try { return lifecycleResult(submitSemanticVerdictForMcp(args.artifact_json, args.task_json, args.evaluator_id, args.verdict_json, loadApprovalContext())); } catch (error) { return failure(error); } });
+
+server.registerTool('hyv_lifecycle_inspect', {
+  description: 'Validate and inspect an immutable lifecycle artifact without exposing bound source or candidate hashes.',
+  inputSchema: { artifact_json: lifecycleJson }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+}, async ({ artifact_json }) => { try { return json(inspectLifecycleForMcp(artifact_json)); } catch (error) { return failure(error); } });
+
+if (redactsSensitiveInputs) {
+  server.registerTool('hyv_lifecycle_finalize', {
+    description: 'Finalize an authorized human approval or rejection. Capability input requires host-guaranteed sensitive-input redaction.',
+    inputSchema: { artifact_json: lifecycleJson, decision_json: lifecycleJson, capability_json: lifecycleJson.optional() },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async (args) => { try { return lifecycleResult(finalizeLifecycleForMcp(args.artifact_json, args.decision_json, loadApprovalContext(), args.capability_json)); } catch { return failure(new Error('Lifecycle finalization failed.')); } });
+
+  server.registerTool('hyv_lifecycle_validate_final_approval', {
+    description: 'Validate a final-approval capability against the server-installed trust context.',
+    inputSchema: { artifact_json: lifecycleJson, capability_json: lifecycleJson }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async (args) => { try { return json(validateFinalApprovalForMcp(args.artifact_json, args.capability_json, loadApprovalContext())); } catch { return failure(new Error('Capability validation failed.')); } });
+
+  server.registerTool('hyv_learning_record_approved', {
+    description: 'Record one approval-revalidated, deterministic, text-free learning event.',
+    inputSchema: { ready_json: lifecycleJson, approved_json: lifecycleJson, original: approvedLearningText, candidate: approvedLearningText, profile_json: profileJson, decision_json: lifecycleJson, capability_json: lifecycleJson, copy_spec_json: copySpecJson.optional(), writing_brief_json: writingBriefJson.optional() },
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  }, async (args) => { try { return json({ status: recordApprovedLearningForMcp({ readyJson: args.ready_json, approvedJson: args.approved_json, source: args.original, candidate: args.candidate, profileJson: args.profile_json, decisionJson: args.decision_json, capabilityJson: args.capability_json, context: loadApprovalContext(), copySpecJson: args.copy_spec_json, writingBriefJson: args.writing_brief_json }) }); } catch { return failure(new Error('Approved learning was not authorized.')); } });
+} else {
+  server.registerTool('hyv_lifecycle_finalize', {
+    description: 'Record an authorized human rejection. Approval is unavailable because this host does not guarantee sensitive-input redaction.',
+    inputSchema: { artifact_json: lifecycleJson, decision_json: lifecycleJson }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async (args) => { try {
+    return lifecycleResult(finalizeRejectionForMcp(args.artifact_json, args.decision_json, loadApprovalContext()));
+  } catch { return failure(new Error('Only rejection is available without sensitive-input redaction.')); } });
+}
 
 await server.connect(new StdioServerTransport());

@@ -16,6 +16,7 @@ export interface Finding {
   excerpt: string;
   reason: string;
   suggestion: string;
+  appliedPolicy?: RulePolicyState;
 }
 
 export interface EngineReport {
@@ -42,12 +43,50 @@ export interface VoiceDnaMetrics {
   transitions: string[];
 }
 
-export interface Profile {
-  version: string;
+export interface ProfileV2 {
+  version: '2';
   sampleCount: number;
   metrics: VoiceDnaMetrics;
   avoid: string[];
 }
+
+export type RulePolicyState = 'blocking' | 'advisory' | 'judgment-required' | 'disabled';
+export type FingerprintMetric = 'contractionRate' | 'sentenceLengthDistribution' | 'bulletRate' | 'enDashRate';
+
+export interface MetricTolerance {
+  absolute: number;
+  calibrated: boolean;
+}
+
+export interface ProfileProvenance {
+  source: string;
+  rights: string;
+  createdAt: string;
+}
+
+export interface FounderFingerprint {
+  contractionRate: number;
+  sentenceLengthDistribution: { short: number; medium: number; long: number };
+  bulletRate: number;
+  enDashRate: number;
+}
+
+export interface ProfileV3 {
+  version: '3';
+  id: string;
+  revision: number;
+  revisionDigest: string;
+  sampleCount: number;
+  metrics: VoiceDnaMetrics;
+  avoid: string[];
+  provenance: ProfileProvenance;
+  rulePolicy: Record<string, RulePolicyState>;
+  fingerprint: FounderFingerprint;
+  tolerances: Record<FingerprintMetric, MetricTolerance>;
+  metricFixtures: Record<FingerprintMetric, string[]>;
+}
+
+export type Profile = ProfileV2 | ProfileV3;
 
 export type WritingFormat = 'general' | 'social' | 'deck' | 'outreach' | 'blog' | 'audit' | 'website';
 export type EvidenceStatus = 'primary' | 'attributed' | 'internal' | 'unverified';
@@ -215,6 +254,7 @@ export interface RewriteReceipt {
   taskFingerprint: string;
   responseFingerprint: string;
   adapterIds: string[];
+  replacementSentenceIds?: number[];
 }
 
 export interface RewriteApplyResult {
@@ -227,6 +267,8 @@ export interface RewriteApplyResult {
 export interface RewriteEvaluation extends Omit<RewriteApplyResult, 'status'> {
   status: 'accepted' | 'repairable' | 'needs_escalation' | 'needs_semantic_review';
   verification?: Verification | CopySpecVerification;
+  deterministicArtifact?: DeterministicVerificationArtifactV1;
+  lifecycleBinding?: RewriteLifecycleBindingV1;
 }
 
 export type SemanticViolation = 'action_change' | 'dropped_object' | 'unsupported_claim' | 'constraint_weakened' | 'clarity_regression';
@@ -242,3 +284,147 @@ export interface SemanticReview {
   verdicts: SemanticVerdict[];
   reason?: 'insufficient_evaluators' | 'evaluator_disagreement' | 'semantic_violation';
 }
+
+export type SemanticPolicy = 'normal' | 'high_assurance';
+export type RewriteLifecycleStatus = 'needs_semantic_review' | 'ready_for_human_review' | 'approved' | 'needs_escalation';
+export type LifecycleEscalationReason = 'semantic_rejection' | 'semantic_disagreement' | 'human_rejection';
+
+export interface RewriteLifecycleBindingV1 {
+  rewriteTaskFingerprint: string;
+  rewriteResponseFingerprint: string;
+  deterministicArtifactFingerprint: string;
+  sourceHash: string;
+  candidateHash: string;
+  profileId: string;
+  profileRevisionDigest: string;
+  rulesetVersion: string;
+  schemaVersion: '1';
+}
+
+export interface DeterministicVerificationArtifactV1 {
+  version: '1';
+  verificationKind: 'standard' | 'copy_spec';
+  passed: boolean;
+  artifactFingerprint: string;
+  analysisVersion: string;
+  rulesetVersion: string;
+  preservationMetricVersion: 'legacy-set-v1';
+  preservationScore: number;
+  sourceHash: string;
+  candidateHash: string;
+  profileId: string;
+  profileRevisionDigest: string;
+  copySpecHash?: string;
+  writingBriefHash?: string;
+  regressionKeys: string[];
+  claimFailureKeys?: string[];
+}
+
+export interface SemanticEvidenceScopeV1 { sentenceIds: number[] }
+
+export interface SemanticReviewTaskV1 {
+  version: '1';
+  judgmentType: 'semantic';
+  taskFingerprint: string;
+  binding: RewriteLifecycleBindingV1;
+  policy: SemanticPolicy;
+  evidenceScope: SemanticEvidenceScopeV1;
+  allowedViolations: SemanticViolation[];
+}
+
+export interface SemanticVerdictV1 {
+  version: '1';
+  judgmentType: 'semantic';
+  taskFingerprint: string;
+  binding: RewriteLifecycleBindingV1;
+  evidenceScope: SemanticEvidenceScopeV1;
+  evaluatorId: string;
+  approved: boolean;
+  violations: SemanticViolation[];
+}
+
+export interface ApprovalCapabilityEnvelopeV1 { payload: string; signature: string }
+export type ApprovalCapabilityPurpose = 'hyv.final-approval' | 'hyv.rebuild-authorization';
+export interface ApprovalCapabilityClaimsV1 {
+  version: '1';
+  purpose: ApprovalCapabilityPurpose;
+  issuer: string;
+  audience: '@holdyourvoice/hyv';
+  subjectArtifactFingerprint: string;
+  sourceHash: string;
+  candidateHash: string;
+  profileId: string;
+  profileRevisionDigest: string;
+  keyId: string;
+  issuedAt: number;
+  notBefore: number;
+  expiresAt: number;
+  nonce: string;
+}
+
+export interface ApprovalTrustKeyV1 {
+  issuer: string;
+  keyId: string;
+  publicKeySpki: string;
+  status: 'active' | 'revoked';
+  activeFrom?: number;
+  activeUntil?: number;
+}
+export interface ApprovalTrustStoreV1 {
+  version: '1';
+  audience: '@holdyourvoice/hyv';
+  maxCapabilityLifetimeSeconds: number;
+  keys: ApprovalTrustKeyV1[];
+}
+
+export interface HumanFinalizationV1 {
+  version: '1';
+  judgmentType: 'human_finalization';
+  parentArtifactFingerprint: string;
+  binding: RewriteLifecycleBindingV1;
+  evaluatorId: string;
+  evidenceScope: { kind: 'candidate' };
+  decision: 'approve' | 'reject';
+  capability?: ApprovalCapabilityEnvelopeV1;
+}
+
+export interface SemanticSubmissionActionV1 {
+  version: '1';
+  type: 'semantic_submission';
+  parentArtifactFingerprint: string;
+  taskFingerprint: string;
+  verdicts: SemanticVerdictV1[];
+}
+export interface HumanFinalizationActionV1 {
+  version: '1';
+  type: 'human_finalization';
+  parentArtifactFingerprint: string;
+  finalization: HumanFinalizationV1;
+}
+export type RewriteLifecycleActionV1 = SemanticSubmissionActionV1 | HumanFinalizationActionV1;
+
+export interface RewriteLifecycleArtifactV1 {
+  version: '1';
+  status: RewriteLifecycleStatus;
+  artifactFingerprint: string;
+  parentArtifactFingerprint?: string;
+  transitionFingerprint: string;
+  binding: RewriteLifecycleBindingV1;
+  semanticPolicy: SemanticPolicy;
+  semanticTaskFingerprint: string;
+  semanticEvidenceScopeFingerprint: string;
+  verdictFingerprints: string[];
+  capabilityFingerprint?: string;
+  reason?: LifecycleEscalationReason;
+}
+
+export interface RewriteLifecycleContextV1 {
+  now: number;
+  trustStore: ApprovalTrustStoreV1;
+  authorizedSemanticEvaluatorIds: { normal: string[]; highAssurance: string[] };
+  authorizedHumanFinalizerIds: string[];
+}
+
+export type LifecycleError = 'invalid_action' | 'invalid_binding' | 'task_fingerprint_mismatch' | 'evidence_scope_mismatch' | 'evaluator_not_authorized' | 'human_finalizer_not_authorized' | 'duplicate_evaluator' | 'invalid_verdict_count' | 'contradictory_verdict' | 'stale_parent' | 'conflicting_replay' | 'out_of_order_transition' | 'terminal_state' | 'capability_required' | 'capability_invalid';
+
+export type CapabilityError = 'invalid_encoding' | 'size_exceeded' | 'invalid_schema' | 'non_canonical' | 'wrong_version' | 'wrong_purpose' | 'wrong_audience' | 'binding_mismatch' | 'unknown_key' | 'revoked_key' | 'inactive_key' | 'premature' | 'expired' | 'lifetime_exceeded' | 'invalid_signature';

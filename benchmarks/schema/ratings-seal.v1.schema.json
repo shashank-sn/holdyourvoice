@@ -1,0 +1,8 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://holdyourvoice.dev/schemas/ratings-seal.v1.schema.json",
+  "type":"object","additionalProperties":false,
+  "required":["kind","version","protocolDigest","candidateDigest","packetDigest","mappingDigest","ratingsDigest","recordCount","sealDigest"],
+  "properties":{"kind":{"const":"hyv-stage1-ratings-seal"},"version":{"const":"1"},"protocolDigest":{"$ref":"#/$defs/digest"},"candidateDigest":{"$ref":"#/$defs/digest"},"packetDigest":{"$ref":"#/$defs/digest"},"mappingDigest":{"$ref":"#/$defs/digest"},"ratingsDigest":{"$ref":"#/$defs/digest"},"recordCount":{"type":"integer","minimum":0},"sealDigest":{"$ref":"#/$defs/digest"}},
+  "$defs":{"digest":{"type":"string","pattern":"^[a-f0-9]{64}$"}}
+}

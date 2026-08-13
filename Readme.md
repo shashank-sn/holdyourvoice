@@ -55,7 +55,7 @@ To contribute, clone this repository, run `npm install`, then run `npm test` and
 
 ### Use it in Claude Desktop
 
-Build the fully local Claude Desktop extension with `npm run pack:claude`, then install `dist/hold-your-voice.mcpb` from **Settings → Extensions → Advanced settings → Install Extension**. The extension accepts text and portable profile JSON in the current conversation only. A successful verification records resolved finding IDs in local learning state; it never retains writing text or makes network requests. See the [Claude Desktop guide](docs/CLAUDE-DESKTOP.md).
+Build the fully local Claude Desktop extension with `npm run pack:claude`, then install `dist/hold-your-voice.mcpb` from **Settings → Extensions → Advanced settings → Install Extension**. The extension accepts text and portable profile JSON in the current conversation only. Verification is read-only. Learning requires an explicit learning command or an approved lifecycle transition; neither path retains writing text or makes network requests. See the [Claude Desktop guide](docs/CLAUDE-DESKTOP.md).
 
 ### Build a local VoiceDNA profile
 
@@ -167,7 +167,7 @@ Give the brief and draft to a human editor or any model you trust. This reposito
 npx @holdyourvoice/hyv verify draft.md candidate.md profile.json
 ```
 
-`verify` returns the original and candidate reports, identifies newly introduced findings, calculates a coarse preservation score, and exits with status `2` when the candidate fails the dual gate. A passing verification automatically records only the resolved finding IDs for that profile in local learning state. It exits with `1` for a usage or runtime error. Treat status `2` as a release signal in scripts or CI.
+`verify` returns the original and candidate reports, identifies newly introduced findings, calculates a coarse preservation score, and exits with status `2` when the candidate fails the dual gate. It does not mutate learning state. It exits with `1` for a usage or runtime error. Treat status `2` as a release signal in scripts or CI.
 
 ### Lock factual claims with a CopySpec
 
@@ -199,7 +199,7 @@ The check is deterministic. Without `atoms`, an immutable claim remains a verbat
 
 ### Local voice memory
 
-Learning is on by default. After a successful `verify`, Hold Your Voice records resolved rule IDs under `~/.hyv/learning/`, scoped to a fingerprint of the portable profile. It stores no draft or candidate text. The next `rewrite-prompt` uses a bounded list of those verified repairs.
+Learning changes are explicit. Use the learning commands below, or complete the separately authorized semantic-review and final-approval lifecycle before recording approved learning. State lives under `~/.hyv/learning/`, scoped to the portable profile, and stores no draft or candidate text. The next `rewrite-prompt` uses a bounded list of approved repairs.
 
 ```bash
 hyv learning show profile.json
@@ -268,7 +268,7 @@ Read the full [VoiceDNA reference](docs/VOICE-DNA.md) and [Wiki guide](https://g
 
 ## AI Editor: inspectable rules
 
-AI Editor uses a local, deterministic ruleset. The current `2.9.24-static.2` ruleset restores the reviewed 143-rule static catalog from the published `@holdyourvoice/hyv@2.9.24` `signals.ts` artifact and retains two detectors introduced in 3.1, for 145 rules total. Most rules inspect sentences; selected inherited rules inspect one physical line to preserve multi-sentence and line-start behavior. Each rule has a stable ID, severity, reason, repair direction, reconstructable expression, and explicit scope. Intentional inherited overlaps remain visible as separate findings.
+AI Editor uses a local, deterministic ruleset. The current `3.2.0-reconciled.1` ruleset contains 148 stable catalog entries: the inherited catalog plus en-dash and performative-sincerity coverage. Applied profile policy determines whether a match blocks, advises, requires judgment, or is disabled. Duplicate legacy expressions remain cataloged for ID compatibility but emit one canonical finding. Most rules inspect sentences; selected inherited rules inspect one physical line to preserve multi-sentence and line-start behavior.
 
 Run this command to see the rules and ruleset version that actually execute in the published CLI:
 
@@ -302,12 +302,19 @@ The preservation score is a guardrail based on retained original words longer th
 | `hyv hygiene <draft> [--fix] [--output=path]` | Draft | Hygiene report or cleaned copy plus receipt | You need to inspect or conservatively clean hidden Unicode. |
 | `hyv final-check <path\|->` | Any final text | Exact accepted text on stdout or a withheld-output report on stderr | Text is about to cross a user-facing boundary. |
 | `hyv rewrite-prompt <draft> <profile.json>` | Draft and profile | Markdown editing brief | You need a constrained request for an editor or model. |
+| `hyv prepare-rewrite <draft> <profile.json> <task.json>` | Draft and profile | Versioned task file plus metadata | A host needs a fingerprint-bound sentence-edit task. |
+| `hyv apply-rewrite <task.json> <response.json> <profile.json>` | Task, response, and profile | Candidate evaluation JSON | A host needs to apply and recheck eligible sentence replacements. |
 | `hyv verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code | You need the candidate gate. |
 | `hyv verify-spec <original> <candidate> <profile.json> <copy-spec.json>` | Original, candidate, profile, CopySpec | Verification JSON with hard claim gate | A brief contains locked facts or prohibited claims. |
-| `hyv learning <show\|add\|clear> <profile.json>` | Profile and optional instruction | Local learning JSON | You need to inspect or manage profile-scoped learning. |
+| `hyv learning <show\|inspect\|add\|record\|ratify\|supersede\|migrate\|clear> ...` | Profile, operation value, and bounded metadata options | Preferences or a text-free mutation receipt | You need to inspect, migrate, or manage profile-scoped learning. |
+| `hyv lifecycle <prepare-semantic\|submit-verdict\|inspect\|validate-final-approval\|finalize> ...` | Versioned lifecycle artifacts | Canonical lifecycle artifact or metadata | A normal-policy semantic review or human decision must advance through the shared reducer. |
 | `hyv patterns` | None | Ruleset JSON | You need the exact enabled rules. |
 
 Every file argument can be `-` when the command accepts text input from standard input. Profile output is always written to the path you give it. Use `npx @holdyourvoice/hyv <command>` in place of `hyv <command>` when you have not installed the CLI globally.
+
+Profile v3 learning is keyed by its stable local profile ID, so compatible history survives profile revisions. `record`, `ratify`, and `supersede` accept bounded `--mutation-id`, `--authority`, `--provenance`, `--weight`, and `--compatibility` options. `ratify` and `supersede` require Profile v3. `migrate` explicitly copies compatible legacy Profile v2 learning into one Profile v3 identity. Replaying an identical mutation is idempotent; reusing its ID for a different operation returns a conflict. Inspection and receipts expose event metadata only, never stored instructions or draft text.
+
+The standalone CLI supports normal-policy semantic review. High-assurance review requires a trusted embedding and is rejected by the CLI. Approval capabilities are accepted only through `--capability-stdin` or a permission-checked `--capability-file`; adapters validate capabilities but never mint them. Rejection needs no capability. Approval and `learning record-approved` require the matching signed final-approval capability. `apply-rewrite`, `lifecycle submit-verdict`, and `lifecycle finalize` exit `2` when the candidate or transition is not accepted, while usage and runtime failures exit `1`.
 
 ## Project map
 
@@ -320,17 +327,23 @@ Every file argument can be `-` when the command accepts text input from standard
 | `src/ai-editor.ts` | Owns the versioned deterministic editorial rules. |
 | `src/editorial-packs.ts` | Parses WritingBrief context and runs format and batch checks. |
 | `src/learning.ts` | Stores text-free, profile-scoped verified repairs and composes bounded local preferences. |
-| `src/pipeline.ts` | Combines pass states, makes briefs, and verifies candidates. |
+| `src/pipeline.ts` | Combines scored pass states, makes briefs, and verifies candidates. |
+| `src/rewrite-task.ts` | Prepares and evaluates fingerprint-bound sentence-replacement tasks. |
+| `src/semantic-review.ts` | Defines and reduces semantic and human-review lifecycle artifacts. |
+| `src/approval-capability.ts` | Verifies canonical signed approval capabilities. |
+| `src/approval-context.ts` | Loads permission-checked trust roots and evaluator authorization. |
+| `src/lifecycle-adapter.ts` | Shares lifecycle operations across CLI and MCP adapters. |
 | `src/cli.ts` | Local file and standard-input command adapter. |
+| `src/mcp.ts` | Local stdio MCP registration and host-capability gating. |
 | `src/pipeline.test.ts` | Contract and regression tests. |
 | `CONTRIBUTING.md` | Public-safety rules and the contributor model. |
 | `scripts/release-audit.mjs` | Checks source files for credential and network markers. |
 
-`pipeline.ts` is the sole composition point. It combines pass states and preserves each engine’s separate score.
+`pipeline.ts` is the sole scored output-composition point. It combines pass states and preserves each engine’s separate score. Rewrite-task and lifecycle modules compose their own versioned, non-scoring artifacts.
 
 ## Privacy and data rights
 
-The runtime uses files on your machine. Samples, drafts, profiles, candidates, and client data stay there. Successful verification writes a text-free local learning event under `~/.hyv/learning/`: profile fingerprint, finding IDs, severities, counts, timestamp, and an opaque one-way candidate digest for retry deduplication. An instruction added through `hyv learning add` is stored as entered.
+The runtime uses files on your machine. Samples, drafts, profiles, candidates, and client data stay there. Verification is read-only. Explicit learning commands and approved lifecycle recording can write text-free local events under `~/.hyv/learning/`: profile fingerprint, finding IDs, severities, counts, timestamp, and an opaque one-way candidate digest for retry deduplication. An instruction added through `hyv learning add` is stored as entered.
 
 The package does not upload writing, use embeddings, or make runtime network requests. Keep writing samples, edit histories, client text, local learning files, and datasets out of public commits unless you hold explicit rights and a provenance record. A profile is aggregated JSON and can still reveal vocabulary and preferences. Store private profiles outside public repositories.
 

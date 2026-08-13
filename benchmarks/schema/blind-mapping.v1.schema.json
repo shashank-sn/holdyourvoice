@@ -1,0 +1,17 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://holdyourvoice.dev/schemas/blind-mapping.v1.schema.json",
+  "type":"object","additionalProperties":false,
+  "required":["kind","version","nonce","labels","custodianId","unblindingAccess","attestation"],
+  "properties":{
+    "kind":{"const":"hyv-stage1-blind-mapping"},"version":{"const":"1"},"nonce":{"type":"string","pattern":"^[A-Za-z0-9_-]{22,}$"},
+    "labels":{"type":"object","additionalProperties":false,"required":["A","B"],"properties":{"A":{"enum":["baseline","stage1"]},"B":{"enum":["baseline","stage1"]}},"oneOf":[{"properties":{"A":{"const":"baseline"},"B":{"const":"stage1"}}},{"properties":{"A":{"const":"stage1"},"B":{"const":"baseline"}}}]},
+    "custodianId":{"$ref":"#/$defs/id"},"unblindingAccess":{"type":"array","minItems":1,"uniqueItems":true,"items":{"$ref":"#/$defs/id"}},
+    "attestation":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/attestation"}]}
+  },
+  "$defs":{
+    "digest":{"type":"string","pattern":"^[a-f0-9]{64}$"},"id":{"type":"string","minLength":1,"maxLength":500},
+    "attestation":{"type":"object","additionalProperties":false,"required":["kind","version","verified","artifactDigest","trustStoreDigest","keyId","purpose","protocolDigest","packetDigest","nonce","issuedAt","expiresAt","verifiedAt"],"properties":{"kind":{"const":"external-verification-receipt"},"version":{"const":"1"},"verified":{"const":true},"artifactDigest":{"$ref":"#/$defs/digest"},"trustStoreDigest":{"$ref":"#/$defs/digest"},"keyId":{"$ref":"#/$defs/id"},"purpose":{"$ref":"#/$defs/id"},"protocolDigest":{"$ref":"#/$defs/digest"},"packetDigest":{"$ref":"#/$defs/digest"},"nonce":{"$ref":"#/$defs/id"},"issuedAt":{"$ref":"#/$defs/timestamp"},"expiresAt":{"$ref":"#/$defs/timestamp"},"verifiedAt":{"$ref":"#/$defs/timestamp"}}},
+    "timestamp":{"type":"string","format":"date-time","pattern":"^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"}
+  }
+}

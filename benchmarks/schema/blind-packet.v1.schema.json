@@ -1,0 +1,8 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://holdyourvoice.dev/schemas/blind-packet.v1.schema.json",
+  "type":"object","additionalProperties":false,
+  "required":["kind","version","protocolDigest","candidateDigest","runsDigest","mappingDigest","contentDigest","nonReviewableDigest","reviewableCount","nonReviewableCount","encryptedAtRest","approvedStorage","packetDigest"],
+  "properties":{"kind":{"const":"hyv-stage1-blind-packet"},"version":{"const":"1"},"protocolDigest":{"$ref":"#/$defs/digest"},"candidateDigest":{"$ref":"#/$defs/digest"},"runsDigest":{"$ref":"#/$defs/digest"},"mappingDigest":{"$ref":"#/$defs/digest"},"contentDigest":{"$ref":"#/$defs/digest"},"nonReviewableDigest":{"$ref":"#/$defs/digest"},"reviewableCount":{"$ref":"#/$defs/count"},"nonReviewableCount":{"$ref":"#/$defs/count"},"encryptedAtRest":{"const":true},"approvedStorage":{"const":true},"packetDigest":{"$ref":"#/$defs/digest"}},
+  "$defs":{"digest":{"type":"string","pattern":"^[a-f0-9]{64}$"},"count":{"type":"integer","minimum":0}}
+}

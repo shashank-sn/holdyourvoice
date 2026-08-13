@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
-import type { CopySpec, Profile, RewriteApplyResult, RewriteEvaluation, RewriteFailure, RewriteReplacement, RewriteResponse, RewriteTask, WritingBrief } from './contracts.js';
+import type { CopySpec, DeterministicVerificationArtifactV1, Profile, RewriteApplyResult, RewriteEvaluation, RewriteFailure, RewriteLifecycleBindingV1, RewriteReceipt, RewriteReplacement, RewriteResponse, RewriteTask, WritingBrief } from './contracts.js';
+import { canonicalJson } from './canonical-json.js';
 import { parseWritingBrief } from './editorial-packs.js';
-import { rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
+import { analyze, deriveEditScope, renderRewritePrompt, verifyDeterministically } from './pipeline.js';
 import { sentences } from './text.js';
 
 const MAX_RESPONSE_BYTES = 100_000;
@@ -9,7 +10,7 @@ const MAX_REPLACEMENTS = 100;
 const MAX_REPLACEMENT_CHARACTERS = 10_000;
 
 function fingerprint(value: unknown): string {
-  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  return createHash('sha256').update(typeof value === 'string' ? value : canonicalJson(value)).digest('hex');
 }
 
 function failure(code: RewriteFailure['code'], message: string, path?: string): RewriteFailure {
@@ -73,17 +74,16 @@ function repairFencedJson(value: unknown): { value: unknown; adapterId?: string 
 }
 
 export function prepareRewriteTask(draft: string, profile: Profile, copySpec?: CopySpec, writingBrief?: WritingBrief): RewriteTask {
-  const analysis = rewritePrompt(draft, profile, [], writingBrief);
+  const result = analyze(draft, profile, writingBrief);
+  const prompt = renderRewritePrompt(draft, profile, result, [], writingBrief);
   const mapped = sentences(draft);
-  const eligibleSentenceIds = new Set([
-    ...analysis.matchAll(/^- Sentence (\d+) \[/gm),
-  ].map((match) => Number(match[1])));
+  const eligibleSentenceIds = new Set(deriveEditScope(result).eligibleSentenceIds);
   const taskBase = {
     version: '1' as const,
     draft,
     sentences: mapped.map((sentence) => ({ id: sentence.index, text: sentence.text, eligible: eligibleSentenceIds.has(sentence.index) })),
     eligibleSentenceIds: [...eligibleSentenceIds].sort((left, right) => left - right),
-    prompt: analysis,
+    prompt,
     ...(copySpec ? { copySpec } : {}),
     ...(writingBrief ? { writingBrief } : {}),
   };
@@ -103,7 +103,7 @@ export function parseRewriteTask(value: unknown): RewriteTask {
 }
 
 function rejected(task: RewriteTask, raw: unknown, failures: RewriteFailure[], adapterIds: string[] = []): RewriteApplyResult {
-  return { status: 'repairable', failures, receipt: { version: '1', taskFingerprint: task.fingerprint, responseFingerprint: responseFingerprint(raw), adapterIds } };
+  return { status: 'repairable', failures, receipt: { version: '1', taskFingerprint: task.fingerprint, responseFingerprint: responseFingerprint(raw), adapterIds, replacementSentenceIds: [] } };
 }
 
 export function applyRewriteResponse(task: RewriteTask, raw: unknown): RewriteApplyResult {
@@ -131,15 +131,29 @@ export function applyRewriteResponse(task: RewriteTask, raw: unknown): RewriteAp
     const replacement = replacements.get(sentence.index);
     if (replacement !== undefined) candidate = `${candidate.slice(0, sentence.start)}${replacement}${candidate.slice(sentence.end)}`;
   }
-  return { status: 'accepted', candidate, failures: [], receipt: { version: '1', taskFingerprint: task.fingerprint, responseFingerprint: responseFingerprint(raw), adapterIds } };
+  return { status: 'accepted', candidate, failures: [], receipt: { version: '1', taskFingerprint: task.fingerprint, responseFingerprint: responseFingerprint(raw), adapterIds, replacementSentenceIds: [...seen].sort((left, right) => left - right) } };
 }
 
 export function evaluateRewriteResponse(task: RewriteTask, raw: unknown, profile: Profile): RewriteEvaluation {
   const applied = applyRewriteResponse(task, raw);
   if (applied.status !== 'accepted' || !applied.candidate) return applied;
-  const verification = task.copySpec
-    ? verifyWithCopySpec(task.draft, applied.candidate, profile, task.copySpec, task.writingBrief)
-    : verify(task.draft, applied.candidate, profile, task.writingBrief);
+  const { verification, artifact: deterministicArtifact } = verifyDeterministically(task.draft, applied.candidate, profile, task.copySpec, task.writingBrief);
   if (!verification.passed) return { ...applied, status: 'needs_escalation', verification };
-  return { ...applied, status: 'needs_semantic_review', verification };
+  const lifecycleBinding = createRewriteLifecycleBinding(task, applied.receipt, deterministicArtifact);
+  return { ...applied, status: 'needs_semantic_review', verification, deterministicArtifact, lifecycleBinding };
+}
+
+export function createRewriteLifecycleBinding(task: RewriteTask, receipt: RewriteReceipt, deterministic: DeterministicVerificationArtifactV1): RewriteLifecycleBindingV1 {
+  if (!deterministic.passed || receipt.taskFingerprint !== task.fingerprint) throw new Error('Lifecycle binding requires a passed deterministic artifact for this rewrite task.');
+  return {
+    rewriteTaskFingerprint: task.fingerprint,
+    rewriteResponseFingerprint: receipt.responseFingerprint,
+    deterministicArtifactFingerprint: deterministic.artifactFingerprint,
+    sourceHash: deterministic.sourceHash,
+    candidateHash: deterministic.candidateHash,
+    profileId: deterministic.profileId,
+    profileRevisionDigest: deterministic.profileRevisionDigest,
+    rulesetVersion: deterministic.rulesetVersion,
+    schemaVersion: '1',
+  };
 }

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
+import { analyze, rewritePrompt, verify, verifyDeterministically, verifyWithCopySpec } from './pipeline.js';
 import { parseCopySpec } from './copy-spec.js';
 import { parseWritingBrief } from './editorial-packs.js';
 import { buildProfile } from './voice-dna.js';
+import { comparePreservation } from './preservation.js';
 
 const profile = buildProfile([
   'I ship clear ideas. The details stay concrete. I explain the mechanism without fuss.',
@@ -12,7 +13,8 @@ const profile = buildProfile([
 
 test('keeps the two engine scores independent', () => {
   const result = analyze('Firstly, we leverage a holistic strategy.', profile);
-  assert.equal(result.aiEditor.passed, false);
+  assert.equal(result.aiEditor.passed, true);
+  assert.equal(result.voiceDna.passed, false);
   assert.equal(typeof result.voiceDna.score, 'number');
 });
 
@@ -54,6 +56,31 @@ test('post gate reports a new AI regression', () => {
   assert.ok(result.regressions.length > 0);
   assert.equal(result.original.aiEditor.passed, true);
   assert.equal(result.candidate.aiEditor.passed, false);
+});
+
+test('advisory and pending-judgment findings pass while blocking findings fail', () => {
+  const advisory = analyze('Firstly, check the invoice.', profile);
+  assert.equal(advisory.passed, true);
+  const neutralProfile = buildProfile(['I write plainly.', 'I name the mechanism.']);
+  const pending = analyze('We leverage the scheduler.', neutralProfile);
+  assert.equal(pending.passed, true);
+  const blocking = analyze('The scheduler failed — twice.', profile);
+  assert.equal(blocking.passed, false);
+});
+
+test('verify rejects only new policy-blocking regressions', () => {
+  const neutralProfile = buildProfile(['I write plainly.', 'I name the mechanism.']);
+  assert.equal(verify('The scheduler failed twice.', 'The scheduler failed twice. We leverage logs.', neutralProfile).passed, true);
+  assert.equal(verify('The scheduler failed twice.', 'The scheduler failed — twice.', profile).passed, false);
+});
+
+test('keeps verify pass/fail on the legacy metric while calibration reports both metrics', () => {
+  const original = 'alpha bravo alpha charlie durable signal';
+  const candidate = 'alpha charlie bravo durable signal';
+  const verification = verify(original, candidate, profile);
+  const calibration = comparePreservation(original, candidate);
+  assert.equal(verification.preservationScore, calibration.legacySet.score);
+  assert.notEqual(calibration.legacySet.score / 100, calibration.orderedToken.wordSurvival);
 });
 
 test('puts all thirteen VoiceDNA elements in the rewrite brief', () => {
@@ -151,4 +178,15 @@ test('requires usable CopySpec atoms', () => {
   const unicode = { ...base, claims: [{ ...base.claims[0], atoms: ['मॉडल INT4'] }] };
   const substring = verifyWithCopySpec('मॉडल INT4 उपलब्ध है।', 'यह नयामॉडल INT4 है।', profile, unicode);
   assert.deepEqual(substring.claims.failures.map((failure) => failure.code), ['missing_immutable_atom']);
+});
+
+test('projects a stable text-free deterministic verification artifact', () => {
+  const original = 'I write clear notes.';
+  const candidate = 'I write clear notes.';
+  const left = verifyDeterministically(original, candidate, profile).artifact;
+  const right = verifyDeterministically(original, candidate, profile).artifact;
+  assert.deepEqual(left, right);
+  assert.equal(left.passed, true);
+  assert.doesNotMatch(JSON.stringify(left), /I write clear notes/);
+  assert.notEqual(verifyDeterministically(original, `${candidate} Changed.`, profile).artifact.artifactFingerprint, left.artifactFingerprint);
 });

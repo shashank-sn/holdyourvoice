@@ -1,0 +1,23 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://holdyourvoice.dev/schemas/reviewer-record.v1.schema.json",
+  "type":"object","additionalProperties":false,
+  "required":["kind","version","evidenceClass","protocolDigest","candidateDigest","packetDigest","reviewerId","identityKey","recordId","sequence","previousRecordDigest","recordDigest","caseId","workflow","attestation"],
+  "properties":{
+    "kind":{"const":"hyv-stage1-reviewer-record"},"version":{"const":"1"},"evidenceClass":{"enum":["synthetic-dry-run","human"]},
+    "protocolDigest":{"$ref":"#/$defs/digest"},"candidateDigest":{"$ref":"#/$defs/digest"},"packetDigest":{"$ref":"#/$defs/digest"},"reviewerId":{"$ref":"#/$defs/id"},"identityKey":{"$ref":"#/$defs/digest"},"recordId":{"$ref":"#/$defs/digest"},"sequence":{"type":"integer","minimum":1},"previousRecordDigest":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/digest"}]},"recordDigest":{"$ref":"#/$defs/digest"},"caseId":{"$ref":"#/$defs/id"},
+    "preferredLabel":{"enum":["A","B","tie"]},"correctionVersusConfirm":{"type":"object","additionalProperties":false,"required":["A","B"],"properties":{"A":{"enum":["correction","confirm"]},"B":{"enum":["correction","confirm"]}}},"workflow":{"enum":["completed","abandoned"]},
+    "attestation":{"oneOf":[{"type":"null"},{"$ref":"#/$defs/attestation"}]}
+  },
+  "allOf":[
+    {"if":{"properties":{"workflow":{"const":"completed"}}},"then":{"required":["preferredLabel","correctionVersusConfirm"]}},
+    {"if":{"properties":{"workflow":{"const":"abandoned"}}},"then":{"not":{"anyOf":[{"required":["preferredLabel"]},{"required":["correctionVersusConfirm"]}]}}},
+    {"if":{"properties":{"evidenceClass":{"const":"synthetic-dry-run"}}},"then":{"properties":{"attestation":{"type":"null"}}}},
+    {"if":{"properties":{"evidenceClass":{"const":"human"}}},"then":{"properties":{"attestation":{"$ref":"#/$defs/attestation"}}}}
+  ],
+  "$defs":{
+    "digest":{"type":"string","pattern":"^[a-f0-9]{64}$"},"id":{"type":"string","minLength":1,"maxLength":500},
+    "attestation":{"type":"object","additionalProperties":false,"required":["kind","version","verified","artifactDigest","trustStoreDigest","keyId","purpose","protocolDigest","packetDigest","nonce","issuedAt","expiresAt","verifiedAt"],"properties":{"kind":{"const":"external-verification-receipt"},"version":{"const":"1"},"verified":{"const":true},"artifactDigest":{"$ref":"#/$defs/digest"},"trustStoreDigest":{"$ref":"#/$defs/digest"},"keyId":{"$ref":"#/$defs/id"},"purpose":{"$ref":"#/$defs/id"},"protocolDigest":{"$ref":"#/$defs/digest"},"packetDigest":{"$ref":"#/$defs/digest"},"nonce":{"$ref":"#/$defs/id"},"issuedAt":{"$ref":"#/$defs/timestamp"},"expiresAt":{"$ref":"#/$defs/timestamp"},"verifiedAt":{"$ref":"#/$defs/timestamp"}}},
+    "timestamp":{"type":"string","format":"date-time","pattern":"^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"}
+  }
+}

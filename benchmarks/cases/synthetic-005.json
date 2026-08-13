@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "id": "synthetic-005",
+  "provenance": "Synthetic public characterization corpus authored for MAR-357 U1; no founder or client source text.",
+  "partition": "locked-test",
+  "task_class": "final_output_hygiene",
+  "draft": "The release is ready.",
+  "candidate": "The release is\u200B ready.",
+  "expectation": { "final_output": "reject", "codepoints": ["U+200B"] }
+}

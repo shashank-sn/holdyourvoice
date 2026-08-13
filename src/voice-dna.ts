@@ -1,8 +1,14 @@
-import type { EngineReport, Finding, Profile, VoiceDnaMetrics } from './contracts.js';
+import type { EngineReport, Finding, FounderFingerprint, Profile, VoiceDnaMetrics } from './contracts.js';
 import { deviation, mean, paragraphs, sentences, words } from './text.js';
 
 const STOP_WORDS = new Set(['the', 'and', 'that', 'with', 'this', 'from', 'your', 'have', 'were', 'they', 'will', 'into', 'about', 'what', 'when', 'where']);
 const TRANSITIONS = ['but', 'because', 'instead', 'then', 'still', 'so', 'yet', 'therefore'];
+const CONTRACTIONS = new Set([
+  "aren't", "can't", "couldn't", "didn't", "doesn't", "don't", "hadn't", "hasn't", "haven't", "he'd", "he'll", "he's",
+  "i'd", "i'll", "i'm", "i've", "isn't", "it'd", "it'll", "it's", "let's", "mightn't", "mustn't", "shan't", "she'd",
+  "she'll", "she's", "shouldn't", "that's", "there's", "they'd", "they'll", "they're", "they've", "wasn't", "we'd",
+  "we'll", "we're", "we've", "weren't", "what's", "where's", "who's", "won't", "wouldn't", "you'd", "you'll", "you're", "you've",
+]);
 
 function top(items: string[], limit: number): string[] {
   const counts = new Map<string, number>();
@@ -47,6 +53,35 @@ function profileMetrics(text: string): VoiceDnaMetrics {
   };
 }
 
+export function measureFounderFingerprint(text: string): FounderFingerprint {
+  const draftWords = words(text);
+  const wordDenominator = Math.max(1, draftWords.length);
+  const contractionCount = draftWords.filter((word) => CONTRACTIONS.has(word.toLowerCase().replaceAll('’', "'"))).length;
+  const draftSentences = sentences(text);
+  const sentenceDenominator = Math.max(1, draftSentences.length);
+  const buckets = { short: 0, medium: 0, long: 0 };
+  for (const sentence of draftSentences) {
+    const length = words(sentence.text).length;
+    if (length <= 8) buckets.short += 1;
+    else if (length <= 20) buckets.medium += 1;
+    else buckets.long += 1;
+  }
+  const nonblankLines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  const bulletCount = nonblankLines.filter((line) => /^\s*(?:[-*+] |\d+[.)] )/.test(line)).length;
+
+  return {
+    contractionRate: contractionCount / wordDenominator,
+    sentenceLengthDistribution: {
+      short: buckets.short / sentenceDenominator,
+      medium: buckets.medium / sentenceDenominator,
+      long: buckets.long / sentenceDenominator,
+    },
+    bulletRate: bulletCount / Math.max(1, nonblankLines.length),
+    // En dashes per word. The denominator is clamped to one so punctuation-only input remains defined.
+    enDashRate: (text.match(/–/g) ?? []).length / wordDenominator,
+  };
+}
+
 export function buildProfile(samples: string[], avoid: string[] = []): Profile {
   if (samples.length < 2) throw new Error('Provide at least two local writing samples.');
   if (samples.some((sample) => !words(sample).length)) throw new Error('Every local writing sample must contain writing.');
@@ -71,8 +106,29 @@ export function analyzeVoiceDna(text: string, profile: Profile): EngineReport {
   if (metrics.caseStyle !== profile.metrics.caseStyle) findings.push(finding('dna.case-style', 'yellow', 1, text.slice(0, 160), `Draft uses ${metrics.caseStyle} casing; profile uses ${profile.metrics.caseStyle}.`, 'Use the profile’s normal casing.'));
   if (metrics.pointOfView !== profile.metrics.pointOfView && profile.metrics.pointOfView !== 'mixed') findings.push(finding('dna.point-of-view', 'yellow', 1, text.slice(0, 160), `Draft point of view is ${metrics.pointOfView}; profile is ${profile.metrics.pointOfView}.`, 'Restore the writer’s normal narrative distance.'));
 
+  if (profile.version === '3') {
+    const measured = measureFounderFingerprint(text);
+    const fingerprintChecks = [
+      ['contraction-rate', measured.contractionRate, profile.fingerprint.contractionRate, profile.tolerances.contractionRate],
+      ['sentence-length-distribution', Math.max(
+        Math.abs(measured.sentenceLengthDistribution.short - profile.fingerprint.sentenceLengthDistribution.short),
+        Math.abs(measured.sentenceLengthDistribution.medium - profile.fingerprint.sentenceLengthDistribution.medium),
+        Math.abs(measured.sentenceLengthDistribution.long - profile.fingerprint.sentenceLengthDistribution.long),
+      ), 0, profile.tolerances.sentenceLengthDistribution],
+      ['bullet-rate', measured.bulletRate, profile.fingerprint.bulletRate, profile.tolerances.bulletRate],
+      ['en-dash-rate', measured.enDashRate, profile.fingerprint.enDashRate, profile.tolerances.enDashRate],
+    ] as const;
+    for (const [id, actual, target, metricTolerance] of fingerprintChecks) {
+      const drift = id === 'sentence-length-distribution' ? actual : Math.abs(actual - target);
+      if (drift > metricTolerance.absolute) {
+        const calibration = metricTolerance.calibrated ? 'calibrated' : 'uncalibrated';
+        findings.push(finding(`dna.fingerprint.${id}`, 'yellow', 1, text.slice(0, 160), `Voice fingerprint drift (${Number(drift.toFixed(3))}) exceeds the ${calibration} tolerance (${metricTolerance.absolute}).`, 'Review this metric as a non-blocking voice cue.'));
+      }
+    }
+  }
+
   const red = findings.filter((item) => item.severity === 'red').length;
   const yellow = findings.length - red;
   const score = Math.max(0, 100 - red * 25 - yellow * 7);
-  return { engine: 'voice_dna', version: '2', score, passed: red === 0, findings };
+  return { engine: 'voice_dna', version: profile.version, score, passed: red === 0, findings };
 }

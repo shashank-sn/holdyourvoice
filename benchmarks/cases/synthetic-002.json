@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "id": "synthetic-002",
+  "provenance": "Synthetic public characterization corpus authored for MAR-357 U1; no founder or client source text.",
+  "partition": "development",
+  "task_class": "legacy_positive_and_counterexample",
+  "draft": "Firstly, we leverage the existing logs.",
+  "counterexample": "Next, we use the existing logs.",
+  "expectation": { "finding_ids": ["ai.leverage", "formula.firstly"], "counterexample_finding_ids": [] }
+}

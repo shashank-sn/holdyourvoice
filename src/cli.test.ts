@@ -1,15 +1,33 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { patternsForMcp } from './mcp-tools.js';
+import { canonicalJson } from './canonical-json.js';
 
 const cli = new URL('./cli.js', import.meta.url).pathname;
 
 function run(args: string[], env: NodeJS.ProcessEnv = process.env, input?: string) {
   return spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', env, input });
+}
+
+function installedContextEnvironment(root: string, context: unknown): NodeJS.ProcessEnv {
+  const home = join(root, 'home');
+  const config = join(home, '.config', 'holdyourvoice');
+  mkdirSync(config, { recursive: true, mode: 0o700 });
+  const contextPath = join(config, 'approval-context.json');
+  writeFileSync(contextPath, canonicalJson(context), { mode: 0o600 });
+  chmodSync(contextPath, 0o600);
+  const fakeOs = join(root, 'fake-os.mjs');
+  const hooks = join(root, 'hooks.mjs');
+  const register = join(root, 'register.mjs');
+  writeFileSync(fakeOs, `import * as actual from 'node:os'; export const userInfo = () => ({ ...actual.userInfo(), homedir: process.env.HYV_TEST_HOME });\n`);
+  writeFileSync(hooks, `export async function resolve(specifier, context, nextResolve) { if (specifier === 'node:os' && context.parentURL?.endsWith('/approval-context.js')) return { url: new URL('./fake-os.mjs', import.meta.url).href, shortCircuit: true }; return nextResolve(specifier, context); }\n`);
+  writeFileSync(register, `import { register } from 'node:module'; register(new URL('./hooks.mjs', import.meta.url));\n`);
+  return { ...process.env, NODE_NO_WARNINGS: '1', NODE_OPTIONS: `--import=${register}`, HYV_TEST_HOME: home };
 }
 
 test('creates an explicit local avoid list and exposes the ruleset', () => {
@@ -32,13 +50,13 @@ test('creates an explicit local avoid list and exposes the ruleset', () => {
   }
 });
 
-test('publishes the same normalized 145-rule catalog and version through CLI and MCP', () => {
+test('publishes the same normalized reconciled catalog and version through CLI and MCP', () => {
   const result = run(['patterns']);
   assert.equal(result.status, 0, result.stderr);
   const cliCatalog = JSON.parse(result.stdout);
   const mcpCatalog = patternsForMcp();
-  assert.equal(cliCatalog.version, '2.9.24-static.2');
-  assert.equal(cliCatalog.rules.length, 145);
+  assert.equal(cliCatalog.version, '3.2.0-reconciled.1');
+  assert.equal(cliCatalog.rules.length, 148);
   assert.deepEqual(cliCatalog, mcpCatalog);
 });
 
@@ -194,6 +212,55 @@ test('prepares and applies the same constrained rewrite task without a provider 
   }
 });
 
+test('prepares, submits, and inspects a normal lifecycle through CLI canonical envelopes', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-lifecycle-'));
+  try {
+    const deterministicBase = { version: '1', verificationKind: 'standard', passed: true, analysisVersion: '2', rulesetVersion: '3.2.0', preservationMetricVersion: 'legacy-set-v1', preservationScore: 100, sourceHash: '4'.repeat(64), candidateHash: '5'.repeat(64), profileId: 'founder.primary', profileRevisionDigest: '6'.repeat(64), regressionKeys: [] };
+    const deterministic = { ...deterministicBase, artifactFingerprint: createHash('sha256').update(`hyv:deterministic-verification:v1\0${canonicalJson(deterministicBase)}`).digest('hex') };
+    const binding = { rewriteTaskFingerprint: '1'.repeat(64), rewriteResponseFingerprint: '2'.repeat(64), deterministicArtifactFingerprint: deterministic.artifactFingerprint, sourceHash: deterministic.sourceHash, candidateHash: deterministic.candidateHash, profileId: deterministic.profileId, profileRevisionDigest: deterministic.profileRevisionDigest, rulesetVersion: deterministic.rulesetVersion, schemaVersion: '1' };
+    const receipt = { version: '1', taskFingerprint: binding.rewriteTaskFingerprint, responseFingerprint: binding.rewriteResponseFingerprint, adapterIds: [], replacementSentenceIds: [1] };
+    const paths = Object.fromEntries(['deterministic', 'binding', 'receipt', 'violations', 'output', 'artifact', 'task', 'verdict'].map((name) => [name, join(directory, `${name}.json`)]));
+    writeFileSync(paths.deterministic, JSON.stringify(deterministic)); writeFileSync(paths.binding, JSON.stringify(binding)); writeFileSync(paths.receipt, JSON.stringify(receipt)); writeFileSync(paths.violations, JSON.stringify(['action_change']));
+    const prepared = run(['lifecycle', 'prepare-semantic', paths.deterministic, paths.binding, paths.receipt, 'normal', paths.violations, paths.output]);
+    assert.equal(prepared.status, 0, prepared.stderr); const envelope = JSON.parse(prepared.stdout); assert.equal(envelope.artifact.status, 'needs_semantic_review');
+    assert.deepEqual(JSON.parse(readFileSync(paths.output, 'utf8')), envelope);
+    writeFileSync(paths.artifact, JSON.stringify(envelope.artifact)); writeFileSync(paths.task, JSON.stringify(envelope.task)); writeFileSync(paths.verdict, JSON.stringify({ approved: true, violations: [] }));
+    const context = { now: 0, trustStore: { version: '1', audience: '@holdyourvoice/hyv', maxCapabilityLifetimeSeconds: 300, keys: [] }, authorizedSemanticEvaluatorIds: { normal: ['reviewer-1'], highAssurance: [] }, authorizedHumanFinalizerIds: ['human-1'] };
+    const submitted = run(['lifecycle', 'submit-verdict', paths.artifact, paths.task, 'reviewer-1', paths.verdict], installedContextEnvironment(directory, context));
+    assert.equal(submitted.status, 0, submitted.stderr); assert.equal(JSON.parse(submitted.stdout).status, 'ready_for_human_review');
+    const inspected = run(['lifecycle', 'inspect', paths.artifact]); assert.equal(inspected.status, 0, inspected.stderr); assert.equal(JSON.parse(inspected.stdout).status, 'needs_semantic_review');
+    assert.doesNotMatch(inspected.stdout, /sourceHash|candidateHash|verdicts/);
+    assert.equal(run(['lifecycle', 'prepare-semantic', paths.deterministic, paths.binding, paths.receipt, 'high_assurance', paths.violations, join(directory, 'high.json')]).status, 1);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('accepts only one bounded capability transport and treats a file named stdin literally', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-capability-'));
+  try {
+    const capability = JSON.stringify({ payload: 'secret-payload', signature: 'secret-signature' });
+    const literal = join(directory, 'stdin');
+    writeFileSync(literal, capability, { mode: 0o600 });
+    const literalResult = spawnSync(process.execPath, [cli, 'lifecycle', 'validate-final-approval', 'missing.json', '--capability-file', 'stdin'], { cwd: directory, encoding: 'utf8' });
+    assert.equal(literalResult.status, 1);
+    assert.doesNotMatch(literalResult.stderr, /Capability file is unavailable or unsafe|secret-payload|secret-signature/);
+
+    chmodSync(literal, 0o644);
+    const unsafe = spawnSync(process.execPath, [cli, 'lifecycle', 'validate-final-approval', 'missing.json', '--capability-file', 'stdin'], { cwd: directory, encoding: 'utf8' });
+    assert.equal(unsafe.status, 1);
+    assert.match(unsafe.stderr, /Capability file is unavailable or unsafe/);
+    assert.doesNotMatch(unsafe.stderr, /secret-payload|secret-signature/);
+
+    const duplicate = run(['lifecycle', 'validate-final-approval', 'missing.json', '--capability-stdin', '--capability-file', literal], process.env, capability);
+    assert.equal(duplicate.status, 1);
+    assert.match(duplicate.stderr, /Choose one capability source/);
+    assert.doesNotMatch(duplicate.stderr, /secret-payload|secret-signature/);
+
+    const oversized = run(['lifecycle', 'validate-final-approval', 'missing.json', '--capability-stdin'], process.env, 'x'.repeat(1024 * 1024 + 1));
+    assert.equal(oversized.status, 1);
+    assert.match(oversized.stderr, /exceeds the byte limit/);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
 test('rejects a malformed hand-edited profile before analysis', () => {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
   try {
@@ -262,7 +329,7 @@ test('rejects hand-edited metrics outside their semantic bounds', () => {
   }
 });
 
-test('learns from a successful local verification by default and exposes local controls', () => {
+test('keeps verification read-only and exposes learning only through explicit controls', () => {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
   try {
     const first = join(directory, 'first.md');
@@ -279,14 +346,37 @@ test('learns from a successful local verification by default and exposes local c
     assert.equal(run(['verify', original, candidate, profile], env).status, 0);
     const brief = run(['rewrite-prompt', candidate, profile], env);
     assert.equal(brief.status, 0, brief.stderr);
-    assert.match(brief.stdout, /Learned local preferences/);
-    assert.match(brief.stdout, /ai\\_editor\/ai\.leverage/);
+    assert.doesNotMatch(brief.stdout, /Learned local preferences/);
     const learned = run(['learning', 'show', profile], env);
     assert.equal(learned.status, 0, learned.stderr);
-    assert.ok(JSON.parse(learned.stdout).preferences.some((item: { text: string }) => item.text.includes('ai_editor/ai.leverage')));
+    assert.deepEqual(JSON.parse(learned.stdout).preferences, []);
     assert.equal(run(['learning', 'clear', profile], env).status, 0);
     assert.deepEqual(JSON.parse(run(['learning', 'show', profile], env).stdout).preferences, []);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test('records and inspects text-free learning metadata through the CLI', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-learning-'));
+  try {
+    const first = join(directory, 'first.md'); const second = join(directory, 'second.md'); const profile = join(directory, 'profile.json');
+    const env = { ...process.env, HYV_HOME: join(directory, 'state') };
+    writeFileSync(first, 'I write plainly. I name the work.'); writeFileSync(second, 'I keep the mechanism clear. I avoid filler.');
+    assert.equal(run(['profile', profile, first, second]).status, 0);
+    const recorded = run(['learning', 'record', profile, 'Keep the mechanism concrete.', '--authority=founder', '--provenance=editor-review', '--weight=2', '--compatibility=exact', '--mutation-id=cli-1'], env);
+    assert.equal(recorded.status, 0, recorded.stderr);
+    assert.equal(JSON.parse(recorded.stdout).mutationId, 'cli-1');
+    assert.equal(JSON.parse(run(['learning', 'record', profile, 'Different instruction.', '--mutation-id=cli-1'], env).stdout).status, 'conflict');
+    const inspected = run(['learning', 'inspect', profile], env);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    assert.equal(JSON.parse(inspected.stdout)[0].authority, 'founder');
+    assert.doesNotMatch(inspected.stdout, /Keep the mechanism concrete/);
+    assert.equal(run(['learning', 'ratify', profile, JSON.parse(recorded.stdout).eventId], env).status, 1);
+    assert.equal(run(['learning', 'record', profile, 'Boundary.', `--mutation-id=${'m'.repeat(200)}`, `--provenance=${'p'.repeat(500)}`], env).status, 0);
+    assert.equal(run(['learning', 'record', profile, 'Too long.', `--mutation-id=${'m'.repeat(201)}`], env).status, 1);
+    assert.equal(run(['learning', 'record', profile, 'Too long.', `--provenance=${'p'.repeat(501)}`], env).status, 1);
+    assert.equal(run(['learning', 'inspect', profile, '--mutation-id=nope'], env).status, 1);
+    assert.equal(run(['learning', 'clear', profile, '--authority=team'], env).status, 1);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
 });

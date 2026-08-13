@@ -1,6 +1,6 @@
 # ai editor
 
-AI Editor uses a reviewed, deterministic, versioned ruleset. the current `2.9.24-static.2` ruleset restores the 143-rule static catalog from the published `@holdyourvoice/hyv@2.9.24` `signals.ts` artifact and retains two 3.1 detectors, for 145 rules total. most rules inspect one sentence; selected inherited rules inspect one physical line and still return stable sentence locations. every rule has a stable ID, severity, reason, repair direction, reconstructable expression, and explicit scope. intentional inherited overlaps remain separate findings.
+AI Editor uses a reviewed, deterministic, versioned ruleset. the current `3.2.0-reconciled.1` ruleset contains 148 stable catalog entries. most rules inspect one sentence; selected inherited rules inspect one physical line and still return stable sentence locations. every rule has a stable ID, severity, reason, repair direction, reconstructable expression, and explicit scope. profile policy is applied after matching, and duplicate legacy expressions emit one canonical finding.
 
 run `hyv patterns` to inspect an installed release, or `node dist/cli.js patterns` in a built source checkout. the JSON output records the ruleset version and exact executable catalog.
 

@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "id": "synthetic-004",
+  "provenance": "Synthetic public characterization corpus authored for MAR-357 U1; no founder or client source text.",
+  "partition": "locked-test",
+  "task_class": "polarity_reversal",
+  "draft": "The cache retains completed jobs after restart.",
+  "candidate": "The cache does not retain completed jobs after restart.",
+  "expectation": { "lexical_overlap_may_pass": true, "semantic_polarity": "reject" }
+}

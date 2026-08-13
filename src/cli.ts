@@ -1,25 +1,97 @@
 #!/usr/bin/env node
-import { linkSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, constants, fstatSync, linkSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { RULESET_VERSION, serializedRules } from './ai-editor.js';
 import { parseCopySpec } from './copy-spec.js';
-import type { Profile, WritingBrief } from './contracts.js';
+import type { Profile, ProfileV3, WritingBrief } from './contracts.js';
 import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
-import { addLearningInstruction, clearLearning, composeLearning, profileFingerprint, recordVerifiedCandidate } from './learning.js';
+import { clearLearning, composeLearning, inspectLearning, type LearningOptions, migrateLearningV2ToV3, profileFingerprint, ratifyLearningEvent, recordLearningInstruction, supersedeLearningEvent } from './learning.js';
 import { cleanHygiene, finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
+import type { ApprovalCapabilityEnvelopeV1, DeterministicVerificationArtifactV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
+import { canonicalJson, parseCanonicalJson } from './canonical-json.js';
+import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
 import { buildProfile } from './voice-dna.js';
+import { loadApprovalContext } from './approval-context.js';
 
-const usage = 'Commands: profile, analyze, hygiene, final-check, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, verify, verify-spec, learning, patterns, mcp';
+const usage = 'Commands: profile, analyze, hygiene, final-check, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, verify, verify-spec, lifecycle, learning, patterns, mcp';
+const MAX_JSON_BYTES = 1024 * 1024;
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
 }
 
+function parseBoundedJson(text: string): unknown {
+  if (Buffer.byteLength(text, 'utf8') > MAX_JSON_BYTES) throw new Error('JSON input exceeds the byte limit.');
+  const value: unknown = JSON.parse(text); canonicalJson(value); return value;
+}
+function readBoundedDescriptor(descriptor: number): string {
+  const chunks: Buffer[] = []; let size = 0;
+  while (size <= MAX_JSON_BYTES) {
+    const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, MAX_JSON_BYTES + 1 - size));
+    const count = readSync(descriptor, chunk, 0, chunk.length, null); if (!count) break;
+    chunks.push(chunk.subarray(0, count)); size += count;
+  }
+  if (size > MAX_JSON_BYTES) throw new Error('JSON input exceeds the byte limit.');
+  return Buffer.concat(chunks, size).toString('utf8');
+}
+function readJson(path: string): unknown {
+  if (path === '-') return parseBoundedJson(readBoundedDescriptor(0));
+  let descriptor: number | undefined;
+  try { descriptor = openSync(path, constants.O_RDONLY); return parseBoundedJson(readBoundedDescriptor(descriptor)); }
+  finally { if (descriptor !== undefined) closeSync(descriptor); }
+}
+
+function capabilityArguments(args: string[]): { values: string[]; capability?: ApprovalCapabilityEnvelopeV1 } {
+  const values: string[] = []; let source: { kind: 'stdin' } | { kind: 'file'; path: string } | undefined;
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] === '--capability-stdin') { if (source) throw new Error('Choose one capability source.'); source = { kind: 'stdin' }; continue; }
+    if (args[index] === '--capability-file') { const path = args[index + 1]; if (source || !path || path.startsWith('--capability-')) throw new Error('Choose one capability source.'); source = { kind: 'file', path }; index += 1; continue; }
+    values.push(args[index]);
+  }
+  if (!source) return { values };
+  if (source.kind === 'stdin' && values.includes('-')) throw new Error('Capability stdin cannot be combined with another stdin input.');
+  let raw: string;
+  if (source.kind === 'stdin') raw = readBoundedDescriptor(0);
+  else {
+    let descriptor: number | undefined;
+    try {
+      descriptor = openSync(source.path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)); const before = fstatSync(descriptor);
+      if (!before.isFile() || before.uid !== process.geteuid?.() || (before.mode & 0o077) !== 0 || before.nlink !== 1 || before.size > MAX_JSON_BYTES) throw new Error('Capability file is unavailable or unsafe.');
+      raw = readBoundedDescriptor(descriptor); const after = fstatSync(descriptor);
+      if (before.dev !== after.dev || before.ino !== after.ino || before.size !== after.size || before.mtimeMs !== after.mtimeMs) throw new Error('Capability file is unavailable or unsafe.');
+    } catch { throw new Error('Capability file is unavailable or unsafe.'); }
+    finally { if (descriptor !== undefined) closeSync(descriptor); }
+  }
+  if (Buffer.byteLength(raw, 'utf8') > MAX_JSON_BYTES) throw new Error('JSON input exceeds the byte limit.');
+  return { values, capability: parseCanonicalJson(Buffer.from(raw, 'utf8')) as ApprovalCapabilityEnvelopeV1 };
+}
+
 function readProfile(path: string): Profile {
   return parseProfile(JSON.parse(input(path)));
+}
+
+function requireProfileV3(profile: Profile): ProfileV3 {
+  if (profile.version !== '3') throw new Error('This learning operation requires a Profile v3.');
+  return profile;
+}
+
+function learningArguments(args: string[]): { values: string[]; options: LearningOptions } {
+  const values: string[] = []; const options: LearningOptions = {};
+  for (const argument of args) {
+    if (!argument.startsWith('--')) { values.push(argument); continue; }
+    const [name, ...parts] = argument.slice(2).split('='); const value = parts.join('=').trim();
+    if (!value) throw new Error(`Learning option --${name} requires a value.`);
+    if (name === 'mutation-id' && value.length <= 200) options.mutationId = value;
+    else if (name === 'authority' && ['founder', 'team', 'system'].includes(value)) options.authority = value as LearningOptions['authority'];
+    else if (name === 'provenance' && value.length <= 500) options.provenance = value;
+    else if (name === 'weight' && Number.isFinite(Number(value)) && Number(value) > 0) options.weight = Number(value);
+    else if (name === 'compatibility' && ['same-or-newer', 'exact'].includes(value)) options.compatibility = value as LearningOptions['compatibility'];
+    else throw new Error(`Invalid learning option: --${name}=${value}`);
+  }
+  return { values, options };
 }
 
 function readBrief(path: string | undefined): WritingBrief | undefined {
@@ -54,6 +126,7 @@ function prepareContext(paths: string[]): { copySpec?: ReturnType<typeof parseCo
 function json(value: unknown): void {
   console.log(JSON.stringify(value, null, 2));
 }
+function canonical(value: unknown): void { process.stdout.write(`${canonicalJson(value)}\n`); }
 
 function profileArguments(args: string[]): { output: string; samples: string[]; avoid: string[] } {
   const [output, ...rest] = args;
@@ -191,8 +264,6 @@ export async function runCli(args: string[]): Promise<number> {
     const originalText = input(original);
     const candidateText = input(candidate);
     const result = verify(originalText, candidateText, profile, readBrief(briefPath));
-    const learning = recordVerifiedCandidate(profile, result, candidateText);
-    if (learning === 'write_failed') console.error('Warning: verification passed, but local learning could not be saved.');
     json(result);
     return result.passed ? 0 : 2;
   }
@@ -202,32 +273,86 @@ export async function runCli(args: string[]): Promise<number> {
     const profile = readProfile(profilePath);
     const candidateText = input(candidate);
     const result = verifyWithCopySpec(input(original), candidateText, profile, parseCopySpec(JSON.parse(input(specPath))), readBrief(briefPath));
-    if (result.passed) {
-      const learning = recordVerifiedCandidate(profile, result, candidateText);
-      if (learning === 'write_failed') console.error('Warning: verification passed, but local learning could not be saved.');
-    }
     json(result);
     return result.passed ? 0 : 2;
   }
+  if (command === 'lifecycle') {
+    const [action, ...raw] = rest;
+    if (action === 'prepare-semantic') {
+      const [deterministicPath, bindingPath, receiptPath, policy, violationsPath, output, ...extra] = raw;
+      if (!deterministicPath || !bindingPath || !receiptPath || !policy || !violationsPath || !output || extra.length || !['normal', 'high_assurance'].includes(policy)) throw new Error('Usage: hyv lifecycle prepare-semantic deterministic.json binding.json receipt.json <normal|high_assurance> violations.json output.json');
+      if (policy === 'high_assurance') throw new Error('High-assurance semantic review requires a trusted embedding.');
+      const result = prepareLifecycle(readJson(deterministicPath) as DeterministicVerificationArtifactV1, readJson(bindingPath) as RewriteLifecycleBindingV1, readJson(receiptPath) as RewriteReceipt, policy as SemanticPolicy, readJson(violationsPath) as SemanticViolation[]);
+      const serialized = canonicalJson(result); writeFileSync(output, `${serialized}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 }); process.stdout.write(`${serialized}\n`); return 0;
+    }
+    if (action === 'submit-verdict') {
+      const [artifactPath, taskPath, evaluatorId, verdictPath, ...extra] = raw;
+      if (!artifactPath || !taskPath || !evaluatorId || !verdictPath || extra.length) throw new Error('Usage: hyv lifecycle submit-verdict artifact.json task.json evaluator-id verdict.json');
+      const artifact = readJson(artifactPath) as RewriteLifecycleArtifactV1; const task = readJson(taskPath) as SemanticReviewTaskV1;
+      if (task.policy !== 'normal') throw new Error('High-assurance semantic review requires a trusted embedding.');
+      const result = submitSemanticVerdict(artifact, task, evaluatorId, readJson(verdictPath), loadApprovalContext()); canonical(result.ok ? result.artifact : { error: result.error }); return result.ok && result.artifact.status === 'ready_for_human_review' ? 0 : 2;
+    }
+    if (action === 'inspect') {
+      const [artifactPath, ...extra] = raw; if (!artifactPath || extra.length) throw new Error('Usage: hyv lifecycle inspect artifact.json'); canonical(inspectLifecycle(readJson(artifactPath) as RewriteLifecycleArtifactV1)); return 0;
+    }
+    if (action === 'validate-final-approval' || action === 'finalize') {
+      const { values, capability } = capabilityArguments(raw);
+      if (action === 'validate-final-approval') {
+        const [artifactPath, ...extra] = values; if (!artifactPath || extra.length || !capability) throw new Error('Usage: hyv lifecycle validate-final-approval artifact.json (--capability-stdin|--capability-file path)');
+        const result = validateFinalApproval(readJson(artifactPath) as RewriteLifecycleArtifactV1, capability, loadApprovalContext()); canonical(result); return result.ok ? 0 : 2;
+      }
+      const [artifactPath, decisionPath, ...extra] = values; if (!artifactPath || !decisionPath || extra.length) throw new Error('Usage: hyv lifecycle finalize artifact.json decision.json [--capability-stdin|--capability-file path]');
+      const decision = readJson(decisionPath) as { evaluatorId: string; decision: 'approve' | 'reject' }; if (decision.decision === 'approve' && !capability) throw new Error('Approval requires a capability.'); if (decision.decision === 'reject' && capability) throw new Error('Rejection does not accept a capability.');
+      const result = finalizeLifecycle(readJson(artifactPath) as RewriteLifecycleArtifactV1, decision, loadApprovalContext(), capability); canonical(result.ok ? result.artifact : { error: result.error }); return result.ok && result.artifact.status === 'approved' ? 0 : 2;
+    }
+    throw new Error('Usage: hyv lifecycle <prepare-semantic|submit-verdict|inspect|validate-final-approval|finalize> ...');
+  }
   if (command === 'learning') {
-    const [action, profilePath, ...instruction] = rest;
-    if (!action || !profilePath) throw new Error('Usage: hyv learning <show|add|clear> profile.json [instruction]');
+    const [action, ...raw] = rest;
+    if (action === 'record-approved') {
+      const { values, capability } = capabilityArguments(raw);
+      const [readyPath, approvedPath, originalPath, candidatePath, profilePath, decisionPath, ...contextPaths] = values;
+      if (!readyPath || !approvedPath || !originalPath || !candidatePath || !profilePath || !decisionPath || !capability) throw new Error('Usage: hyv learning record-approved ready.json approved.json original.md candidate.md profile.json decision.json [copy-spec.json] [writing-brief.json] (--capability-stdin|--capability-file path)');
+      const context = prepareContext(contextPaths); const status = recordApprovedLearning({ ready: readJson(readyPath) as RewriteLifecycleArtifactV1, approved: readJson(approvedPath) as RewriteLifecycleArtifactV1, decision: readJson(decisionPath) as { evaluatorId: string; decision: 'approve' }, capability, source: input(originalPath), candidate: input(candidatePath), profile: readProfile(profilePath), context: loadApprovalContext(), copySpec: context.copySpec, writingBrief: context.writingBrief });
+      canonical({ status }); return status === 'write_failed' ? 2 : 0;
+    }
+    const { values, options } = learningArguments(raw);
+    const [profilePath, ...operands] = values;
+    if (!action || !profilePath) throw new Error('Usage: hyv learning <show|inspect|add|record|ratify|supersede|migrate|clear> profile.json [value] [options]');
     const profile = readProfile(profilePath);
     if (action === 'show') {
-      json({ profile: profileFingerprint(profile), preferences: composeLearning(profile) });
+      json({ profile: profileFingerprint(profile), preferences: composeLearning(profile, options) });
       return 0;
     }
-    if (action === 'add') {
-      const text = instruction.join(' ').trim();
-      if (!text) throw new Error('Usage: hyv learning add profile.json "instruction"');
-      json({ added: addLearningInstruction(profile, text) });
+    if (action === 'inspect') {
+      if (Object.keys(options).length) throw new Error('Usage: hyv learning inspect profile.json');
+      json(inspectLearning(profile)); return 0;
+    }
+    if (action === 'add' || action === 'record') {
+      const text = operands.join(' ').trim();
+      if (!text) throw new Error('Usage: hyv learning record profile.json "instruction" [options]');
+      const result = recordLearningInstruction(profile, text, options);
+      json(action === 'add' ? { added: result.status === 'recorded' } : result);
+      return 0;
+    }
+    if (action === 'ratify' || action === 'supersede') {
+      const [eventId, ...extra] = operands;
+      if (!eventId || extra.length) throw new Error(`Usage: hyv learning ${action} profile.json event-id [options]`);
+      json(action === 'ratify' ? ratifyLearningEvent(requireProfileV3(profile), eventId, options) : supersedeLearningEvent(requireProfileV3(profile), eventId, options));
+      return 0;
+    }
+    if (action === 'migrate') {
+      const [targetPath, ...extra] = operands;
+      if (!targetPath || extra.length || profile.version !== '2') throw new Error('Usage: hyv learning migrate source-v2.json target-v3.json [options]');
+      json(migrateLearningV2ToV3(profile, requireProfileV3(readProfile(targetPath)), options));
       return 0;
     }
     if (action === 'clear') {
+      if (operands.length || Object.keys(options).length) throw new Error('Usage: hyv learning clear profile.json');
       json({ cleared: clearLearning(profile) });
       return 0;
     }
-    throw new Error('Usage: hyv learning <show|add|clear> profile.json [instruction]');
+    throw new Error('Usage: hyv learning <show|inspect|add|record|ratify|supersede|migrate|clear> profile.json [value] [options]');
   }
   if (command === 'patterns') {
     json({ version: RULESET_VERSION, rules: serializedRules() });
