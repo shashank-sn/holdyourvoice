@@ -1,7 +1,7 @@
 {
   "version": "1",
   "id": "synthetic-001",
-  "provenance": "Synthetic fixture authored for the rewrite harness.",
+  "provenance": "Synthetic public characterization corpus authored for MAR-357 U1; no founder or client source text.",
   "partition": "development",
   "task_class": "locked_claim_and_jargon",
   "draft": "I leverage the answer with useful detail and clear mechanism. The launch is on 14 August.",
@@ -11,5 +11,6 @@
     "intent": "explain",
     "channel": "email",
     "claims": [{ "id": "launch-date", "text": "The launch is on 14 August.", "evidence": "Synthetic fixture." }]
-  }
+  },
+  "expectation": { "finding_ids": ["ai.leverage"], "immutable_claim_preserved": true }
 }

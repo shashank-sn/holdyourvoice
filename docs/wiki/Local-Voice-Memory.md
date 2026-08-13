@@ -2,7 +2,7 @@
 
 local voice memory makes the next editing brief a little more informed without turning Hold Your Voice into a hosted writing history.
 
-it is on by default. when `verify` passes, the CLI records the finding IDs that the candidate resolved for that portable VoiceDNA profile. the next `rewrite-prompt` adds a bounded list of those already-verified repairs.
+learning changes are explicit. `verify` is read-only. a learning command or separately approved lifecycle transition records finding IDs that the candidate resolved for that portable VoiceDNA profile. the next `rewrite-prompt` adds a bounded list of those approved repairs.
 
 ## what is stored
 
@@ -20,12 +20,12 @@ it never stores samples, drafts, candidates, excerpts, embeddings, account data,
 ## how it learns
 
 ```text
-successful verify
-  -> resolved finding IDs saved locally
+explicit learning command or approved lifecycle recording
+  -> approved finding IDs saved locally
   -> next rewrite-prompt reads the bounded preferences
 ```
 
-only a successful candidate can create a verified-repair event. repeated verification of the same outcome does not increase its confidence. the store keeps a bounded recent history, ignores malformed local rows, and caps manual instructions at 240 characters.
+verification alone cannot create a verified-repair event. replaying the same approved outcome does not increase its confidence. the store keeps a bounded recent history, ignores malformed local rows, and caps manual instructions at 240 characters.
 
 ## inspect or change it
 
@@ -41,4 +41,4 @@ hyv learning clear profile.json
 
 memory is a priority hint, not a third score. it never changes VoiceDNA or AI Editor scoring, and it cannot make either engine pass. learned hints cannot override tier 0 preservation, tier 1 blockers, clean-sentence preservation, or tier 4 output. the candidate still needs both engine passes, zero new red regressions, and at least 70 lexical preservation.
 
-the Claude Desktop extension follows the same rule. its `hyv_verify` tool writes only a recoverable, text-free event after a successful verification. it never writes the supplied text.
+the Claude Desktop extension follows the same rule. its `hyv_verify` tool is read-only. approved learning writes only a recoverable, text-free event and never writes the supplied text.

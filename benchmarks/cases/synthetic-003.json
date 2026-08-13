@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "id": "synthetic-003",
+  "provenance": "Synthetic public characterization corpus authored for MAR-357 U1; no founder or client source text.",
+  "partition": "calibration",
+  "task_class": "clean_byte_identity",
+  "draft": "The owner signed the checklist.\n\nThe launch starts Tuesday.\n",
+  "expectation": { "finding_ids": [], "candidate_equals_draft_bytes": true }
+}

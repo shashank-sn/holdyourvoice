@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { analyzeAiEditor, rules, serializedRules } from './ai-editor.js';
+import { analyzeAiEditor, RULESET_VERSION, rules, serializedRules } from './ai-editor.js';
+import type { ProfileV3, RulePolicyState } from './contracts.js';
+import { createHash } from 'node:crypto';
 
 test('publishes executable rules with stable IDs and repair directions', () => {
-  assert.equal(rules.length, 145);
+  assert.equal(RULESET_VERSION, '3.2.0-reconciled.1');
+  assert.equal(rules.length, 148);
+  assert.equal(createHash('sha256').update(JSON.stringify(rules.map((rule) => rule.id))).digest('hex'), '8d3cdde1922686076cb3baa79c55db95f37c9088d246f47c24405417fe58f979');
+  assert.equal(createHash('sha256').update(JSON.stringify(serializedRules())).digest('hex'), 'a758d7cd8e53e42d1a3ada81aff3e61f2994555d286f8915a9fc52767f145094');
   assert.equal(new Set(rules.map((rule) => rule.id)).size, rules.length);
   for (const rule of rules) {
     assert.match(rule.id, /^(ai|formula|hedge|struct|punct|bait|cringe|insider|ogilvy)\./);
@@ -12,6 +17,66 @@ test('publishes executable rules with stable IDs and repair directions', () => {
     assert.equal(rule.expression.global, false, rule.id);
     assert.equal(rule.expression.sticky, false, rule.id);
   }
+});
+
+function profileWithPolicies(rulePolicy: Record<string, RulePolicyState>): ProfileV3 {
+  return {
+    version: '3', id: 'founder.test', revision: 1, revisionDigest: '0'.repeat(64), sampleCount: 2,
+    metrics: { sentenceLength: 5, sentenceVariation: 1, sentenceStructure: [], rhythm: 1, paragraphLength: 1, openingMoves: [], vocabulary: [], lexicalDensity: 0.5, pointOfView: 'mixed', punctuation: {}, caseStyle: 'mixed', questionRate: 0, transitions: [] },
+    avoid: [], provenance: { source: 'test', rights: 'test', createdAt: '2026-08-13T00:00:00.000Z' }, rulePolicy,
+    fingerprint: { contractionRate: 0, sentenceLengthDistribution: { short: 1, medium: 0, long: 0 }, bulletRate: 0, enDashRate: 0 },
+    tolerances: { contractionRate: { absolute: 0, calibrated: false }, sentenceLengthDistribution: { absolute: 0, calibrated: false }, bulletRate: { absolute: 0, calibrated: false }, enDashRate: { absolute: 0, calibrated: false } },
+    metricFixtures: { contractionRate: ['test'], sentenceLengthDistribution: ['test'], bulletRate: ['test'], enDashRate: ['test'] },
+  };
+}
+
+test('applies all four v3 policy states after matching and preserves catalog order', () => {
+  const report = analyzeAiEditor(
+    'Firstly, perhaps we leverage a holistic plan.',
+    profileWithPolicies({
+      'formula.firstly': 'blocking',
+      'hedge.perhaps': 'advisory',
+      'ai.leverage': 'judgment-required',
+      'ai.holistic': 'disabled',
+    }),
+  );
+  assert.deepEqual(report.findings.map((finding) => [finding.id, finding.appliedPolicy, finding.severity]), [
+    ['ai.leverage', 'judgment-required', 'yellow'],
+    ['formula.firstly', 'blocking', 'red'],
+    ['hedge.perhaps', 'advisory', 'yellow'],
+  ]);
+  assert.equal(report.passed, false);
+});
+
+test('fails closed when a v3 policy names a rule outside the catalog', () => {
+  assert.throws(() => analyzeAiEditor('Plain text.', profileWithPolicies({ 'ai.missing': 'blocking' })), /unknown rule ID/);
+});
+
+test('uses reconciled defaults for v2 profiles and suppresses inherited duplicate emissions', () => {
+  const report = analyzeAiEditor("It's worth noting: in other words, I think the same plan. Better results.");
+  assert.equal(report.findings.some((finding) => finding.id === 'hedge.worth-noting'), false);
+  assert.equal(report.findings.some((finding) => finding.id === 'struct.in-other-words'), false);
+  assert.equal(report.findings.some((finding) => finding.id === 'hedge.i-think'), false);
+  assert.equal(report.findings.some((finding) => finding.id === 'struct.same-better'), false);
+  assert.ok(report.findings.every((finding) => finding.appliedPolicy !== undefined));
+});
+
+test('treats bare red vocabulary as pending judgment and clear sincerity or dashes as blocking', () => {
+  const vocabulary = analyzeAiEditor('We leverage the existing scheduler.');
+  assert.deepEqual(vocabulary.findings.find((finding) => finding.id === 'ai.leverage')?.appliedPolicy, 'judgment-required');
+  assert.equal(vocabulary.passed, true);
+  const blocked = analyzeAiEditor('To be honest, the scheduler failed — twice.');
+  assert.ok(blocked.findings.some((finding) => finding.id === 'formula.performative-sincerity' && finding.appliedPolicy === 'blocking'));
+  assert.ok(blocked.findings.some((finding) => finding.id === 'punct.em-dash' && finding.appliedPolicy === 'blocking'));
+  assert.equal(blocked.passed, false);
+  const advisory = analyzeAiEditor('Honestly, the scheduler failed twice.');
+  assert.ok(advisory.findings.some((finding) => finding.id === 'hedge.performative-sincerity-adverb' && finding.appliedPolicy === 'advisory'));
+  assert.equal(advisory.passed, true);
+});
+
+test('only applies the question-hook policy to document sentence one', () => {
+  assert.ok(analyzeAiEditor('Have you checked the invoice? It is overdue.').findings.some((finding) => finding.id === 'ai.question-hook'));
+  assert.equal(analyzeAiEditor('The invoice is overdue. Have you checked it?').findings.some((finding) => finding.id === 'ai.question-hook'), false);
 });
 
 test('detects representative rules from every inherited rule family', () => {
@@ -105,10 +170,7 @@ test('executes inherited cross-sentence rules and maps them to the first sentenc
     report.findings
       .filter((finding) => finding.id === 'struct.negation-cascade' || finding.id === 'struct.same-better')
       .map((finding) => [finding.id, finding.sentence]),
-    [
-      ['struct.negation-cascade', 1],
-      ['struct.same-better', 4],
-    ],
+    [['struct.negation-cascade', 1]],
   );
 });
 
@@ -128,17 +190,17 @@ test('retains the current question-hook and abstract-cluster detectors', () => {
 
 test('serializes reconstructable regular expressions and explicit scopes', () => {
   const catalog = serializedRules();
-  assert.equal(catalog.length, 145);
+  assert.equal(catalog.length, 148);
   assert.ok(catalog.every((rule) => rule.scope === 'sentence' || rule.scope === 'line'));
   const meaningful = catalog.find((rule) => rule.id === 'ai.meaningful');
   assert.ok(meaningful);
   assert.equal(new RegExp(meaningful.expression.source, meaningful.expression.flags).test('Meaningful work.'), true);
 });
 
-test('keeps intentional inherited overlaps visible and scores each finding', () => {
+test('suppresses intentional inherited overlaps before scoring', () => {
   const report = analyzeAiEditor('In other words, use logs.');
-  assert.deepEqual(report.findings.map((finding) => finding.id), ['formula.in-other-words', 'struct.in-other-words']);
-  assert.equal(report.score, 64);
+  assert.deepEqual(report.findings.map((finding) => finding.id), ['formula.in-other-words']);
+  assert.equal(report.score, 82);
 });
 
 test('returns zero AI findings for clean input', () => {

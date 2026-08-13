@@ -1,0 +1,44 @@
+{
+  "version": "1",
+  "provenance": "Synthetic public characterization corpus authored for MAR-357 U1; no founder or client source text.",
+  "baseline": {
+    "packageVersion": "3.2.0",
+    "sourceCommit": "4e6269121d551c008a34db73077e1e4fea41b3f9",
+    "rulesetVersion": "2.9.24-static.2",
+    "ruleCount": 145,
+    "orderedRuleIdsSha256": "04bc3d8f5631cc1eb3b42c1cd8b627d0d9a30fa02d8db094bae312f4f37b35b4",
+    "serializedRulesSha256": "f24434156d237a00c3f86b7a745661841f79e011930d7fb978cb07b1a0d8ebe4",
+    "sha256": "1b22bc261ba2664732e6681280595ea366290aae6a58dec5545308ff1a14710b"
+  },
+  "partitions": [
+    {
+      "id": "development",
+      "sha256": "2644f24daaee22f6e84047a7298a27531fbd47caf533a25a8887ef50b2621c45",
+      "cases": [
+        { "id": "synthetic-001", "file": "cases/synthetic-001.json", "sha256": "938010affda9db6f4d133ba236dafd77abfaa6ffe4bd3529e96e3df7c9d7062e" },
+        { "id": "synthetic-002", "file": "cases/synthetic-002.json", "sha256": "80fdf2333afa813cd2ab732cf3bddb3c1f32e89e278059b3d2d2c78e64e9a4ad" }
+      ]
+    },
+    {
+      "id": "calibration",
+      "sha256": "cefc10dbe953b494bb6f399b2b0dcdc1403fb51a99d8b1b75c04d093e9004177",
+      "cases": [
+        { "id": "synthetic-003", "file": "cases/synthetic-003.json", "sha256": "3786d68d25db04a1867f2635b787418043f23388a1cd9eed170a6025df5b53e7" }
+      ]
+    },
+    {
+      "id": "locked-test",
+      "sha256": "c6e436ff70fe1026c48f0a5ef865ddc952578d2c98424ddacb68f279660558c3",
+      "cases": [
+        { "id": "synthetic-004", "file": "cases/synthetic-004.json", "sha256": "4d269d3fbd72553701a5e5383e7698d09ab7112ccd3f0cf6cc5e17aeb86ef9e8" },
+        { "id": "synthetic-005", "file": "cases/synthetic-005.json", "sha256": "66cffacec976dbfb5308a2894ecd54291837afd1d35c57eedc9276e5f090e0a7" }
+      ]
+    }
+  ],
+  "preregisteredMeasures": [
+    "writer_preference",
+    "correction_versus_confirm",
+    "workflow_completion",
+    "workflow_abandonment"
+  ]
+}

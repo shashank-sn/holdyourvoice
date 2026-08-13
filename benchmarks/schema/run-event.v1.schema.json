@@ -1,0 +1,18 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://holdyourvoice.dev/schemas/run-event.v1.schema.json",
+  "type":"object","additionalProperties":false,
+  "required":["kind","version","evidenceClass","protocolDigest","candidateDigest","assignmentId","participantId","caseId","caseDigest","rightsDigest","arm","ordinal","latencyMs","inputTokens","outputTokens","costMicrousd","occurredAt","outcome"],
+  "properties":{
+    "kind":{"const":"hyv-stage1-run-record"},"version":{"const":"1"},"evidenceClass":{"enum":["synthetic-dry-run","human"]},
+    "protocolDigest":{"$ref":"#/$defs/digest"},"candidateDigest":{"$ref":"#/$defs/digest"},"assignmentId":{"$ref":"#/$defs/id"},"participantId":{"$ref":"#/$defs/id"},"caseId":{"$ref":"#/$defs/id"},"caseDigest":{"$ref":"#/$defs/digest"},"rightsDigest":{"$ref":"#/$defs/digest"},
+    "arm":{"enum":["baseline","stage1"]},"ordinal":{"type":"integer","minimum":1},"latencyMs":{"type":"number","minimum":0},"inputTokens":{"type":"number","minimum":0},"outputTokens":{"type":"number","minimum":0},"costMicrousd":{"type":"number","minimum":0},"occurredAt":{"type":"string","format":"date-time","pattern":"^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"},
+    "outcome":{"enum":["completed","hard-failure","timeout","abandoned"]},"outputDigest":{"$ref":"#/$defs/digest"},
+    "hardGates":{"type":"object","additionalProperties":false,"required":["semantic","copySpec","hygiene","preservation","cliMcpParity","backwardCompatibility"],"properties":{"semantic":{"type":"boolean"},"copySpec":{"type":"boolean"},"hygiene":{"type":"boolean"},"preservation":{"type":"boolean"},"cliMcpParity":{"type":"boolean"},"backwardCompatibility":{"type":"boolean"}}}
+  },
+  "oneOf":[
+    {"properties":{"outcome":{"const":"completed"}},"required":["outputDigest","hardGates"]},
+    {"properties":{"outcome":{"enum":["hard-failure","timeout","abandoned"]}},"not":{"anyOf":[{"required":["outputDigest"]},{"required":["hardGates"]}]}}
+  ],
+  "$defs":{"digest":{"type":"string","pattern":"^[a-f0-9]{64}$"},"id":{"type":"string","minLength":1,"maxLength":500}}
+}
