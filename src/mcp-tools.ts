@@ -6,6 +6,7 @@ import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.j
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
 import { buildProfile } from './voice-dna.js';
+import { finalOutputCheck, inspectHygiene } from './hygiene.js';
 
 function profileFromJson(profileJson: string) {
   try {
@@ -38,6 +39,14 @@ export function buildProfileForMcp(samples: string[], avoid: string[] = []) {
 
 export function analyzeForMcp(draft: string, profileJson: string, writingBriefJson?: string) {
   return analyze(draft, profileFromJson(profileJson), writingBriefFromJson(writingBriefJson));
+}
+
+export function inspectHygieneForMcp(draft: string) {
+  return inspectHygiene(draft);
+}
+
+export function finalOutputCheckForMcp(text: string) {
+  return finalOutputCheck(text);
 }
 
 export function rewritePromptForMcp(draft: string, profileJson: string, options: LearningOptions = {}, writingBriefJson?: string) {

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, finalOutputCheckForMcp, inspectHygieneForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 
 const profile = buildProfileForMcp(['I write clearly. I keep the useful detail.', 'I make the call. Then I explain the trade-off.'], ['leverage']);
 const profileJson = JSON.stringify(profile);
@@ -14,9 +14,25 @@ test('builds a portable profile for MCP without files', () => {
 });
 
 test('keeps the dual-engine analysis shape through MCP tools', () => {
-  const result = analyzeForMcp('I leverage a clear plan.', profileJson);
+  const result = analyzeForMcp('I leverage a clear plan.\u200B', profileJson);
   assert.equal(result.voiceDna.engine, 'voice_dna');
   assert.equal(result.aiEditor.engine, 'ai_editor');
+  assert.equal(result.hygiene.suspiciousCount, 1);
+});
+
+test('inspects Unicode hygiene through MCP without a voice profile', () => {
+  const result = inspectHygieneForMcp('one\u200Btwo\u00A0three');
+  assert.equal(result.suspiciousCount, 2);
+  assert.equal(result.fixableCount, 0);
+});
+
+test('gates exact final output through MCP without a voice profile', () => {
+  const accepted = finalOutputCheckForMcp('exact output');
+  assert.equal(accepted.accepted && accepted.output, 'exact output');
+
+  const rejected = finalOutputCheckForMcp('hidden\u200Boutput');
+  assert.equal(rejected.accepted, false);
+  assert.equal('output' in rejected, false);
 });
 
 test('accepts optional WritingBrief context and exposes batch findings through MCP helpers', () => {

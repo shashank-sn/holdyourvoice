@@ -1,16 +1,18 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from 'node:fs';
+import { linkSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, extname, join, resolve } from 'node:path';
 import { RULESET_VERSION, serializedRules } from './ai-editor.js';
 import { parseCopySpec } from './copy-spec.js';
 import type { Profile, WritingBrief } from './contracts.js';
 import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
 import { addLearningInstruction, clearLearning, composeLearning, profileFingerprint, recordVerifiedCandidate } from './learning.js';
+import { cleanHygiene, finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
 import { buildProfile } from './voice-dna.js';
 
-const usage = 'Commands: profile, analyze, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, verify, verify-spec, learning, patterns, mcp';
+const usage = 'Commands: profile, analyze, hygiene, final-check, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, verify, verify-spec, learning, patterns, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -70,6 +72,50 @@ function profileArguments(args: string[]): { output: string; samples: string[]; 
   return { output, samples, avoid };
 }
 
+function cleanedPath(path: string): string {
+  const extension = extname(path);
+  const stem = extension ? path.slice(0, -extension.length) : path;
+  return `${stem}.cleaned${extension}`;
+}
+
+function hygieneArguments(args: string[]): { path: string; fix: boolean; output?: string } {
+  const [path, ...options] = args;
+  if (!path) throw new Error('Usage: hyv hygiene draft.md [--fix] [--output=cleaned.md]');
+  let fix = false;
+  let output: string | undefined;
+  for (const option of options) {
+    if (option === '--fix') fix = true;
+    else if (option.startsWith('--output=')) output = option.slice('--output='.length).trim();
+    else throw new Error('Usage: hyv hygiene draft.md [--fix] [--output=cleaned.md]');
+  }
+  if (output !== undefined && (!output || !fix)) throw new Error('--output requires --fix and a non-empty path.');
+  return { path, fix, ...(output ? { output } : {}) };
+}
+
+function writeNewFileAtomically(path: string, text: string): void {
+  const temporaryDirectory = mkdtempSync(join(dirname(resolve(path)), '.hyv-hygiene-'));
+  const temporaryPath = join(temporaryDirectory, 'cleaned');
+  let primaryError: unknown;
+  try {
+    writeFileSync(temporaryPath, text, 'utf8');
+    try {
+      linkSync(temporaryPath, path);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'EXDEV'].includes(code ?? '')) throw error;
+      throw new Error(`Atomic hygiene output is not supported by this filesystem: ${path}`);
+    }
+  } catch (error) {
+    primaryError = (error as NodeJS.ErrnoException).code === 'EEXIST' ? new Error(`Hygiene output already exists: ${path}`) : error;
+  }
+  try {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+  } catch (error) {
+    if (!primaryError) console.error(`Warning: output was published, but temporary-file cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (primaryError) throw primaryError;
+}
+
 export async function runCli(args: string[]): Promise<number> {
   const [command, ...rest] = args;
   if (command === 'profile') {
@@ -81,6 +127,33 @@ export async function runCli(args: string[]): Promise<number> {
     const [draft, profilePath, briefPath] = rest;
     if (!draft || !profilePath) throw new Error('Usage: hyv analyze draft.md profile.json [writing-brief.json]');
     json(analyze(input(draft), readProfile(profilePath), readBrief(briefPath)));
+    return 0;
+  }
+  if (command === 'hygiene') {
+    const { path, fix, output } = hygieneArguments(rest);
+    if (fix && path === '-') throw new Error('hyv hygiene --fix requires a file path so the original can be preserved.');
+    const text = input(path);
+    if (!fix) {
+      json(inspectHygiene(text));
+      return 0;
+    }
+    const outputPath = output ?? cleanedPath(path);
+    if (resolve(outputPath) === resolve(path)) throw new Error('Hygiene output must differ from the input path.');
+    const result = cleanHygiene(text);
+    writeNewFileAtomically(outputPath, result.cleaned);
+    json({ ...result.report, changed: result.changed, changes: result.changes, outputPath });
+    return 0;
+  }
+  if (command === 'final-check') {
+    const [path, ...options] = rest;
+    if (!path || options.length) throw new Error('Usage: hyv final-check <path|->');
+    const result = finalOutputCheck(input(path));
+    if (!result.accepted) {
+      console.error(JSON.stringify(result, null, 2));
+      return 2;
+    }
+    if (result.changed) console.error(JSON.stringify({ changed: true, changes: result.changes }, null, 2));
+    process.stdout.write(result.output);
     return 0;
   }
   if (command === 'batch-analyze') {
