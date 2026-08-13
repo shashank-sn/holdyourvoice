@@ -6,6 +6,7 @@ import { clearLearning, composeLearning, inspectLearning, type LearningOptions, 
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
+import { parseJudgmentEnvelope, preparePostCandidateJudgment, preparePreEditJudgment, reducePostCandidate, reducePreEdit } from './judgment-task.js';
 import { buildProfile } from './voice-dna.js';
 import { finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
@@ -68,6 +69,18 @@ export function prepareRewriteForMcp(draft: string, profileJson: string, copySpe
 
 export function applyRewriteForMcp(taskJson: string, responseJson: string, profileJson: string) {
   return evaluateRewriteResponse(parseRewriteTask(JSON.parse(taskJson)), responseJson, profileFromJson(profileJson));
+}
+
+export function prepareJudgmentForMcp(stage: 'pre-edit' | 'post-candidate', kind: string, draft: string, profileJson: string, candidate?: string) {
+  const profile = profileFromJson(profileJson);
+  return stage === 'pre-edit'
+    ? preparePreEditJudgment(draft, profile, kind as 'triage' | 'argument' | 'form')
+    : preparePostCandidateJudgment(draft, candidate ?? '', profile, kind as 'argument' | 'polarity' | 'form' | 'flatness' | 'semantic');
+}
+
+export function reduceJudgmentForMcp(envelopesJson: string) {
+  const envelopes = parsed<unknown[]>(envelopesJson, 'Judgment envelopes').map(parseJudgmentEnvelope);
+  return envelopes[0]?.stage === 'pre-edit' ? reducePreEdit(envelopes) : reducePostCandidate(envelopes);
 }
 
 export function verifyForMcp(original: string, candidate: string, profileJson: string, writingBriefJson?: string) {

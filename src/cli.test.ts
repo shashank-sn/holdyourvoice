@@ -212,6 +212,33 @@ test('prepares and applies the same constrained rewrite task without a provider 
   }
 });
 
+test('prepares and reduces pre-edit judgment envelopes through CLI', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-judgment-'));
+  try {
+    const first = join(directory, 'first.md'); const second = join(directory, 'second.md'); const profile = join(directory, 'profile.json');
+    const draft = join(directory, 'draft.md');
+    writeFileSync(first, 'I write plainly. I name the work.'); writeFileSync(second, 'I keep the mechanism clear. I avoid filler.');
+    writeFileSync(draft, 'I leverage the answer.');
+    assert.equal(run(['profile', profile, first, second, '--avoid=leverage']).status, 0);
+    const envelopes = (['triage', 'argument', 'form'] as const).map((kind) => {
+      const taskPath = join(directory, `${kind}.json`);
+      assert.equal(run(['prepare-judgment', 'pre-edit', kind, draft, profile, taskPath]).status, 0);
+      const task = JSON.parse(readFileSync(taskPath, 'utf8'));
+      const envelopePath = join(directory, `${kind}-envelope.json`);
+      writeFileSync(envelopePath, JSON.stringify({
+        version: '1', stage: 'pre-edit', judgmentType: kind, taskFingerprint: task.taskFingerprint,
+        bindings: { ...task.bindings, evaluatorId: 'writer.1' }, findings: [], decision: 'SHIP',
+      }));
+      return envelopePath;
+    });
+    const result = run(['reduce-judgment', ...envelopes]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).decision, 'SHIP');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('prepares, submits, and inspects a normal lifecycle through CLI canonical envelopes', () => {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-lifecycle-'));
   try {

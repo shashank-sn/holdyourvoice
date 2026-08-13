@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { cleanHygiene, finalOutputCheck, inspectHygiene } from './hygiene.js';
+import { cleanHygiene, finalOutputCheck, hygieneSourceFindings, inspectHygiene } from './hygiene.js';
 
 test('reports zero-width, bidi, tag, and unusual-space characters with exact offsets', () => {
   const text = `one\u200Btwo\u202Ethree\u{E0001}\u00A0four`;
@@ -36,6 +36,13 @@ test('leaves clean text byte-for-byte unchanged', () => {
   assert.equal(result.changed, false);
   assert.deepEqual(result.changes, []);
   assert.deepEqual(result.report.hits, []);
+});
+
+test('projects eligible hygiene hits as source-offset findings', () => {
+  const findings = hygieneSourceFindings('\uFEFFplain');
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0]?.start, 0);
+  assert.equal(findings[0]?.eligible, true);
 });
 
 test('groups repeated report-only hits and preserves supplementary characters', () => {

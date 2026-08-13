@@ -10,13 +10,14 @@ import { cleanHygiene, finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
+import { parseJudgmentEnvelope, preparePostCandidateJudgment, preparePreEditJudgment, reducePostCandidate, reducePreEdit } from './judgment-task.js';
 import type { ApprovalCapabilityEnvelopeV1, DeterministicVerificationArtifactV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
 import { canonicalJson, parseCanonicalJson } from './canonical-json.js';
 import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
 import { buildProfile } from './voice-dna.js';
 import { loadApprovalContext } from './approval-context.js';
 
-const usage = 'Commands: profile, analyze, hygiene, final-check, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, verify, verify-spec, lifecycle, learning, patterns, mcp';
+const usage = 'Commands: profile, analyze, hygiene, final-check, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, verify, verify-spec, lifecycle, learning, patterns, mcp';
 const MAX_JSON_BYTES = 1024 * 1024;
 
 function input(path: string): string {
@@ -256,6 +257,25 @@ export async function runCli(args: string[]): Promise<number> {
     const result = evaluateRewriteResponse(parseRewriteTask(JSON.parse(input(taskPath))), input(responsePath), readProfile(profilePath));
     json(result);
     return result.status === 'accepted' ? 0 : 2;
+  }
+  if (command === 'prepare-judgment') {
+    const [stage, kind, draft, profilePath, output, candidatePath] = rest;
+    if (!stage || !kind || !draft || !profilePath || !output) throw new Error('Usage: hyv prepare-judgment pre-edit|post-candidate kind draft.md profile.json task.json [candidate.md]');
+    if (stage === 'post-candidate' && !candidatePath) throw new Error('Usage: hyv prepare-judgment post-candidate kind draft.md profile.json task.json candidate.md');
+    const profile = readProfile(profilePath);
+    const task = stage === 'pre-edit'
+      ? preparePreEditJudgment(input(draft), profile, kind as 'triage' | 'argument' | 'form')
+      : preparePostCandidateJudgment(input(draft), input(candidatePath ?? ''), profile, kind as 'argument' | 'polarity' | 'form' | 'flatness' | 'semantic');
+    writeFileSync(output, `${JSON.stringify(task, null, 2)}\n`);
+    json({ version: task.version, stage: task.stage, judgmentType: task.judgmentType, taskFingerprint: task.taskFingerprint });
+    return 0;
+  }
+  if (command === 'reduce-judgment') {
+    if (rest.length < 3) throw new Error('Usage: hyv reduce-judgment envelope.json envelope.json [envelope.json...]');
+    const envelopes = rest.map((path) => parseJudgmentEnvelope(JSON.parse(input(path))));
+    const stage = envelopes[0]?.stage;
+    json(stage === 'pre-edit' ? reducePreEdit(envelopes) : reducePostCandidate(envelopes));
+    return 0;
   }
   if (command === 'verify') {
     const [original, candidate, profilePath, briefPath] = rest;

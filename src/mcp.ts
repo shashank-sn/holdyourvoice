@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, migrateLearningForMcp, patternsForMcp, prepareLifecycleForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { HYV_VERSION } from './version.js';
 import { loadApprovalContext } from './approval-context.js';
 
@@ -109,6 +109,36 @@ server.registerTool('hyv_apply_rewrite', {
 }, async ({ task_json, response_json, profile_json }) => {
   try {
     return json(applyRewriteForMcp(task_json, response_json, profile_json));
+  } catch (error) {
+    return failure(error);
+  }
+});
+
+server.registerTool('hyv_prepare_judgment', {
+  description: 'Prepare a versioned pre-edit or post-candidate judgment task. It does not call a model.',
+  inputSchema: {
+    stage: z.enum(['pre-edit', 'post-candidate']),
+    kind: z.enum(['triage', 'argument', 'form', 'polarity', 'flatness', 'semantic']),
+    draft: writing,
+    profile_json: profileJson,
+    candidate: writing.optional(),
+  },
+  annotations: { readOnlyHint: true },
+}, async ({ stage, kind, draft, profile_json, candidate }) => {
+  try {
+    return json(prepareJudgmentForMcp(stage, kind, draft, profile_json, candidate));
+  } catch (error) {
+    return failure(error);
+  }
+});
+
+server.registerTool('hyv_reduce_judgment', {
+  description: 'Reduce bound judgment envelopes into SHIP, EDIT, REBUILD, CLEAR, or ESCALATE. It does not call a model.',
+  inputSchema: { envelopes_json: z.string().min(1).max(250_000) },
+  annotations: { readOnlyHint: true },
+}, async ({ envelopes_json }) => {
+  try {
+    return json(reduceJudgmentForMcp(envelopes_json));
   } catch (error) {
     return failure(error);
   }
