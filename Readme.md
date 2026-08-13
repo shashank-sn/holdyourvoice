@@ -86,7 +86,7 @@ Read both scored reports and the separate hygiene inspection. The outer `passed`
 
 ### Gate every final text output
 
-`final-check` is a profile-free last-mile boundary for text from any model, tool, agent, API, template, or interface:
+`final-check` is a profile-free last-mile boundary for text from any model, tool, agent, API, template, CLI, or GUI:
 
 ```bash
 producer | hyv final-check -
@@ -94,6 +94,8 @@ hyv final-check final-response.md
 ```
 
 Clean text is written to stdout byte-for-byte. A leading U+FEFF byte-order mark is removed before output. When other hidden Unicode remains, stdout stays empty, the report goes to stderr, and the command exits `2`. Put this command immediately before display, copy, export, posting, or an API response. The producer and the presence of a VoiceDNA profile do not change the policy.
+
+This is an integration boundary, not a background interceptor. A GUI, agent host, or external tool must pass its exact final text to `hyv final-check -` or the read-only `hyv_final_check` MCP tool and deliver only accepted output. Run it after the last rewrite, formatter, template expansion, or manual edit; checking an earlier draft does not cover later changes.
 
 ### Inspect and clean hidden Unicode
 
