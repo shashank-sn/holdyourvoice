@@ -38,6 +38,17 @@ function withPublicBenchmarkCopy(check: (benchmarkRoot: string) => void): void {
   }
 }
 
+function withoutCi(check: () => void): void {
+  const previousCi = process.env.CI;
+  delete process.env.CI;
+  try {
+    check();
+  } finally {
+    if (previousCi === undefined) delete process.env.CI;
+    else process.env.CI = previousCi;
+  }
+}
+
 test('locks the historical public partitions, Hyv 3.2.0 baseline, and preregistered measures independently of the live catalog', () => {
   const manifest = validatePublicBenchmark(join(repositoryRoot, 'benchmarks'));
   assert.deepEqual(manifest.preregisteredMeasures, ['writer_preference', 'correction_versus_confirm', 'workflow_completion', 'workflow_abandonment']);
@@ -182,6 +193,7 @@ test('executes the synthetic rule, byte-preservation, and hygiene expectations',
 });
 
 test('private evaluation is opt-in, local-only, rights-gated, current, and digest-locked', () => {
+  withoutCi(() => {
   const approvedRoot = mkdtempSync(join(tmpdir(), 'hyv-private-approved-'));
   const privateRoot = join(approvedRoot, 'corpus');
   mkdirSync(privateRoot);
@@ -233,9 +245,11 @@ test('private evaluation is opt-in, local-only, rights-gated, current, and diges
   } finally {
     rmSync(approvedRoot, { recursive: true, force: true });
   }
+  });
 });
 
 test('private evaluation requires strict per-case rights and provenance without disclosing corpus data', () => {
+  withoutCi(() => {
   const approvedRoot = mkdtempSync(join(tmpdir(), 'hyv-private-case-rights-'));
   const privateRoot = join(approvedRoot, 'corpus');
   mkdirSync(privateRoot);
@@ -279,6 +293,7 @@ test('private evaluation requires strict per-case rights and provenance without 
   } finally {
     rmSync(approvedRoot, { recursive: true, force: true });
   }
+  });
 });
 
 test('private evaluation refuses repository storage and missing manifests without disclosing a path', () => {
@@ -292,6 +307,7 @@ test('private evaluation refuses repository storage and missing manifests withou
 });
 
 test('private evaluation refuses a benchmark root carrying nested Git metadata', () => {
+  withoutCi(() => {
   const approvedRoot = mkdtempSync(join(tmpdir(), 'hyv-private-git-metadata-'));
   const privateRoot = join(approvedRoot, 'corpus');
   mkdirSync(privateRoot);
@@ -321,4 +337,5 @@ test('private evaluation refuses a benchmark root carrying nested Git metadata',
   } finally {
     rmSync(approvedRoot, { recursive: true, force: true });
   }
+  });
 });
