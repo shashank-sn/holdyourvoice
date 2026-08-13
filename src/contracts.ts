@@ -106,6 +106,16 @@ export interface HygieneReport {
   hits: HygieneHit[];
 }
 
+interface FinalOutputCheckBase {
+  version: '1';
+  changed: boolean;
+  changes: HygieneChange[];
+  input: HygieneReport;
+  remaining: HygieneReport;
+}
+
+export type FinalOutputCheck = FinalOutputCheckBase & ({ accepted: true; output: string } | { accepted: false });
+
 export interface HygieneChange {
   offset: number;
   codepoint: string;

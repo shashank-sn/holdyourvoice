@@ -20,6 +20,7 @@ Node.js 20 or later and npm are required. Claude Code starts the MCP server when
 - `hyv_build_profile`: build a portable profile from at least two supplied writing samples.
 - `hyv_analyze`: run the two independent checks and non-scoring Unicode hygiene inspection on a draft.
 - `hyv_hygiene`: inspect supplied text for hidden Unicode without a voice profile or file mutation.
+- `hyv_final_check`: gate exact final text from any model or tool and return output only when it is safe to deliver.
 - `hyv_rewrite_prompt`: make an editing brief without changing the draft.
 - `hyv_verify`: check a candidate for regressions and preservation.
 - `hyv_patterns`: list the exact executable pattern rules.

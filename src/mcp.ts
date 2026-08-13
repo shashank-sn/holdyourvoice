@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, inspectHygieneForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, finalOutputCheckForMcp, inspectHygieneForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { HYV_VERSION } from './version.js';
 
 const writing = z.string().min(1).max(100_000);
@@ -51,6 +51,12 @@ server.registerTool('hyv_hygiene', {
   inputSchema: { draft: hygieneText },
   annotations: { readOnlyHint: true },
 }, async ({ draft }) => json(inspectHygieneForMcp(draft)));
+
+server.registerTool('hyv_final_check', {
+  description: 'Gate exact user-facing text from any model, tool, or interface. Returns output only when clean or after removing a leading byte-order mark; unresolved hidden characters withhold output.',
+  inputSchema: { text: hygieneText },
+  annotations: { readOnlyHint: true },
+}, async ({ text }) => json(finalOutputCheckForMcp(text)));
 
 server.registerTool('hyv_rewrite_prompt', {
   description: 'Create a constrained editing brief. It does not rewrite the draft or call a model.',

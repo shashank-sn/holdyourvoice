@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { cleanHygiene, inspectHygiene } from './hygiene.js';
+import { cleanHygiene, finalOutputCheck, inspectHygiene } from './hygiene.js';
 
 test('reports zero-width, bidi, tag, and unusual-space characters with exact offsets', () => {
   const text = `one\u200Btwo\u202Ethree\u{E0001}\u00A0four`;
@@ -57,4 +57,25 @@ test('preserves multilingual spacing and word-boundary controls byte-for-byte', 
   assert.equal(result.changed, false);
   assert.equal(result.report.suspiciousCount, 5);
   assert.equal(result.report.fixableCount, 0);
+});
+
+test('accepts exact clean output and minimally removes only a leading BOM', () => {
+  const clean = finalOutputCheck('exact output\n');
+  assert.equal(clean.accepted, true);
+  assert.equal(clean.accepted && clean.output, 'exact output\n');
+  assert.equal(clean.changed, false);
+
+  const bom = finalOutputCheck('\uFEFFexact output');
+  assert.equal(bom.accepted, true);
+  assert.equal(bom.accepted && bom.output, 'exact output');
+  assert.deepEqual(bom.changes, [{ offset: 0, codepoint: 'U+FEFF', action: 'removed' }]);
+});
+
+test('withholds output when hidden characters remain unresolved', () => {
+  const result = finalOutputCheck('Thai\u200Bboundary 👩\u200D💻');
+
+  assert.equal(result.accepted, false);
+  assert.equal('output' in result, false);
+  assert.equal(result.changed, false);
+  assert.deepEqual(result.remaining.hits.map((hit) => hit.codepoint), ['U+200B', 'U+200D']);
 });

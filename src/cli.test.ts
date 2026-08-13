@@ -116,6 +116,23 @@ test('inspects stdin and refuses to clean it without a preservable input file', 
   assert.match(refused.stderr, /requires a file path/);
 });
 
+test('gates final output from any producer without a voice profile', () => {
+  const clean = run(['final-check', '-'], process.env, 'exact output\n');
+  assert.equal(clean.status, 0, clean.stderr);
+  assert.equal(clean.stdout, 'exact output\n');
+  assert.equal(clean.stderr, '');
+
+  const bom = run(['final-check', '-'], process.env, '\uFEFFexact output');
+  assert.equal(bom.status, 0, bom.stderr);
+  assert.equal(bom.stdout, 'exact output');
+  assert.match(bom.stderr, /U\+FEFF/);
+
+  const unresolved = run(['final-check', '-'], process.env, 'Thai\u200Bboundary');
+  assert.equal(unresolved.status, 2);
+  assert.equal(unresolved.stdout, '');
+  assert.match(unresolved.stderr, /U\+200B/);
+});
+
 test('uses exit code 2 for a failed candidate gate and 1 for misuse', () => {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
   try {

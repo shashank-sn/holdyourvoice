@@ -6,13 +6,13 @@ import { parseCopySpec } from './copy-spec.js';
 import type { Profile, WritingBrief } from './contracts.js';
 import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
 import { addLearningInstruction, clearLearning, composeLearning, profileFingerprint, recordVerifiedCandidate } from './learning.js';
-import { cleanHygiene, inspectHygiene } from './hygiene.js';
+import { cleanHygiene, finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
 import { buildProfile } from './voice-dna.js';
 
-const usage = 'Commands: profile, analyze, hygiene, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, verify, verify-spec, learning, patterns, mcp';
+const usage = 'Commands: profile, analyze, hygiene, final-check, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, verify, verify-spec, learning, patterns, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -95,15 +95,25 @@ function hygieneArguments(args: string[]): { path: string; fix: boolean; output?
 function writeNewFileAtomically(path: string, text: string): void {
   const temporaryDirectory = mkdtempSync(join(dirname(resolve(path)), '.hyv-hygiene-'));
   const temporaryPath = join(temporaryDirectory, 'cleaned');
+  let primaryError: unknown;
   try {
     writeFileSync(temporaryPath, text, 'utf8');
-    linkSync(temporaryPath, path);
+    try {
+      linkSync(temporaryPath, path);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (!['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'EXDEV'].includes(code ?? '')) throw error;
+      throw new Error(`Atomic hygiene output is not supported by this filesystem: ${path}`);
+    }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new Error(`Hygiene output already exists: ${path}`);
-    throw error;
-  } finally {
-    rmSync(temporaryDirectory, { recursive: true, force: true });
+    primaryError = (error as NodeJS.ErrnoException).code === 'EEXIST' ? new Error(`Hygiene output already exists: ${path}`) : error;
   }
+  try {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+  } catch (error) {
+    if (!primaryError) console.error(`Warning: output was published, but temporary-file cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (primaryError) throw primaryError;
 }
 
 export async function runCli(args: string[]): Promise<number> {
@@ -132,6 +142,18 @@ export async function runCli(args: string[]): Promise<number> {
     const result = cleanHygiene(text);
     writeNewFileAtomically(outputPath, result.cleaned);
     json({ ...result.report, changed: result.changed, changes: result.changes, outputPath });
+    return 0;
+  }
+  if (command === 'final-check') {
+    const [path, ...options] = rest;
+    if (!path || options.length) throw new Error('Usage: hyv final-check <path|->');
+    const result = finalOutputCheck(input(path));
+    if (!result.accepted) {
+      console.error(JSON.stringify(result, null, 2));
+      return 2;
+    }
+    if (result.changed) console.error(JSON.stringify({ changed: true, changes: result.changes }, null, 2));
+    process.stdout.write(result.output);
     return 0;
   }
   if (command === 'batch-analyze') {

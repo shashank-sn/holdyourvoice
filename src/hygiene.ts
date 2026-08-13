@@ -1,4 +1,4 @@
-import type { HygieneChange, HygieneHit, HygieneKind, HygieneReport } from './contracts.js';
+import type { FinalOutputCheck, HygieneChange, HygieneHit, HygieneKind, HygieneReport } from './contracts.js';
 
 type CharacterPolicy = { kind: HygieneKind; label: string; fix: 'remove' | 'none' };
 
@@ -86,4 +86,11 @@ export function inspectHygiene(text: string): HygieneReport {
 export function cleanHygiene(text: string): { report: HygieneReport; cleaned: string; changed: boolean; changes: HygieneChange[] } {
   const result = scanHygiene(text, true);
   return { ...result, changed: result.changes.length > 0 };
+}
+
+export function finalOutputCheck(text: string): FinalOutputCheck {
+  const cleaned = cleanHygiene(text);
+  const remaining = inspectHygiene(cleaned.cleaned);
+  const base = { version: '1' as const, changed: cleaned.changed, changes: cleaned.changes, input: cleaned.report, remaining };
+  return remaining.suspiciousCount === 0 ? { ...base, accepted: true, output: cleaned.cleaned } : { ...base, accepted: false };
 }

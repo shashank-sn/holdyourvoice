@@ -23,7 +23,7 @@ test('serves local Claude tools over stdio', async () => {
   assert.equal(code, 0);
   const responses = stdout.trim().split('\n').map((line) => JSON.parse(line) as { id: number; result?: { tools?: Array<{ name: string; annotations?: { readOnlyHint?: boolean } }> } });
     const tools = responses.find((response) => response.id === 2)?.result?.tools;
-  assert.deepEqual(tools?.map((tool) => tool.name), ['hyv_build_profile', 'hyv_analyze', 'hyv_hygiene', 'hyv_rewrite_prompt', 'hyv_prepare_rewrite', 'hyv_apply_rewrite', 'hyv_verify', 'hyv_verify_copy_spec', 'hyv_batch_analyze', 'hyv_patterns']);
+  assert.deepEqual(tools?.map((tool) => tool.name), ['hyv_build_profile', 'hyv_analyze', 'hyv_hygiene', 'hyv_final_check', 'hyv_rewrite_prompt', 'hyv_prepare_rewrite', 'hyv_apply_rewrite', 'hyv_verify', 'hyv_verify_copy_spec', 'hyv_batch_analyze', 'hyv_patterns']);
   assert.ok(tools?.filter((tool) => tool.name !== 'hyv_verify' && tool.name !== 'hyv_verify_copy_spec').every((tool) => tool.annotations?.readOnlyHint));
   assert.equal(tools?.find((tool) => tool.name === 'hyv_verify')?.annotations?.readOnlyHint, false);
   assert.equal(tools?.find((tool) => tool.name === 'hyv_verify_copy_spec')?.annotations?.readOnlyHint, false);
@@ -42,6 +42,26 @@ test('accepts empty text for profile-free hygiene inspection', async () => {
   const responses = stdout.trim().split('\n').map((line) => JSON.parse(line) as { id: number; result?: { content?: Array<{ text: string }> } });
   const report = JSON.parse(responses.find((response) => response.id === 2)?.result?.content?.[0]?.text ?? '{}');
   assert.equal(report.suspiciousCount, 0);
+});
+
+test('gates exact final output through the registered profile-free MCP tool', async () => {
+  const server = spawn(process.execPath, [new URL('./cli.js', import.meta.url).pathname, 'mcp'], { stdio: ['pipe', 'pipe', 'pipe'] });
+  let stdout = '';
+  server.stdout.on('data', (chunk) => { stdout += chunk; });
+  server.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1.0.0' } } })}\n`);
+  server.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} })}\n`);
+  server.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'hyv_final_check', arguments: { text: 'Exact output.' } } })}\n`);
+  server.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'hyv_final_check', arguments: { text: 'Hidden\u200B output.' } } })}\n`);
+  server.stdin.end();
+  const [code] = await once(server, 'close');
+  assert.equal(code, 0);
+  const responses = stdout.trim().split('\n').map((line) => JSON.parse(line) as { id: number; result?: { content?: Array<{ text: string }> } });
+  const accepted = JSON.parse(responses.find((response) => response.id === 2)?.result?.content?.[0]?.text ?? '{}');
+  const rejected = JSON.parse(responses.find((response) => response.id === 3)?.result?.content?.[0]?.text ?? '{}');
+  assert.equal(accepted.accepted, true);
+  assert.equal(accepted.output, 'Exact output.');
+  assert.equal(rejected.accepted, false);
+  assert.equal('output' in rejected, false);
 });
 
 test('uses default local learning through the registered MCP tools', async () => {
