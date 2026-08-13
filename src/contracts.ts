@@ -241,7 +241,88 @@ export interface RewriteResponse {
   replacements: RewriteReplacement[];
 }
 
-export type RewriteFailureCode = 'invalid_json' | 'invalid_response_shape' | 'invalid_response_version' | 'task_fingerprint_mismatch' | 'duplicate_sentence_id' | 'unknown_sentence_id' | 'ineligible_sentence_id' | 'invalid_replacement_text' | 'response_too_large';
+export interface SentenceRange {
+  startSentenceId: number;
+  endSentenceId: number;
+}
+
+export interface RewriteRangeOperation {
+  startSentenceId: number;
+  endSentenceId: number;
+  text: string;
+}
+
+export interface HygieneSourceFinding {
+  kind: 'hygiene';
+  start: number;
+  end: number;
+  codepoint: string;
+  eligible: boolean;
+}
+
+export interface HygieneRangeOperation {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface RewriteResponseV2 {
+  version: '2';
+  taskFingerprint: string;
+  operations: RewriteRangeOperation[];
+  hygieneOperations?: HygieneRangeOperation[];
+}
+
+export type RewriteFailureCode = 'invalid_json' | 'invalid_response_shape' | 'invalid_response_version' | 'task_fingerprint_mismatch' | 'duplicate_sentence_id' | 'unknown_sentence_id' | 'ineligible_sentence_id' | 'invalid_replacement_text' | 'response_too_large' | 'overlapping_range' | 'noncontiguous_range' | 'out_of_order_range' | 'partly_locked_range' | 'ineligible_hygiene_offset';
+
+export type JudgmentStage = 'pre-edit' | 'post-candidate';
+export type JudgmentKind = 'triage' | 'argument' | 'form' | 'polarity' | 'flatness' | 'semantic';
+export type PreEditDecision = 'SHIP' | 'EDIT' | 'REBUILD';
+export type PostCandidateDecision = 'CLEAR' | 'ESCALATE' | 'REBUILD';
+
+export interface JudgmentFindingV1 {
+  kind: JudgmentKind;
+  unbounded?: boolean;
+  ranges?: SentenceRange[];
+}
+
+export interface JudgmentBindingsV1 {
+  sourceHash: string;
+  candidateHash?: string;
+  profileId: string;
+  profileRevisionDigest: string;
+  rulesetVersion: string;
+  evaluatorId: string;
+  evidenceScope: { sentenceIds: number[] };
+}
+
+export interface JudgmentTaskV1 {
+  version: '1';
+  stage: JudgmentStage;
+  judgmentType: JudgmentKind;
+  taskFingerprint: string;
+  draft?: string;
+  candidate?: string;
+  bindings: Omit<JudgmentBindingsV1, 'evaluatorId'>;
+  allowedDecisions: Array<PreEditDecision | PostCandidateDecision>;
+}
+
+export interface JudgmentEnvelopeV1 {
+  version: '1';
+  stage: JudgmentStage;
+  judgmentType: JudgmentKind;
+  taskFingerprint: string;
+  bindings: JudgmentBindingsV1;
+  findings: JudgmentFindingV1[];
+  decision: PreEditDecision | PostCandidateDecision;
+  editScope?: { ranges: SentenceRange[] };
+}
+
+export interface PreEditReduction {
+  decision: PreEditDecision;
+  editScope: { ranges: SentenceRange[] };
+  reason?: 'unbounded_argument_failure';
+}
 
 export interface RewriteFailure {
   code: RewriteFailureCode;
@@ -255,6 +336,8 @@ export interface RewriteReceipt {
   responseFingerprint: string;
   adapterIds: string[];
   replacementSentenceIds?: number[];
+  operationRanges?: SentenceRange[];
+  mode?: 'SHIP' | 'EDIT';
 }
 
 export interface RewriteApplyResult {

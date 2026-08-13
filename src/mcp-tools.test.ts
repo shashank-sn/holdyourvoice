@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, patternsForMcp, prepareLifecycleForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { canonicalJson } from './canonical-json.js';
 
 const profile = buildProfileForMcp(['I write clearly. I keep the useful detail.', 'I make the call. Then I explain the trade-off.'], ['leverage']);
@@ -186,4 +186,16 @@ test('prepares and applies the rewrite task through MCP helpers', () => {
   }), profileJson);
   assert.equal(result.status, 'needs_semantic_review');
   assert.equal(result.candidate, 'I use the answer with useful detail and clear mechanism.');
+});
+
+test('prepares and reduces judgment envelopes through MCP helpers', () => {
+  const draft = 'I leverage the answer.';
+  const envelopes = (['triage', 'argument', 'form'] as const).map((kind) => {
+    const task = prepareJudgmentForMcp('pre-edit', kind, draft, profileJson);
+    return {
+      version: '1', stage: 'pre-edit', judgmentType: kind, taskFingerprint: task.taskFingerprint,
+      bindings: { ...task.bindings, evaluatorId: 'writer.1' }, findings: [], decision: 'SHIP',
+    };
+  });
+  assert.equal(reduceJudgmentForMcp(JSON.stringify(envelopes)).decision, 'SHIP');
 });

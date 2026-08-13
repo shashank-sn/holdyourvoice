@@ -64,7 +64,7 @@ test('serves local Claude tools over stdio', async () => {
   assert.equal(code, 0);
   const responses = stdout.trim().split('\n').map((line) => JSON.parse(line) as { id: number; result?: { tools?: Array<{ name: string; inputSchema?: { properties?: Record<string, unknown> }; annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean } }> } });
     const tools = responses.find((response) => response.id === 2)?.result?.tools;
-  assert.deepEqual(tools?.map((tool) => tool.name), ['hyv_build_profile', 'hyv_analyze', 'hyv_hygiene', 'hyv_final_check', 'hyv_rewrite_prompt', 'hyv_prepare_rewrite', 'hyv_apply_rewrite', 'hyv_verify', 'hyv_verify_copy_spec', 'hyv_batch_analyze', 'hyv_patterns', 'hyv_learning_inspect', 'hyv_learning_record', 'hyv_learning_ratify', 'hyv_learning_supersede', 'hyv_learning_migrate', 'hyv_learning_clear', 'hyv_lifecycle_prepare_semantic', 'hyv_lifecycle_submit_verdict', 'hyv_lifecycle_inspect', 'hyv_lifecycle_finalize']);
+  assert.deepEqual(tools?.map((tool) => tool.name), ['hyv_build_profile', 'hyv_analyze', 'hyv_hygiene', 'hyv_final_check', 'hyv_rewrite_prompt', 'hyv_prepare_rewrite', 'hyv_apply_rewrite', 'hyv_prepare_judgment', 'hyv_reduce_judgment', 'hyv_verify', 'hyv_verify_copy_spec', 'hyv_batch_analyze', 'hyv_patterns', 'hyv_learning_inspect', 'hyv_learning_record', 'hyv_learning_ratify', 'hyv_learning_supersede', 'hyv_learning_migrate', 'hyv_learning_clear', 'hyv_lifecycle_prepare_semantic', 'hyv_lifecycle_submit_verdict', 'hyv_lifecycle_inspect', 'hyv_lifecycle_finalize']);
   assert.ok(tools?.filter((tool) => !['hyv_verify', 'hyv_verify_copy_spec', 'hyv_learning_record', 'hyv_learning_ratify', 'hyv_learning_supersede', 'hyv_learning_migrate', 'hyv_learning_clear'].includes(tool.name)).every((tool) => tool.annotations?.readOnlyHint));
   assert.equal(tools?.find((tool) => tool.name === 'hyv_verify')?.annotations?.readOnlyHint, true);
   assert.equal(tools?.find((tool) => tool.name === 'hyv_verify_copy_spec')?.annotations?.readOnlyHint, true);
@@ -89,7 +89,7 @@ test('registers capability tools only with host redaction attestation', async ()
   const [code] = await once(server, 'close'); assert.equal(code, 0); assert.equal(stderr, '');
   const response = stdout.trim().split('\n').map((line) => JSON.parse(line)).find((item) => item.id === 2);
   const names = response.result.tools.map((tool: { name: string }) => tool.name);
-  assert.equal(names.length, 23);
+  assert.equal(names.length, 25);
   assert.ok(names.includes('hyv_lifecycle_validate_final_approval'));
   assert.ok(names.includes('hyv_learning_record_approved'));
   const finalize = response.result.tools.find((tool: { name: string }) => tool.name === 'hyv_lifecycle_finalize');

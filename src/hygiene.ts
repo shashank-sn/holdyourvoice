@@ -1,4 +1,4 @@
-import type { FinalOutputCheck, HygieneChange, HygieneHit, HygieneKind, HygieneReport } from './contracts.js';
+import type { FinalOutputCheck, HygieneChange, HygieneHit, HygieneKind, HygieneReport, HygieneSourceFinding } from './contracts.js';
 
 type CharacterPolicy = { kind: HygieneKind; label: string; fix: 'remove' | 'none' };
 
@@ -81,6 +81,13 @@ function scanHygiene(text: string, clean: boolean): { report: HygieneReport; cle
 
 export function inspectHygiene(text: string): HygieneReport {
   return scanHygiene(text, false).report;
+}
+
+export function hygieneSourceFindings(text: string): HygieneSourceFinding[] {
+  return inspectHygiene(text).hits.flatMap((hit) => hit.offsets.map((start) => {
+    const character = String.fromCodePoint(text.codePointAt(start) as number);
+    return { kind: 'hygiene' as const, start, end: start + character.length, codepoint: hit.codepoint, eligible: hit.fix === 'remove' };
+  }));
 }
 
 export function cleanHygiene(text: string): { report: HygieneReport; cleaned: string; changed: boolean; changes: HygieneChange[] } {
