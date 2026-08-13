@@ -2,6 +2,7 @@ import type { Analysis, CopySpec, CopySpecVerification, Finding, Profile, Verifi
 import { analyzeAiEditor } from './ai-editor.js';
 import { verifyClaims } from './copy-spec.js';
 import { analyzeEditorial } from './editorial-packs.js';
+import { inspectHygiene } from './hygiene.js';
 import { analyzeVoiceDna } from './voice-dna.js';
 import type { LearningPreference } from './learning.js';
 import { words } from './text.js';
@@ -10,7 +11,8 @@ export function analyze(text: string, profile: Profile, brief?: WritingBrief): A
   const voiceDna = analyzeVoiceDna(text, profile);
   const aiEditor = analyzeAiEditor(text);
   const editorial = brief ? analyzeEditorial(text, brief) : undefined;
-  return { version: '2', voiceDna, aiEditor, ...(editorial ? { editorial } : {}), passed: voiceDna.passed && aiEditor.passed && (editorial?.passed ?? true) };
+  const hygiene = inspectHygiene(text);
+  return { version: '2', voiceDna, aiEditor, ...(editorial ? { editorial } : {}), hygiene, passed: voiceDna.passed && aiEditor.passed && (editorial?.passed ?? true) };
 }
 
 function formatLearningPreference(preference: LearningPreference): string {

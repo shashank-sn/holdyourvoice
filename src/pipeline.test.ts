@@ -16,6 +16,17 @@ test('keeps the two engine scores independent', () => {
   assert.equal(typeof result.voiceDna.score, 'number');
 });
 
+test('reports hidden Unicode without changing either engine or the release decision', () => {
+  const clean = analyze('I ship clear ideas.', profile);
+  const inspected = analyze('I ship clear ideas.\u200B', profile);
+
+  assert.deepEqual(inspected.voiceDna, clean.voiceDna);
+  assert.deepEqual(inspected.aiEditor, clean.aiEditor);
+  assert.equal(inspected.passed, clean.passed);
+  assert.equal(inspected.hygiene.suspiciousCount, 1);
+  assert.equal(inspected.hygiene.fixableCount, 0);
+});
+
 test('keeps the existing VoiceDNA and AI Editor reports unchanged when no WritingBrief is supplied', () => {
   const draft = 'I leverage a clear plan.';
   const baseline = analyze(draft, profile);

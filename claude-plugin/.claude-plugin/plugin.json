@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin.json",
   "name": "hold-your-voice",
   "displayName": "Hold Your Voice",
-  "version": "3.0.2",
-  "description": "A local-first writing gate that checks VoiceDNA and AI-editor patterns separately.",
+  "version": "3.2.0",
+  "description": "A local-first writing gate for VoiceDNA, AI-editor patterns, and Unicode hygiene.",
   "author": {
     "name": "Shashank SN",
     "url": "https://github.com/shashank-sn"

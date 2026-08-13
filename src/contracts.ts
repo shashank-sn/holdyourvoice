@@ -86,11 +86,38 @@ export interface BatchReport {
   passed: true;
 }
 
+export type HygieneKind = 'zero_width' | 'bidi' | 'tag' | 'unusual_space';
+
+interface HygieneHitBase {
+  codepoint: string;
+  label: string;
+  kind: HygieneKind;
+  count: number;
+  offsets: number[];
+}
+
+export type HygieneHit = HygieneHitBase & { fix: 'remove' | 'none' };
+
+export interface HygieneReport {
+  version: '1';
+  length: number;
+  suspiciousCount: number;
+  fixableCount: number;
+  hits: HygieneHit[];
+}
+
+export interface HygieneChange {
+  offset: number;
+  codepoint: string;
+  action: 'removed';
+}
+
 export interface Analysis {
   version: string;
   voiceDna: EngineReport;
   aiEditor: EngineReport;
   editorial?: EngineReport;
+  hygiene: HygieneReport;
   passed: boolean;
 }
 

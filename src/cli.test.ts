@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -8,8 +8,8 @@ import { patternsForMcp } from './mcp-tools.js';
 
 const cli = new URL('./cli.js', import.meta.url).pathname;
 
-function run(args: string[], env: NodeJS.ProcessEnv = process.env) {
-  return spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', env });
+function run(args: string[], env: NodeJS.ProcessEnv = process.env, input?: string) {
+  return spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', env, input });
 }
 
 test('creates an explicit local avoid list and exposes the ruleset', () => {
@@ -53,6 +53,7 @@ test('runs contextual analysis and batch analysis without changing the profile c
     assert.equal(run(['profile', profile, first, second]).status, 0);
     const contextual = JSON.parse(run(['analyze', draft, profile, brief]).stdout);
     assert.equal(contextual.editorial.findings[0].id, 'editorial.social.generic-opener');
+    assert.equal(contextual.hygiene.suspiciousCount, 0);
     const batch = JSON.parse(run(['batch-analyze', draft, duplicate]).stdout);
     assert.equal(batch.findings.length, 2);
     assert.equal(run(['prepare-rewrite', draft, profile, task, brief]).status, 0);
@@ -60,6 +61,59 @@ test('runs contextual analysis and batch analysis without changing the profile c
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test('inspects and conservatively fixes Unicode hygiene without overwriting either file', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
+  try {
+    const draft = join(directory, 'draft.md');
+    const cleaned = join(directory, 'draft.cleaned.md');
+    const original = `\uFEFFkeep\u200Bthis\u00A0space\u200D`;
+    writeFileSync(draft, original);
+
+    const inspected = run(['hygiene', draft]);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    const report = JSON.parse(inspected.stdout);
+    assert.equal(report.suspiciousCount, 4);
+    assert.equal(report.fixableCount, 1);
+
+    const fixed = run(['hygiene', draft, '--fix']);
+    assert.equal(fixed.status, 0, fixed.stderr);
+    const receipt = JSON.parse(fixed.stdout);
+    assert.equal(receipt.outputPath, cleaned);
+    assert.equal(receipt.changed, true);
+    assert.equal(receipt.changes.length, 1);
+    assert.equal(readFileSync(draft, 'utf8'), original);
+    assert.equal(readFileSync(cleaned, 'utf8'), `keep\u200Bthis\u00A0space\u200D`);
+
+    const custom = join(directory, 'review-copy.md');
+    const customFixed = run(['hygiene', draft, '--fix', `--output=${custom}`]);
+    assert.equal(customFixed.status, 0, customFixed.stderr);
+    assert.equal(JSON.parse(customFixed.stdout).outputPath, custom);
+    assert.equal(readFileSync(custom, 'utf8'), `keep\u200Bthis\u00A0space\u200D`);
+
+    const samePath = run(['hygiene', draft, '--fix', `--output=${draft}`]);
+    assert.equal(samePath.status, 1);
+    assert.match(samePath.stderr, /must differ from the input path/);
+    assert.equal(readFileSync(draft, 'utf8'), original);
+
+    const refused = run(['hygiene', draft, '--fix']);
+    assert.equal(refused.status, 1);
+    assert.match(refused.stderr, /already exists/);
+    assert.equal(readdirSync(directory).some((name) => name.startsWith('.hyv-hygiene-')), false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('inspects stdin and refuses to clean it without a preservable input file', () => {
+  const inspected = run(['hygiene', '-'], process.env, 'one\u200Btwo');
+  assert.equal(inspected.status, 0, inspected.stderr);
+  assert.equal(JSON.parse(inspected.stdout).suspiciousCount, 1);
+
+  const refused = run(['hygiene', '-', '--fix'], process.env, 'one\u200Btwo');
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /requires a file path/);
 });
 
 test('uses exit code 2 for a failed candidate gate and 1 for misuse', () => {

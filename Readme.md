@@ -77,11 +77,29 @@ The result is JSON with independent reports:
 {
   "voiceDna": { "score": 93, "passed": true, "findings": [] },
   "aiEditor": { "score": 88, "passed": true, "findings": [] },
+  "hygiene": { "suspiciousCount": 0, "fixableCount": 0, "hits": [] },
   "passed": true
 }
 ```
 
-Read both reports. The outer `passed` field means each engine passed. Scores remain independent.
+Read both scored reports and the separate hygiene inspection. The outer `passed` field means each engine passed. Unicode hygiene never changes either score or the release decision.
+
+### Inspect and clean hidden Unicode
+
+Use the profile-free hygiene command to inspect zero-width characters, bidirectional controls, Unicode tag characters, and unusual spaces:
+
+```bash
+hyv hygiene draft.md
+```
+
+Add `--fix` to create `draft.cleaned.md` while keeping `draft.md` unchanged:
+
+```bash
+hyv hygiene draft.md --fix
+hyv hygiene draft.md --fix --output=review-copy.md
+```
+
+The fix receipt lists every changed UTF-16 offset and code point. The conservative cleaner removes only a leading U+FEFF byte-order mark. It reports other zero-width characters, unusual spaces, bidirectional controls, and tag characters without changing them because they can carry legitimate language, typography, or emoji behavior. Existing output files are never overwritten.
 
 ### Add contextual editorial guidance
 
@@ -268,6 +286,7 @@ The preservation score is a guardrail based on retained original words longer th
 | --- | --- | --- | --- |
 | `hyv profile <profile.json> <sample...>` | Two or more text files | Profile JSON | You need a new local reference. |
 | `hyv analyze <draft> <profile.json>` | Draft and profile | Analysis JSON | You need both reports before editing. |
+| `hyv hygiene <draft> [--fix] [--output=path]` | Draft | Hygiene report or cleaned copy plus receipt | You need to inspect or conservatively clean hidden Unicode. |
 | `hyv rewrite-prompt <draft> <profile.json>` | Draft and profile | Markdown editing brief | You need a constrained request for an editor or model. |
 | `hyv verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code | You need the candidate gate. |
 | `hyv verify-spec <original> <candidate> <profile.json> <copy-spec.json>` | Original, candidate, profile, CopySpec | Verification JSON with hard claim gate | A brief contains locked facts or prohibited claims. |
@@ -282,6 +301,7 @@ Every file argument can be `-` when the command accepts text input from standard
 | --- | --- |
 | `src/contracts.ts` | Profiles, findings, reports, analysis, and verification data shapes. |
 | `src/text.ts` | Sentence, paragraph, word, and basic statistics helpers. |
+| `src/hygiene.ts` | Profile-free hidden Unicode inspection and conservative cleaning. |
 | `src/voice-dna.ts` | Builds profiles and runs VoiceDNA checks. |
 | `src/ai-editor.ts` | Owns the versioned deterministic editorial rules. |
 | `src/editorial-packs.ts` | Parses WritingBrief context and runs format and batch checks. |

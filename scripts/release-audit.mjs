@@ -23,6 +23,10 @@ function urls(text) {
 
 const packageManifest = JSON.parse(readFileSync('package.json', 'utf8'));
 const mcpbManifest = JSON.parse(readFileSync('mcpb/manifest.json', 'utf8'));
+const claudePluginManifest = JSON.parse(readFileSync('claude-plugin/.claude-plugin/plugin.json', 'utf8'));
+const marketplaceManifest = JSON.parse(readFileSync('.claude-plugin/marketplace.json', 'utf8'));
+const claudeMcpManifest = JSON.parse(readFileSync('claude-plugin/.mcp.json', 'utf8'));
+const runtimeVersionSource = readFileSync('src/version.ts', 'utf8');
 const mitLicense = readFileSync('LICENSE', 'utf8');
 const mitRequiredClauses = [
   'Permission is hereby granted, free of charge, to any person obtaining a copy',
@@ -33,6 +37,14 @@ const mitRequiredClauses = [
 const failures = [];
 if (packageManifest.license !== 'MIT') failures.push('package.json must declare the MIT license');
 if (mcpbManifest.version !== packageManifest.version) failures.push('MCPB manifest version must match package.json');
+if (claudePluginManifest.version !== packageManifest.version) failures.push('Claude plugin version must match package.json');
+const marketplacePlugin = marketplaceManifest.plugins?.find((plugin) => plugin.name === 'hold-your-voice');
+if (!marketplacePlugin) failures.push('Claude marketplace must include hold-your-voice');
+else if (marketplacePlugin.version !== packageManifest.version) failures.push('Claude marketplace version must match package.json');
+if (!runtimeVersionSource.includes(`HYV_VERSION = '${packageManifest.version}'`)) failures.push('MCP runtime version must match package.json');
+if (!claudeMcpManifest.mcpServers?.['hold-your-voice']?.args?.includes(`--package=@holdyourvoice/hyv@${packageManifest.version}`)) {
+  failures.push('Claude plugin package pin must match package.json');
+}
 if (!Array.isArray(packageManifest.files) || !packageManifest.files.includes('LICENSE')) {
   failures.push('npm package must include LICENSE');
 }

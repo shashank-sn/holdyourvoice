@@ -1,9 +1,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, inspectHygieneForMcp, patternsForMcp, prepareRewriteForMcp, rewritePromptForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { HYV_VERSION } from './version.js';
 
 const writing = z.string().min(1).max(100_000);
+const hygieneText = z.string().max(100_000);
 const profileJson = z.string().min(1).max(50_000);
 const copySpecJson = z.string().min(1).max(250_000);
 const writingBriefJson = z.string().min(1).max(50_000);
@@ -18,7 +20,7 @@ function failure(error: unknown) {
   return { content: [{ type: 'text' as const, text: error instanceof Error ? error.message : String(error) }], isError: true };
 }
 
-const server = new McpServer({ name: 'hold-your-voice', version: '3.1.1' });
+const server = new McpServer({ name: 'hold-your-voice', version: HYV_VERSION });
 
 server.registerTool('hyv_build_profile', {
   description: 'Build a portable VoiceDNA profile from at least two writing samples. The samples stay in memory and are not saved.',
@@ -33,7 +35,7 @@ server.registerTool('hyv_build_profile', {
 });
 
 server.registerTool('hyv_analyze', {
-  description: 'Run the separate VoiceDNA and AI Editor checks against a draft using a portable profile JSON string.',
+  description: 'Run separate VoiceDNA and AI Editor checks plus a non-scoring Unicode hygiene inspection against a draft using a portable profile JSON string.',
   inputSchema: { draft: writing, profile_json: profileJson, writing_brief_json: writingBriefJson.optional() },
   annotations: { readOnlyHint: true },
 }, async ({ draft, profile_json, writing_brief_json }) => {
@@ -43,6 +45,12 @@ server.registerTool('hyv_analyze', {
     return failure(error);
   }
 });
+
+server.registerTool('hyv_hygiene', {
+  description: 'Inspect text for zero-width characters, bidirectional controls, Unicode tag characters, and unusual spaces without changing it or requiring a voice profile.',
+  inputSchema: { draft: hygieneText },
+  annotations: { readOnlyHint: true },
+}, async ({ draft }) => json(inspectHygieneForMcp(draft)));
 
 server.registerTool('hyv_rewrite_prompt', {
   description: 'Create a constrained editing brief. It does not rewrite the draft or call a model.',

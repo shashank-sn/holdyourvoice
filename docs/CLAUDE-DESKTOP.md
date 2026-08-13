@@ -25,7 +25,8 @@ Published GitHub Releases attach that same file automatically.
 | Tool | What it does |
 | --- | --- |
 | `hyv_build_profile` | Builds a portable VoiceDNA profile from two or more supplied samples. |
-| `hyv_analyze` | Runs VoiceDNA and AI Editor checks, plus optional local WritingBrief context. |
+| `hyv_analyze` | Runs VoiceDNA and AI Editor checks, a separate non-scoring Unicode hygiene inspection, and optional local WritingBrief context. |
+| `hyv_hygiene` | Inspects supplied text for hidden Unicode without a profile or file mutation. |
 | `hyv_rewrite_prompt` | Creates a constrained editing brief with optional local WritingBrief context; it makes no model call or rewrite. |
 | `hyv_prepare_rewrite` | Creates a versioned local rewrite task with optional CopySpec and WritingBrief context. |
 | `hyv_apply_rewrite` | Applies an eligible response to a prepared task and rechecks it locally. |
@@ -34,4 +35,4 @@ Published GitHub Releases attach that same file automatically.
 | `hyv_batch_analyze` | Checks two to one hundred supplied drafts for repeated openings and endings without storing them. |
 | `hyv_patterns` | Lists the exact executable AI Editor rules. |
 
-Tool calls contain writing, profile JSON, and optional local context. Filesystem paths, shell commands, API keys, and account credentials stay outside the extension. Drafts remain read-only to it. A WritingBrief stays local to the tool call and leaves VoiceDNA measurements, preservation, and output requirements intact. `hyv_verify` and `hyv_verify_copy_spec` may write local state; each event carries a profile fingerprint and resolved rule IDs while excluding the supplied writing.
+Tool calls contain writing, profile JSON, and optional local context. Filesystem paths, shell commands, API keys, and account credentials stay outside the extension. Drafts remain read-only to it; cleaning files stays an explicit CLI action. A WritingBrief stays local to the tool call and leaves VoiceDNA measurements, preservation, and output requirements intact. `hyv_verify` and `hyv_verify_copy_spec` may write local state; each event carries a profile fingerprint and resolved rule IDs while excluding the supplied writing.
