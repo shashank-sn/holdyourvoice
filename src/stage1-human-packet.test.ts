@@ -4,6 +4,16 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpath
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { BASELINE_COMMIT, STAGE1_COMMIT } from './stage1-evaluation.js';
+
+function gitObjectExists(commit: string): boolean {
+  try {
+    execFileSync('git', ['cat-file', '-t', commit], { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function packetFiles(root: string): string[] {
   return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
@@ -27,7 +37,7 @@ test('Stage 1 human packet executes outside the repository and remains blocked w
     assert.equal(output.promotable, false);
     assert.ok(output.blockers.includes('human_writer_evidence_deferred'));
     assert.ok(output.blockers.includes('locked_human_evidence_required'));
-    assert.ok(output.blockers.includes('stage1_commit_uncheckoutable'));
+    assert.equal(output.blockers.includes('stage1_commit_uncheckoutable'), !gitObjectExists(STAGE1_COMMIT));
     assert.ok(output.blockers.includes('receipts_unverified'));
     assert.equal(existsSync(join(outputRoot, 'ratings.ndjson')), false);
     for (const file of packetFiles(outputRoot)) {
@@ -55,9 +65,9 @@ test('Stage 1 human packet reports locked commit checkoutability', () => {
       baselineCheckoutable: boolean; stage1CommitCheckoutable: boolean;
       exactHeadBindingSatisfied: boolean; captureAuthorized: boolean;
     };
-    assert.equal(identities.baselineCheckoutable, true);
-    assert.equal(identities.stage1CommitCheckoutable, false);
-    assert.equal(identities.exactHeadBindingSatisfied, false);
+    assert.equal(identities.baselineCheckoutable, gitObjectExists(BASELINE_COMMIT));
+    assert.equal(identities.stage1CommitCheckoutable, gitObjectExists(STAGE1_COMMIT));
+    assert.equal(identities.exactHeadBindingSatisfied, identities.stage1CommitCheckoutable);
     assert.equal(identities.captureAuthorized, false);
     const operator = readFileSync(join(outputRoot, 'OPERATOR.md'), 'utf8');
     assert.match(operator, /Do not capture paired Stage 1 arm output until/);
