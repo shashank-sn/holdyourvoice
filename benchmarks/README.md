@@ -77,3 +77,13 @@ Automation stops before locked evidence. A locked run still needs:
 
 Synthetic fixtures, model-generated ballots, unsigned records, missing assignments, or digest drift can never produce `PROCEED_TO_MAR_363`.
 The current harness rejects `PROCEED_TO_MAR_363` unconditionally. MAR-362 stays open until the external verifier and reviewer-roster check are implemented and the real writer study is complete.
+
+## Stage 2 and rebuild reports
+
+Stage 2 adoption evidence is a separate operator kit:
+
+```bash
+npm run stage2:human-packet -- --out /absolute/path/outside-the-repository/stage2-human-packet
+```
+
+Expected result: `BLOCKED`, `promotable: false`, with `stage2_adoption_evidence_deferred`, `stage1_checkpoint_unpassed`, and `rebuild_release_claim_blocked`. Compare 3.2.0, Stage 1, advanced edit, and rebuild as four reports. Do not merge edit and rebuild preservation. Do not record `PROCEED_TO_MAR_365`. Stay on package version `3.2.0` until a human release review authorizes a versioned publish.

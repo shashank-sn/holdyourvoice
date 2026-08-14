@@ -70,6 +70,8 @@ test('serves local Claude tools over stdio', async () => {
   assert.equal(tools?.find((tool) => tool.name === 'hyv_verify_copy_spec')?.annotations?.readOnlyHint, true);
   assert.equal(tools?.some((tool) => tool.name === 'hyv_lifecycle_validate_final_approval'), false);
   assert.equal(tools?.some((tool) => tool.name === 'hyv_learning_record_approved'), false);
+  assert.equal(tools?.some((tool) => tool.name === 'hyv_prepare_rebuild'), false);
+  assert.equal(tools?.some((tool) => tool.name === 'hyv_apply_rebuild'), false);
   assert.equal('capability_json' in (tools?.find((tool) => tool.name === 'hyv_lifecycle_finalize')?.inputSchema?.properties ?? {}), false);
   assert.equal(tools?.find((tool) => tool.name === 'hyv_learning_inspect')?.annotations?.readOnlyHint, true);
   assert.equal(tools?.find((tool) => tool.name === 'hyv_learning_clear')?.annotations?.readOnlyHint, false);
@@ -89,11 +91,31 @@ test('registers capability tools only with host redaction attestation', async ()
   const [code] = await once(server, 'close'); assert.equal(code, 0); assert.equal(stderr, '');
   const response = stdout.trim().split('\n').map((line) => JSON.parse(line)).find((item) => item.id === 2);
   const names = response.result.tools.map((tool: { name: string }) => tool.name);
-  assert.equal(names.length, 25);
+  assert.equal(names.length, 27);
   assert.ok(names.includes('hyv_lifecycle_validate_final_approval'));
   assert.ok(names.includes('hyv_learning_record_approved'));
+  assert.ok(names.includes('hyv_prepare_rebuild'));
+  assert.ok(names.includes('hyv_apply_rebuild'));
   const finalize = response.result.tools.find((tool: { name: string }) => tool.name === 'hyv_lifecycle_finalize');
   assert.equal('capability_json' in finalize.inputSchema.properties, true);
+});
+
+test('redacts rebuild prepare transport failures', async () => {
+  const secret = 'rebuild-prepare-secret-nonce';
+  const responses = await callMcp([{ name: 'hyv_prepare_rebuild', arguments: { draft: 'x', profile_json: '{}', reduction_json: '{}', copy_spec_json: '{}', capability_json: JSON.stringify({ payload: secret, signature: secret }) } }], { ...process.env, HYV_MCP_SENSITIVE_INPUT_REDACTION: '1' });
+  const serialized = JSON.stringify(responses[0]);
+  assert.equal(responses[0]?.result?.isError, true);
+  assert.doesNotMatch(serialized, new RegExp(secret));
+  assert.match(serialized, /Rebuild preparation failed/);
+});
+
+test('redacts rebuild apply transport failures', async () => {
+  const secret = 'rebuild-apply-secret-nonce';
+  const responses = await callMcp([{ name: 'hyv_apply_rebuild', arguments: { task_json: '{}', response_json: '{}', profile_json: '{}', capability_json: JSON.stringify({ payload: secret, signature: secret }) } }], { ...process.env, HYV_MCP_SENSITIVE_INPUT_REDACTION: '1' });
+  const serialized = JSON.stringify(responses[0]);
+  assert.equal(responses[0]?.result?.isError, true);
+  assert.doesNotMatch(serialized, new RegExp(secret));
+  assert.match(serialized, /Rebuild application failed/);
 });
 
 test('redacts capability-bearing transport failures', async () => {

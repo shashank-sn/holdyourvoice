@@ -3,7 +3,7 @@ import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, w
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import test from 'node:test';
 import { patternsForMcp } from './mcp-tools.js';
 import { canonicalJson } from './canonical-json.js';
@@ -406,4 +406,60 @@ test('records and inspects text-free learning metadata through the CLI', () => {
     assert.equal(run(['learning', 'inspect', profile, '--mutation-id=nope'], env).status, 1);
     assert.equal(run(['learning', 'clear', profile, '--authority=team'], env).status, 1);
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('prepares and applies an authorized rebuild through CLI', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-rebuild-'));
+  try {
+    const first = join(directory, 'first.md'); const second = join(directory, 'second.md'); const profile = join(directory, 'profile.json');
+    const draft = join(directory, 'draft.md'); const spec = join(directory, 'copy-spec.json');
+    const reduction = join(directory, 'reduction.json'); const task = join(directory, 'rebuild-task.json');
+    const response = join(directory, 'response.json'); const capability = join(directory, 'capability.json');
+    writeFileSync(first, 'I write plainly. I name the work.'); writeFileSync(second, 'I keep the mechanism clear. I avoid filler.');
+    writeFileSync(draft, 'I leverage the answer. The launch is on 14 August.');
+    writeFileSync(spec, JSON.stringify({ version: '1', audience: 'operators', intent: 'explain', channel: 'email', claims: [{ id: 'launch-date', text: 'The launch is on 14 August.', evidence: 'Release calendar, 7 August.' }] }));
+    assert.equal(run(['profile', profile, first, second, '--avoid=leverage']).status, 0);
+    const envelopes = (['triage', 'argument', 'form'] as const).map((kind) => {
+      const taskPath = join(directory, `${kind}.json`);
+      assert.equal(run(['prepare-judgment', 'pre-edit', kind, draft, profile, taskPath]).status, 0);
+      const prepared = JSON.parse(readFileSync(taskPath, 'utf8'));
+      const envelopePath = join(directory, `${kind}-envelope.json`);
+      writeFileSync(envelopePath, JSON.stringify({
+        version: '1', stage: 'pre-edit', judgmentType: kind, taskFingerprint: prepared.taskFingerprint,
+        bindings: { ...prepared.bindings, evaluatorId: 'writer.1' }, findings: [], decision: kind === 'argument' ? 'REBUILD' : 'SHIP',
+      }));
+      return envelopePath;
+    });
+    const reduced = run(['reduce-judgment', ...envelopes]);
+    assert.equal(reduced.status, 0, reduced.stderr);
+    writeFileSync(reduction, reduced.stdout);
+    const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+    const trustStore = { version: '1', audience: '@holdyourvoice/hyv', maxCapabilityLifetimeSeconds: 300, keys: [{ issuer: 'host.example', keyId: 'key-1', publicKeySpki: publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'), status: 'active' }] };
+    const context = { now: 0, trustStore, authorizedSemanticEvaluatorIds: { normal: [], highAssurance: [] }, authorizedHumanFinalizerIds: [] };
+    const env = installedContextEnvironment(directory, context);
+    const sourceHash = createHash('sha256').update(readFileSync(draft)).digest('hex');
+    const profileValue = JSON.parse(readFileSync(profile, 'utf8'));
+    const identity = `legacy-v2:${createHash('sha256').update(canonicalJson(profileValue)).digest('hex')}`;
+    const claims = {
+      version: '1', purpose: 'hyv.rebuild-authorization', issuer: 'host.example', audience: '@holdyourvoice/hyv',
+      subjectArtifactFingerprint: JSON.parse(reduced.stdout).recommendationFingerprint, sourceHash, candidateHash: sourceHash,
+      profileId: identity, profileRevisionDigest: identity, keyId: 'key-1', issuedAt: Math.floor(Date.now() / 1000) - 1,
+      notBefore: Math.floor(Date.now() / 1000) - 1, expiresAt: Math.floor(Date.now() / 1000) + 120, nonce: 'cli-rebuild',
+    };
+    const payload = Buffer.from(canonicalJson(claims));
+    writeFileSync(capability, canonicalJson({ payload: payload.toString('base64url'), signature: sign(null, payload, privateKey).toString('base64url') }));
+    chmodSync(capability, 0o600);
+    const prepared = run(['prepare-rebuild', draft, profile, reduction, spec, task, '--capability-file', capability], env);
+    assert.equal(prepared.status, 0, prepared.stderr);
+    writeFileSync(response, JSON.stringify({
+      version: '1', mode: 'REBUILD', taskFingerprint: JSON.parse(readFileSync(task, 'utf8')).fingerprint,
+      candidate: 'Ship planning now treats one calendar fact as fixed. The launch is on 14 August. Every other sentence in this note is new operational language for the release desk.',
+    }));
+    const applied = run(['apply-rebuild', task, response, profile, '--capability-file', capability], env);
+    assert.equal(applied.status, 2, applied.stderr);
+    assert.equal(JSON.parse(applied.stdout).status, 'needs_semantic_review');
+    assert.equal(run(['apply-rebuild', task, response, profile], env).status, 1);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

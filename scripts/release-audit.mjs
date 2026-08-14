@@ -16,6 +16,7 @@ const stage1CheckpointFiles = [
   'scripts/evaluate-rewrite-benchmark.mjs',
   'scripts/run-stage1-dry-run.mjs',
   'scripts/run-stage1-human-packet.mjs',
+  'scripts/run-stage2-human-packet.mjs',
   'benchmarks/schema/protocol-manifest.v1.schema.json',
   'benchmarks/schema/run-event.v1.schema.json',
   'benchmarks/schema/blind-packet.v1.schema.json',
@@ -29,6 +30,7 @@ const stage1Scripts = {
   'stage1:evaluate': 'node scripts/evaluate-rewrite-benchmark.mjs',
   'stage1:dry-run': 'npm run build && node scripts/run-stage1-dry-run.mjs',
   'stage1:human-packet': 'npm run build && node scripts/run-stage1-human-packet.mjs',
+  'stage2:human-packet': 'npm run build && node scripts/run-stage2-human-packet.mjs',
 };
 
 function candidateFiles() {

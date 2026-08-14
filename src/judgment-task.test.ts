@@ -47,6 +47,7 @@ test('pre-edit findings select SHIP, bounded EDIT, or REBUILD', () => {
     bindJudgmentEnvelope(form, envelope(form, 'SHIP')),
   ]);
   assert.equal(rebuild.decision, 'REBUILD');
+  assert.match(rebuild.recommendationFingerprint, /^[a-f0-9]{64}$/);
 });
 
 test('unbounded argument failure can recommend only rebuild', () => {

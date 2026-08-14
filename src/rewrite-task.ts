@@ -41,6 +41,7 @@ function parseResponse(value: unknown): RewriteResponse | RewriteResponseV2 | { 
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return failure('invalid_response_shape', 'Response must be an object.');
   const response = raw as Record<string, unknown>;
   if (typeof response.taskFingerprint !== 'string' || response.taskFingerprint.length !== 64) return failure('invalid_response_shape', 'Response must include the task fingerprint.', 'taskFingerprint');
+  if (response.mode === 'REBUILD') return failure('rebuild_response_on_edit_task', 'Rebuild responses cannot satisfy edit tasks.', 'mode');
   if (response.mode === 'SHIP' && response.version === '1') {
     return { version: '1', mode: 'SHIP', taskFingerprint: response.taskFingerprint };
   }

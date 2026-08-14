@@ -273,7 +273,7 @@ export interface RewriteResponseV2 {
   hygieneOperations?: HygieneRangeOperation[];
 }
 
-export type RewriteFailureCode = 'invalid_json' | 'invalid_response_shape' | 'invalid_response_version' | 'task_fingerprint_mismatch' | 'duplicate_sentence_id' | 'unknown_sentence_id' | 'ineligible_sentence_id' | 'invalid_replacement_text' | 'response_too_large' | 'overlapping_range' | 'noncontiguous_range' | 'out_of_order_range' | 'partly_locked_range' | 'ineligible_hygiene_offset';
+export type RewriteFailureCode = 'invalid_json' | 'invalid_response_shape' | 'invalid_response_version' | 'task_fingerprint_mismatch' | 'duplicate_sentence_id' | 'unknown_sentence_id' | 'ineligible_sentence_id' | 'invalid_replacement_text' | 'response_too_large' | 'overlapping_range' | 'noncontiguous_range' | 'out_of_order_range' | 'partly_locked_range' | 'ineligible_hygiene_offset' | 'rebuild_response_on_edit_task' | 'edit_response_on_rebuild_task' | 'invalid_candidate_text';
 
 export type JudgmentStage = 'pre-edit' | 'post-candidate';
 export type JudgmentKind = 'triage' | 'argument' | 'form' | 'polarity' | 'flatness' | 'semantic';
@@ -322,6 +322,7 @@ export interface PreEditReduction {
   decision: PreEditDecision;
   editScope: { ranges: SentenceRange[] };
   reason?: 'unbounded_argument_failure';
+  recommendationFingerprint: string;
 }
 
 export interface RewriteFailure {
@@ -337,7 +338,11 @@ export interface RewriteReceipt {
   adapterIds: string[];
   replacementSentenceIds?: number[];
   operationRanges?: SentenceRange[];
-  mode?: 'SHIP' | 'EDIT';
+  mode?: 'SHIP' | 'EDIT' | 'REBUILD';
+  preservationBypass?: boolean;
+  preservationScore?: number;
+  authorizationFingerprint?: string;
+  recommendationFingerprint?: string;
 }
 
 export interface RewriteApplyResult {
@@ -352,6 +357,34 @@ export interface RewriteEvaluation extends Omit<RewriteApplyResult, 'status'> {
   verification?: Verification | CopySpecVerification;
   deterministicArtifact?: DeterministicVerificationArtifactV1;
   lifecycleBinding?: RewriteLifecycleBindingV1;
+}
+
+export interface RebuildTask {
+  version: '1';
+  fingerprint: string;
+  draft: string;
+  prompt: string;
+  copySpec: CopySpec;
+  writingBrief?: WritingBrief;
+  recommendationFingerprint: string;
+  authorizationFingerprint: string;
+  profileId: string;
+  profileRevisionDigest: string;
+}
+
+export interface RebuildResponse {
+  version: '1';
+  mode: 'REBUILD';
+  taskFingerprint: string;
+  candidate: string;
+}
+
+export type RebuildFailureCode = 'invalid_json' | 'invalid_response_shape' | 'invalid_response_version' | 'task_fingerprint_mismatch' | 'invalid_candidate_text' | 'response_too_large' | 'edit_response_on_rebuild_task';
+
+export interface RebuildFailure {
+  code: RebuildFailureCode;
+  message: string;
+  path?: string;
 }
 
 export type SemanticViolation = 'action_change' | 'dropped_object' | 'unsupported_claim' | 'constraint_weakened' | 'clarity_regression';
@@ -386,7 +419,7 @@ export interface RewriteLifecycleBindingV1 {
 
 export interface DeterministicVerificationArtifactV1 {
   version: '1';
-  verificationKind: 'standard' | 'copy_spec';
+  verificationKind: 'standard' | 'copy_spec' | 'rebuild';
   passed: boolean;
   artifactFingerprint: string;
   analysisVersion: string;

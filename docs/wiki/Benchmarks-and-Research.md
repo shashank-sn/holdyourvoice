@@ -17,4 +17,14 @@ the human-study kit does not pass MAR-362. the automated harness is not human ev
 
 while `human_writer_evidence_deferred` is forced, the report decision is `BLOCKED` and `PASS` is unreachable. the only dispositions are `STOP` and `REPEAT_PROTOCOL`. `PROCEED_TO_MAR_363` is rejected with `human_evidence_deferred`.
 
+## stage 2 and rebuild
+
+keep four reports: unchanged 3.2.0, Stage 1, advanced edit, and rebuild. do not merge edit and rebuild preservation. emit the Stage 2 kit outside the repository:
+
+```bash
+npm run stage2:human-packet -- --out /absolute/path/outside-the-repository/stage2-human-packet
+```
+
+the kit does not pass MAR-364 and cannot authorize a versioned release. `PROCEED_TO_MAR_365` stays rejected while `stage2_adoption_evidence_deferred` is forced.
+
 remaining human inputs are a rights-approved non-synthetic corpus, encrypted custody, a reviewer roster, trust keys, provider captures, blind ratings with external receipts, a mapping-custody attestation, and a checkpoint disposition.

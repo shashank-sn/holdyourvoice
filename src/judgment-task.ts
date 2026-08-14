@@ -121,6 +121,18 @@ function namedRanges(findings: JudgmentFindingV1[]): SentenceRange[] {
   return findings.flatMap((finding) => finding.ranges ?? []);
 }
 
+function fingerprintReduction(decision: PreEditDecision, editScope: { ranges: SentenceRange[] }, reason?: 'unbounded_argument_failure'): string {
+  return digest(`hyv:pre-edit-reduction:v1\0${canonicalJson({ decision, editScope, ...(reason ? { reason } : {}) })}`);
+}
+
+export function fingerprintPreEditReduction(reduction: Pick<PreEditReduction, 'decision' | 'editScope' | 'reason'>): string {
+  return fingerprintReduction(reduction.decision, reduction.editScope, reduction.reason);
+}
+
+function reduced(decision: PreEditDecision, editScope: { ranges: SentenceRange[] }, reason?: 'unbounded_argument_failure'): PreEditReduction {
+  return { decision, editScope, ...(reason ? { reason } : {}), recommendationFingerprint: fingerprintReduction(decision, editScope, reason) };
+}
+
 export function reducePreEdit(envelopes: JudgmentEnvelopeV1[]): PreEditReduction {
   if (envelopes.length !== PRE_EDIT_KINDS.length) throw new Error('Pre-edit reduction requires triage, argument, and form envelopes.');
   const kinds = new Set(envelopes.map((envelope) => envelope.judgmentType));
@@ -128,20 +140,20 @@ export function reducePreEdit(envelopes: JudgmentEnvelopeV1[]): PreEditReduction
   if (envelopes.some((envelope) => envelope.stage !== 'pre-edit')) throw new Error('Pre-edit reduction rejects post-candidate envelopes.');
   const argument = envelopes.find((envelope) => envelope.judgmentType === 'argument')!;
   if (argument.findings.some((finding) => finding.unbounded) || argument.decision === 'REBUILD') {
-    return { decision: 'REBUILD', editScope: { ranges: [] }, reason: argument.findings.some((finding) => finding.unbounded) ? 'unbounded_argument_failure' : undefined };
+    return reduced('REBUILD', { ranges: [] }, argument.findings.some((finding) => finding.unbounded) ? 'unbounded_argument_failure' : undefined);
   }
   if (envelopes.some((envelope) => envelope.decision === 'REBUILD')) {
-    return { decision: 'REBUILD', editScope: { ranges: [] } };
+    return reduced('REBUILD', { ranges: [] });
   }
   const ranges = envelopes.flatMap((envelope) => envelope.editScope?.ranges ?? namedRanges(envelope.findings));
   if (!rangesContiguous(ranges) || ranges.some((range) => range.endSentenceId < range.startSentenceId)) {
     throw new Error('Edit scope must name contiguous sentence ranges.');
   }
   if (envelopes.every((envelope) => envelope.decision === 'SHIP') && ranges.length === 0) {
-    return { decision: 'SHIP', editScope: { ranges: [] } };
+    return reduced('SHIP', { ranges: [] });
   }
   if (ranges.length === 0) throw new Error('Paragraph-level findings cannot unlock text unless they name contiguous sentence ranges.');
-  return { decision: 'EDIT', editScope: { ranges } };
+  return reduced('EDIT', { ranges });
 }
 
 export function reducePostCandidate(envelopes: JudgmentEnvelopeV1[]): { decision: PostCandidateDecision } {

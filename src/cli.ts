@@ -11,13 +11,14 @@ import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.j
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
 import { parseJudgmentEnvelope, preparePostCandidateJudgment, preparePreEditJudgment, reducePostCandidate, reducePreEdit } from './judgment-task.js';
-import type { ApprovalCapabilityEnvelopeV1, DeterministicVerificationArtifactV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
+import { evaluateRebuildResponse, parseRebuildTask, prepareRebuildTask } from './rebuild-task.js';
+import type { ApprovalCapabilityEnvelopeV1, DeterministicVerificationArtifactV1, PreEditReduction, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
 import { canonicalJson, parseCanonicalJson } from './canonical-json.js';
 import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
 import { buildProfile } from './voice-dna.js';
 import { loadApprovalContext } from './approval-context.js';
 
-const usage = 'Commands: profile, analyze, hygiene, final-check, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, verify, verify-spec, lifecycle, learning, patterns, mcp';
+const usage = 'Commands: profile, analyze, hygiene, final-check, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, mcp';
 const MAX_JSON_BYTES = 1024 * 1024;
 
 function input(path: string): string {
@@ -276,6 +277,36 @@ export async function runCli(args: string[]): Promise<number> {
     const stage = envelopes[0]?.stage;
     json(stage === 'pre-edit' ? reducePreEdit(envelopes) : reducePostCandidate(envelopes));
     return 0;
+  }
+  if (command === 'prepare-rebuild') {
+    const { values, capability } = capabilityArguments(rest);
+    const [draft, profilePath, reductionPath, specPath, output, briefPath] = values;
+    if (!draft || !profilePath || !reductionPath || !specPath || !output || !capability) {
+      throw new Error('Usage: hyv prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json [writing-brief.json] (--capability-stdin|--capability-file path)');
+    }
+    const context = loadApprovalContext();
+    const task = prepareRebuildTask(
+      input(draft),
+      readProfile(profilePath),
+      readJson(reductionPath) as PreEditReduction,
+      parseCopySpec(JSON.parse(input(specPath))),
+      capability,
+      context.trustStore,
+      context.now,
+      briefPath ? parseWritingBrief(JSON.parse(input(briefPath))) : undefined,
+    );
+    writeFileSync(output, `${JSON.stringify(task, null, 2)}\n`);
+    json({ version: task.version, fingerprint: task.fingerprint, recommendationFingerprint: task.recommendationFingerprint, authorizationFingerprint: task.authorizationFingerprint });
+    return 0;
+  }
+  if (command === 'apply-rebuild') {
+    const { values, capability } = capabilityArguments(rest);
+    const [taskPath, responsePath, profilePath, ...extra] = values;
+    if (!taskPath || !responsePath || !profilePath || extra.length || !capability) throw new Error('Usage: hyv apply-rebuild task.json response.json profile.json (--capability-stdin|--capability-file path)');
+    const context = loadApprovalContext();
+    const result = evaluateRebuildResponse(parseRebuildTask(JSON.parse(input(taskPath))), input(responsePath), readProfile(profilePath), capability, context.trustStore, context.now);
+    json(result);
+    return result.status === 'accepted' ? 0 : 2;
   }
   if (command === 'verify') {
     const [original, candidate, profilePath, briefPath] = rest;
