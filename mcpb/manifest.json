@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "hold-your-voice",
   "display_name": "Hold Your Voice",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "description": "Keep your writing voice when you use Claude.",
   "long_description": "A fully local writing gate for Claude Desktop. Run a profile-free final-output check on text from any source, build a VoiceDNA profile from your own samples, inspect a draft with separate VoiceDNA and AI Editor checks plus non-scoring Unicode hygiene, create a constrained editing brief, and verify a revised candidate. Clean final output passes through unchanged; only a leading byte-order mark is removed automatically, while unresolved hidden Unicode is withheld for review. Verification is read-only. Explicit or separately approved learning stores no drafts or samples and makes no network requests.",
   "author": {
