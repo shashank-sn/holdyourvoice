@@ -9,6 +9,10 @@ node dist/cli.js batch-analyze draft-a.md draft-b.md [draft-c.md]
 node dist/cli.js rewrite-prompt draft.md profile.json [writing-brief.json] > rewrite-brief.md
 node dist/cli.js prepare-rewrite draft.md profile.json task.json [copy-spec.json] [writing-brief.json]
 node dist/cli.js apply-rewrite task.json response.json profile.json
+node dist/cli.js prepare-judgment pre-edit|post-candidate kind draft.md profile.json task.json [candidate.md]
+node dist/cli.js reduce-judgment envelope.json envelope.json [envelope.json...]
+node dist/cli.js prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json [writing-brief.json] (--capability-stdin|--capability-file path)
+node dist/cli.js apply-rebuild task.json response.json profile.json (--capability-stdin|--capability-file path)
 node dist/cli.js verify original.md candidate.md profile.json [writing-brief.json]
 node dist/cli.js lifecycle prepare-semantic deterministic.json binding.json receipt.json normal violations.json lifecycle.json
 node dist/cli.js lifecycle submit-verdict lifecycle.json task.json evaluator-id verdict.json
@@ -24,7 +28,7 @@ node dist/cli.js patterns
 
 `learning show` composes active preferences. `learning inspect` returns bounded text-free event metadata. `learning add` remains the compatibility form of `learning record`; the latter returns the full mutation receipt and accepts `--mutation-id`, `--authority`, `--provenance`, `--weight`, and `--compatibility`. `learning ratify` and `learning supersede` require Profile v3 plus an event ID. `learning migrate <source-v2.json> <target-v3.json>` explicitly moves compatible legacy history into the stable v3 identity. `learning clear` removes that identity's local state. Exact mutation replay is idempotent; conflicting mutation-ID reuse fails closed.
 
-`prepare-rewrite` writes a versioned fingerprint-bound task to the named output path. `apply-rewrite` evaluates only its eligible sentence replacements and exits `2` unless the result is accepted. The CLI lifecycle supports normal-policy semantic review; high-assurance review requires a trusted embedding and fails closed here. Capability material is accepted only through standard input or a permission-checked file. Rejection needs no capability; approval and approved learning require a matching signed final-approval capability. Lifecycle artifacts are immutable, exact replay is idempotent, and conflicting or out-of-order transitions fail closed.
+`prepare-rewrite` writes a versioned fingerprint-bound task to the named output path. `apply-rewrite` evaluates only its eligible sentence replacements and exits `2` unless the result is accepted. `prepare-rebuild` requires an upstream REBUILD recommendation, a CopySpec, and a signed `hyv.rebuild-authorization` capability; callers cannot self-select rebuild. `apply-rebuild` re-verifies that same capability and the bound profile, then accepts only a whole-document candidate. Edit and rebuild responses are mutually incompatible. Low lexical survival is allowed only on that authorized rebuild path; claim, polarity, hygiene, fingerprint, and semantic gates still block. Rebuild disagreement escalates and cannot record accepted learning. The CLI lifecycle supports normal-policy semantic review; high-assurance review requires a trusted embedding and fails closed here. Capability material is accepted only through standard input or a permission-checked file. Rejection needs no capability; approval and approved learning require a matching signed final-approval capability. Lifecycle artifacts are immutable, exact replay is idempotent, and conflicting or out-of-order transitions fail closed.
 
 ## Universal final-output gate
 

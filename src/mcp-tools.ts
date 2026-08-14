@@ -1,12 +1,13 @@
 import { RULESET_VERSION, serializedRules } from './ai-editor.js';
 import { parseCopySpec } from './copy-spec.js';
 import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
-import type { ApprovalCapabilityEnvelopeV1, DeterministicVerificationArtifactV1, ProfileV3, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteLifecycleContextV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
+import type { ApprovalCapabilityEnvelopeV1, ApprovalTrustStoreV1, DeterministicVerificationArtifactV1, PreEditReduction, ProfileV3, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteLifecycleContextV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
 import { clearLearning, composeLearning, inspectLearning, type LearningOptions, migrateLearningV2ToV3, ratifyLearningEvent, recordLearningInstruction, supersedeLearningEvent } from './learning.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
 import { parseJudgmentEnvelope, preparePostCandidateJudgment, preparePreEditJudgment, reducePostCandidate, reducePreEdit } from './judgment-task.js';
+import { evaluateRebuildResponse, parseRebuildTask, prepareRebuildTask } from './rebuild-task.js';
 import { buildProfile } from './voice-dna.js';
 import { finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
@@ -81,6 +82,38 @@ export function prepareJudgmentForMcp(stage: 'pre-edit' | 'post-candidate', kind
 export function reduceJudgmentForMcp(envelopesJson: string) {
   const envelopes = parsed<unknown[]>(envelopesJson, 'Judgment envelopes').map(parseJudgmentEnvelope);
   return envelopes[0]?.stage === 'pre-edit' ? reducePreEdit(envelopes) : reducePostCandidate(envelopes);
+}
+
+export function prepareRebuildForMcp(
+  draft: string,
+  profileJson: string,
+  reductionJson: string,
+  copySpecJson: string,
+  capabilityJson: string,
+  context: RewriteLifecycleContextV1,
+  writingBriefJson?: string,
+) {
+  return prepareRebuildTask(
+    draft,
+    profileFromJson(profileJson),
+    parsed<PreEditReduction>(reductionJson, 'Rebuild recommendation'),
+    copySpecFromJson(copySpecJson),
+    parsed<ApprovalCapabilityEnvelopeV1>(capabilityJson, 'Approval capability'),
+    context.trustStore as ApprovalTrustStoreV1,
+    context.now,
+    writingBriefFromJson(writingBriefJson),
+  );
+}
+
+export function applyRebuildForMcp(taskJson: string, responseJson: string, profileJson: string, capabilityJson: string, context: RewriteLifecycleContextV1) {
+  return evaluateRebuildResponse(
+    parseRebuildTask(JSON.parse(taskJson)),
+    responseJson,
+    profileFromJson(profileJson),
+    parsed<ApprovalCapabilityEnvelopeV1>(capabilityJson, 'Approval capability'),
+    context.trustStore as ApprovalTrustStoreV1,
+    context.now,
+  );
 }
 
 export function verifyForMcp(original: string, candidate: string, profileJson: string, writingBriefJson?: string) {

@@ -10,6 +10,7 @@ const stage1Files = [
   'scripts/evaluate-rewrite-benchmark.mjs',
   'scripts/run-stage1-dry-run.mjs',
   'scripts/run-stage1-human-packet.mjs',
+  'scripts/run-stage2-human-packet.mjs',
   'benchmarks/schema/protocol-manifest.v1.schema.json',
   'benchmarks/schema/run-event.v1.schema.json',
   'benchmarks/schema/blind-packet.v1.schema.json',
@@ -24,7 +25,7 @@ function fixture(files: Record<string, string>) {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-audit-'));
   execFileSync('git', ['init', '--quiet'], { cwd: directory });
   const defaults = {
-    'package.json': JSON.stringify({ name: 'audit-fixture', license: 'MIT', files: ['dist', 'Readme.md', 'LICENSE'], scripts: { 'stage1:evaluate': 'node scripts/evaluate-rewrite-benchmark.mjs', 'stage1:dry-run': 'npm run build && node scripts/run-stage1-dry-run.mjs', 'stage1:human-packet': 'npm run build && node scripts/run-stage1-human-packet.mjs' }, version: '1.0.0', type: 'module', bin: { hyv: 'dist/cli.js' }, engines: { node: '>=20' } }),
+    'package.json': JSON.stringify({ name: 'audit-fixture', license: 'MIT', files: ['dist', 'Readme.md', 'LICENSE'], scripts: { 'stage1:evaluate': 'node scripts/evaluate-rewrite-benchmark.mjs', 'stage1:dry-run': 'npm run build && node scripts/run-stage1-dry-run.mjs', 'stage1:human-packet': 'npm run build && node scripts/run-stage1-human-packet.mjs', 'stage2:human-packet': 'npm run build && node scripts/run-stage2-human-packet.mjs' }, version: '1.0.0', type: 'module', bin: { hyv: 'dist/cli.js' }, engines: { node: '>=20' } }),
     'mcpb/manifest.json': JSON.stringify({ version: '1.0.0' }),
     'claude-plugin/.claude-plugin/plugin.json': JSON.stringify({ version: '1.0.0' }),
     '.claude-plugin/marketplace.json': JSON.stringify({ plugins: [{ name: 'hold-your-voice', version: '1.0.0' }] }),
@@ -70,6 +71,7 @@ test('requires exact Stage 1 scripts even when the checkpoint files remain', () 
     assert.match(result.stderr, /Stage 1 script contract has drifted: stage1:evaluate/);
     assert.match(result.stderr, /Stage 1 script contract has drifted: stage1:dry-run/);
     assert.match(result.stderr, /Stage 1 script contract has drifted: stage1:human-packet/);
+    assert.match(result.stderr, /Stage 1 script contract has drifted: stage2:human-packet/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

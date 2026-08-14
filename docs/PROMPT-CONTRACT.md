@@ -26,6 +26,8 @@ When a WritingBrief is supplied, the prompt names the reader, intent, format, ap
 
 The response contains only replacements keyed by sentence number. The caller applies them deliberately, then uses `verify` to rerun the two engines and factual-preservation check.
 
+Rebuild is a separate contract. It returns a whole-document candidate after an upstream REBUILD recommendation, a CopySpec, and a signed rebuild-authorization capability. It does not use this sentence-replacement output contract, and it does not lower claim, polarity, hygiene, or semantic gates.
+
 ## Why the tiers matter
 
 The order stops an LLM from treating stylistic preferences as permission to alter facts, and stops a generic style rule from overriding a writer’s documented voice. It makes a failed output explainable: the report identifies the engine, rule, sentence, and priority that failed.

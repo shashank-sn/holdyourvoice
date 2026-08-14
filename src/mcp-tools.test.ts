@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { canonicalJson } from './canonical-json.js';
 
 const profile = buildProfileForMcp(['I write clearly. I keep the useful detail.', 'I make the call. Then I explain the trade-off.'], ['leverage']);
@@ -198,4 +198,38 @@ test('prepares and reduces judgment envelopes through MCP helpers', () => {
     };
   });
   assert.equal(reduceJudgmentForMcp(JSON.stringify(envelopes)).decision, 'SHIP');
+});
+
+test('prepares and evaluates authorized rebuild through MCP helpers', () => {
+  const draft = 'I leverage the answer. The launch is on 14 August.';
+  const envelopes = (['triage', 'argument', 'form'] as const).map((kind) => {
+    const task = prepareJudgmentForMcp('pre-edit', kind, draft, profileJson);
+    return {
+      version: '1', stage: 'pre-edit', judgmentType: kind, taskFingerprint: task.taskFingerprint,
+      bindings: { ...task.bindings, evaluatorId: 'writer.1' }, findings: kind === 'argument' ? [] : [], decision: kind === 'argument' ? 'REBUILD' : 'SHIP',
+    };
+  });
+  const reduction = reduceJudgmentForMcp(JSON.stringify(envelopes));
+  assert.equal(reduction.decision, 'REBUILD');
+  if (!('recommendationFingerprint' in reduction)) throw new Error('expected a pre-edit rebuild recommendation');
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+  const trustStore = { version: '1' as const, audience: '@holdyourvoice/hyv' as const, maxCapabilityLifetimeSeconds: 300, keys: [{ issuer: 'host.example', keyId: 'key-1', publicKeySpki: publicKey.export({ format: 'der', type: 'spki' }).toString('base64url'), status: 'active' as const }] };
+  const sourceHash = createHash('sha256').update(draft).digest('hex');
+  const identity = `legacy-v2:${createHash('sha256').update(canonicalJson(profile)).digest('hex')}`;
+  const claims = {
+    version: '1', purpose: 'hyv.rebuild-authorization', issuer: 'host.example', audience: '@holdyourvoice/hyv',
+    subjectArtifactFingerprint: reduction.recommendationFingerprint, sourceHash, candidateHash: sourceHash,
+    profileId: identity, profileRevisionDigest: identity, keyId: 'key-1', issuedAt: 100, notBefore: 100, expiresAt: 200, nonce: 'mcp-rebuild',
+  };
+  const payload = Buffer.from(canonicalJson(claims));
+  const capability = { payload: payload.toString('base64url'), signature: sign(null, payload, privateKey).toString('base64url') };
+  const copySpec = JSON.stringify({ version: '1', audience: 'operators', intent: 'explain', channel: 'email', claims: [{ id: 'launch-date', text: 'The launch is on 14 August.', evidence: 'Release calendar, 7 August.' }] });
+  const context = { now: 150, trustStore, authorizedSemanticEvaluatorIds: { normal: [], highAssurance: [] }, authorizedHumanFinalizerIds: [] };
+  const task = prepareRebuildForMcp(draft, profileJson, JSON.stringify(reduction), copySpec, JSON.stringify(capability), context);
+  const result = applyRebuildForMcp(JSON.stringify(task), JSON.stringify({
+    version: '1', mode: 'REBUILD', taskFingerprint: task.fingerprint,
+    candidate: 'Ship planning now treats one calendar fact as fixed. The launch is on 14 August. Every other sentence in this note is new operational language for the release desk.',
+  }), profileJson, JSON.stringify(capability), context);
+  assert.equal(result.status, 'needs_semantic_review');
+  assert.equal(result.receipt.mode, 'REBUILD');
 });

@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { analyzeBatchForMcp, analyzeForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { HYV_VERSION } from './version.js';
 import { loadApprovalContext } from './approval-context.js';
 
@@ -250,6 +250,37 @@ if (redactsSensitiveInputs) {
     inputSchema: { ready_json: lifecycleJson, approved_json: lifecycleJson, original: approvedLearningText, candidate: approvedLearningText, profile_json: profileJson, decision_json: lifecycleJson, capability_json: lifecycleJson, copy_spec_json: copySpecJson.optional(), writing_brief_json: writingBriefJson.optional() },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async (args) => { try { return json({ status: recordApprovedLearningForMcp({ readyJson: args.ready_json, approvedJson: args.approved_json, source: args.original, candidate: args.candidate, profileJson: args.profile_json, decisionJson: args.decision_json, capabilityJson: args.capability_json, context: loadApprovalContext(), copySpecJson: args.copy_spec_json, writingBriefJson: args.writing_brief_json }) }); } catch { return failure(new Error('Approved learning was not authorized.')); } });
+
+  server.registerTool('hyv_prepare_rebuild', {
+    description: 'Prepare a rebuild task only after an upstream REBUILD recommendation, CopySpec, and signed rebuild-authorization capability. Capability input requires host-guaranteed sensitive-input redaction.',
+    inputSchema: {
+      draft: writing,
+      profile_json: profileJson,
+      reduction_json: lifecycleJson,
+      copy_spec_json: copySpecJson,
+      capability_json: lifecycleJson,
+      writing_brief_json: writingBriefJson.optional(),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async (args) => {
+    try {
+      return json(prepareRebuildForMcp(args.draft, args.profile_json, args.reduction_json, args.copy_spec_json, args.capability_json, loadApprovalContext(), args.writing_brief_json));
+    } catch {
+      return failure(new Error('Rebuild preparation failed.'));
+    }
+  });
+
+  server.registerTool('hyv_apply_rebuild', {
+    description: 'Validate and evaluate a whole-document rebuild response against a prepared authorized rebuild task. Capability input requires host-guaranteed sensitive-input redaction. It never calls a provider.',
+    inputSchema: { task_json: lifecycleJson, response_json: z.string().min(1).max(100_000), profile_json: profileJson, capability_json: lifecycleJson },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+  }, async (args) => {
+    try {
+      return json(applyRebuildForMcp(args.task_json, args.response_json, args.profile_json, args.capability_json, loadApprovalContext()));
+    } catch {
+      return failure(new Error('Rebuild application failed.'));
+    }
+  });
 } else {
   server.registerTool('hyv_lifecycle_finalize', {
     description: 'Record an authorized human rejection. Approval is unavailable because this host does not guarantee sensitive-input redaction.',

@@ -19,6 +19,25 @@ npm run stage1:human-packet -- --out /absolute/path/outside-the-repository/stage
 
 The kit does not pass MAR-362. The automated harness is not human evidence. `hyv_score` and ratings produced by a model or agent are not writer evidence. Kit `--out` is emit-only and is not approved encrypted custody. Do not capture the Stage 1 arm until `STAGE1_COMMIT` is checkoutable; do not label merged-HEAD bytes as that commit. Shape-checked receipts remain unverified until an external verifier exists. While `human_writer_evidence_deferred` is forced, the report decision is `BLOCKED` and `PASS` is unreachable. A disposition may be only `STOP` or `REPEAT_PROTOCOL`; `PROCEED_TO_MAR_363` is rejected with `human_evidence_deferred`.
 
+## Separate comparison reports
+
+Keep four reports distinct. Do not fold them into one preservation number.
+
+| Arm | Identity | Current report |
+|---|---|---|
+| Unchanged Hyv 3.2.0 | `4e6269121d551c008a34db73077e1e4fea41b3f9` | checkoutable baseline |
+| Stage 1 | `550ea24f652291dca13757fdbd2f0fa0b5e3f621` | protocol identity; not checkoutable after the PR #27 squash |
+| Advanced edit | `1ffaabe2586adf11a2ed6db4dba8d1d88095f507` | judgments and range edits on main |
+| Rebuild | authorized rebuild path | code exists; writer checkpoint and npm release claims stay blocked |
+
+Emit the Stage 2 operator kit outside the repository:
+
+```bash
+npm run stage2:human-packet -- --out /absolute/path/outside-the-repository/stage2-human-packet
+```
+
+The Stage 2 kit does not pass MAR-364. It cannot authorize MAR-365 promotion or a versioned release. `PROCEED_TO_MAR_365` is rejected while `stage2_adoption_evidence_deferred` is forced.
+
 See `benchmarks/README.md` for the locked-run commands.
 
 See the historical sources: https://holdyourvoice.com/blog/voice-memory-composer and https://holdyourvoice.com/blog/hold-your-voice-vs-gpt-5-6-writing.

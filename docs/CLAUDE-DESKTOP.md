@@ -42,7 +42,7 @@ Published GitHub Releases attach that same file automatically.
 | `hyv_lifecycle_inspect` | Validates and returns a metadata-only lifecycle summary. |
 | `hyv_lifecycle_finalize` | Records human rejection, or approval only on a redaction-attested host. |
 
-Capability-bearing approval tools are absent unless the MCP host starts with `HYV_MCP_SENSITIVE_INPUT_REDACTION=1`. On an attested host, `hyv_lifecycle_validate_final_approval` and `hyv_learning_record_approved` are also registered. Trust roots and evaluator lists come only from the permission-checked installed approval context; tool inputs cannot replace them.
+Capability-bearing approval tools are absent unless the MCP host starts with `HYV_MCP_SENSITIVE_INPUT_REDACTION=1`. On an attested host, `hyv_lifecycle_validate_final_approval`, `hyv_learning_record_approved`, `hyv_prepare_rebuild`, and `hyv_apply_rebuild` are also registered. Trust roots and evaluator lists come only from the permission-checked installed approval context; tool inputs cannot replace them.
 
 The installed approval context uses owner and mode checks on POSIX. On Windows it relies on the fixed per-user configuration path and the operating system ACL enforced when the file is opened. Symlinks, non-files, hard links, oversized files, changing files, and malformed trust data fail closed on every platform.
 

@@ -5,7 +5,7 @@ import { HYV_VERSION } from './version.js';
 import { analyzeAiEditor } from './ai-editor.js';
 import { verifyClaims } from './copy-spec.js';
 import { analyzeEditorial } from './editorial-packs.js';
-import { inspectHygiene } from './hygiene.js';
+import { finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { analyzeVoiceDna } from './voice-dna.js';
 import type { LearningPreference } from './learning.js';
 import { legacySetPreservation } from './preservation.js';
@@ -89,7 +89,7 @@ export function rewritePrompt(draft: string, profile: Profile, learning: Learnin
   return renderRewritePrompt(draft, profile, analyze(draft, profile, brief), learning, brief);
 }
 
-export function verify(original: string, candidate: string, profile: Profile, brief?: WritingBrief): Verification {
+function compareCandidates(original: string, candidate: string, profile: Profile, brief?: WritingBrief) {
   const baseline = analyze(original, profile, brief);
   const checked = analyze(candidate, profile, brief);
   const baselineFindings = [...baseline.voiceDna.findings, ...baseline.aiEditor.findings, ...(baseline.editorial?.findings ?? [])];
@@ -97,6 +97,11 @@ export function verify(original: string, candidate: string, profile: Profile, br
   const known = new Set(baselineFindings.map((finding) => `${finding.engine}:${finding.id}:${finding.sentence}`));
   const regressions = checkedFindings.filter((finding) => !known.has(`${finding.engine}:${finding.id}:${finding.sentence}`));
   const preservation = legacySetPreservation(original, candidate).score;
+  return { baseline, checked, regressions, preservation };
+}
+
+export function verify(original: string, candidate: string, profile: Profile, brief?: WritingBrief): Verification {
+  const { baseline, checked, regressions, preservation } = compareCandidates(original, candidate, profile, brief);
   return {
     version: '2',
     original: baseline,
@@ -113,6 +118,22 @@ export function verifyWithCopySpec(original: string, candidate: string, profile:
   return { ...verification, claims, passed: verification.passed && claims.passed };
 }
 
+export function verifyRebuildWithCopySpec(original: string, candidate: string, profile: Profile, spec: CopySpec, brief?: WritingBrief): CopySpecVerification {
+  const { baseline, checked, regressions, preservation } = compareCandidates(original, candidate, profile, brief);
+  const claims = verifyClaims(candidate, spec);
+  const hygiene = inspectHygiene(candidate);
+  const finalCheck = finalOutputCheck(candidate);
+  return {
+    version: '2',
+    original: baseline,
+    candidate: checked,
+    preservationScore: preservation,
+    regressions,
+    claims,
+    passed: checked.passed && !regressions.some(isBlockingFinding) && claims.passed && hygiene.suspiciousCount === 0 && finalCheck.accepted,
+  };
+}
+
 function digest(value: string): string { return createHash('sha256').update(value).digest('hex'); }
 function digestCanonical(value: unknown): string { return digest(canonicalJson(value)); }
 
@@ -125,9 +146,9 @@ function profileIdentity(profile: Profile): { profileId: string; profileRevision
 function projectDeterministicVerificationArtifact(
   source: string, candidate: string, profile: Profile,
   verification: Verification | CopySpecVerification, copySpec?: CopySpec, writingBrief?: WritingBrief,
+  verificationKind: DeterministicVerificationArtifactV1['verificationKind'] = 'claims' in verification ? 'copy_spec' : 'standard',
 ): DeterministicVerificationArtifactV1 {
   const identity = profileIdentity(profile);
-  const verificationKind = 'claims' in verification ? 'copy_spec' as const : 'standard' as const;
   const base = {
     version: '1' as const, verificationKind, passed: verification.passed, analysisVersion: verification.candidate.version,
     rulesetVersion: HYV_VERSION, preservationMetricVersion: 'legacy-set-v1' as const, preservationScore: verification.preservationScore,
@@ -142,4 +163,9 @@ function projectDeterministicVerificationArtifact(
 export function verifyDeterministically(source: string, candidate: string, profile: Profile, copySpec?: CopySpec, writingBrief?: WritingBrief): { verification: Verification | CopySpecVerification; artifact: DeterministicVerificationArtifactV1 } {
   const verification = copySpec ? verifyWithCopySpec(source, candidate, profile, copySpec, writingBrief) : verify(source, candidate, profile, writingBrief);
   return { verification, artifact: projectDeterministicVerificationArtifact(source, candidate, profile, verification, copySpec, writingBrief) };
+}
+
+export function verifyRebuildDeterministically(source: string, candidate: string, profile: Profile, copySpec: CopySpec, writingBrief?: WritingBrief): { verification: CopySpecVerification; artifact: DeterministicVerificationArtifactV1 } {
+  const verification = verifyRebuildWithCopySpec(source, candidate, profile, copySpec, writingBrief);
+  return { verification, artifact: projectDeterministicVerificationArtifact(source, candidate, profile, verification, copySpec, writingBrief, 'rebuild') };
 }
