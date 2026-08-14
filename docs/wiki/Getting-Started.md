@@ -1,14 +1,25 @@
 # getting started
 
+the public CLI is [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv) 3.3.0.
+
+```bash
+npx @holdyourvoice/hyv patterns
+npm install --global @holdyourvoice/hyv
+hyv patterns
+```
+
+to work from source:
+
 1. clone the repository and run `npm install`.
 2. run `npm test` and `npm run build`.
 3. create a profile from at least two local samples:
 
 ```bash
-node dist/cli.js profile profile.json sample-a.md sample-b.md --avoid=overused-phrase
+hyv profile profile.json sample-a.md sample-b.md --avoid=overused-phrase
 ```
 
-4. inspect a draft with `node dist/cli.js analyze draft.md profile.json`.
-5. create a brief with `node dist/cli.js rewrite-prompt draft.md profile.json > rewrite-brief.md`, apply only the replacements you accept, then run `verify`.
+4. inspect a draft with `hyv analyze draft.md profile.json`.
+5. create a brief with `hyv rewrite-prompt draft.md profile.json > rewrite-brief.md`, apply only the replacements you accept, then run `verify`.
+6. for the founder-aware path, reduce a pre-edit judgment to SHIP, EDIT, or REBUILD, then use `prepare-rewrite` / `apply-rewrite` or `prepare-rebuild` / `apply-rebuild` as the recommendation requires.
 
-the package is private until a deliberate npm publication. use the local CLI path above.
+use `npx @holdyourvoice/hyv` in place of `hyv` when the CLI is not installed globally. from a built checkout, `node dist/cli.js` is the same binary.

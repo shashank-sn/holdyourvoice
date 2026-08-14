@@ -39,6 +39,6 @@ hyv learning clear profile.json
 
 ## boundaries
 
-memory is a priority hint, not a third score. it never changes VoiceDNA or AI Editor scoring, and it cannot make either engine pass. learned hints cannot override tier 0 preservation, tier 1 blockers, clean-sentence preservation, or tier 4 output. the candidate still needs both engine passes, zero new red regressions, and at least 70 lexical preservation.
+memory is a priority hint, not a third score. it never changes VoiceDNA or AI Editor scoring, and it cannot make either engine pass. learned hints cannot override tier 0 preservation, tier 1 blockers, clean-sentence preservation, or tier 4 output. the candidate still needs both engine passes, zero new red regressions, and at least 70 lexical preservation. Profile v3 keys history by stable local identity, so compatible events survive a profile revision. `ratify`, `supersede`, and `migrate` manage that history without storing draft text.
 
 the Claude Desktop extension follows the same rule. its `hyv_verify` tool is read-only. approved learning writes only a recoverable, text-free event and never writes the supplied text.

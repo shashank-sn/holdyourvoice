@@ -14,6 +14,7 @@ node dist/cli.js reduce-judgment envelope.json envelope.json [envelope.json...]
 node dist/cli.js prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json [writing-brief.json] (--capability-stdin|--capability-file path)
 node dist/cli.js apply-rebuild task.json response.json profile.json (--capability-stdin|--capability-file path)
 node dist/cli.js verify original.md candidate.md profile.json [writing-brief.json]
+node dist/cli.js verify-spec original.md candidate.md profile.json copy-spec.json
 node dist/cli.js lifecycle prepare-semantic deterministic.json binding.json receipt.json normal violations.json lifecycle.json
 node dist/cli.js lifecycle submit-verdict lifecycle.json task.json evaluator-id verdict.json
 node dist/cli.js lifecycle inspect lifecycle.json
@@ -24,7 +25,7 @@ node dist/cli.js learning record-approved ready.json approved.json original.md c
 node dist/cli.js patterns
 ```
 
-`profile` needs two or more samples and writes only the profile path you name. `analyze` returns independent VoiceDNA and AI Editor reports plus a separate non-scoring Unicode hygiene report. An optional WritingBrief adds local audience, intent, and format context without changing the VoiceDNA profile. `hygiene` needs no profile; inspection is read-only, while `--fix` writes a new cleaned path, reports every changed offset, and refuses to overwrite either input or an existing output. Bidirectional controls, tag characters, and zero-width joiners/non-joiners are reported but preserved. `batch-analyze` returns advisory exact duplicate opening and closing findings across a local set. `rewrite-prompt` prints markdown and never calls a model. `verify` is read-only; learning changes require an explicit learning command or separately approved lifecycle transition.
+`profile` needs two or more samples and writes only the profile path you name. `analyze` returns independent VoiceDNA and AI Editor reports plus a separate non-scoring Unicode hygiene report. An optional WritingBrief adds local audience, intent, and format context without changing the VoiceDNA profile. `hygiene` needs no profile; inspection is read-only, while `--fix` writes a new cleaned path, reports every changed offset, and refuses to overwrite either input or an existing output. Bidirectional controls, tag characters, and zero-width joiners/non-joiners are reported but preserved. `batch-analyze` returns advisory exact duplicate opening and closing findings across a local set. `rewrite-prompt` prints markdown and never calls a model. `verify` is read-only; learning changes require an explicit learning command or separately approved lifecycle transition. `verify-spec` adds the CopySpec claim gate.
 
 `learning show` composes active preferences. `learning inspect` returns bounded text-free event metadata. `learning add` remains the compatibility form of `learning record`; the latter returns the full mutation receipt and accepts `--mutation-id`, `--authority`, `--provenance`, `--weight`, and `--compatibility`. `learning ratify` and `learning supersede` require Profile v3 plus an event ID. `learning migrate <source-v2.json> <target-v3.json>` explicitly moves compatible legacy history into the stable v3 identity. `learning clear` removes that identity's local state. Exact mutation replay is idempotent; conflicting mutation-ID reuse fails closed.
 
