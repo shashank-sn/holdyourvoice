@@ -14,7 +14,7 @@ Those programs keep separate findings, scores, and pass states. A strong result 
 
 Everything in the CLI runs from local files: accounts, API calls, telemetry, payment collection, and runtime network requests stay out of the core path. The optional Claude extension adds a local stdio MCP adapter around that same engine; it is not a hosted service.
 
-> **Status:** the public CLI is published as [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv). It runs locally and makes no runtime network requests.
+> **Status:** the public CLI is published as [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv). It runs locally and makes no runtime network requests. Version 3.3.0 adds pre-edit judgments, range edits, and authorized rebuild. Writer-study kits remain blocked optional research. Product publish uses the version bump and CI.
 
 ## Why it exists
 
@@ -378,7 +378,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep chan
 
 ## npm releases
 
-`@holdyourvoice/hyv` is published automatically after a change to the package source reaches `main`. The workflow publishes only when the version in `package.json` is not already on npm, so bump that version in the same pull request as a release-worthy change. It runs the tests and release audit before publishing, then verifies that npm reports the package as MIT licensed.
+`@holdyourvoice/hyv` is published automatically after a change to the package source reaches `main`. The workflow publishes only when the version in `package.json` is not already on npm, so bump that version in the same pull request as a release-worthy change. It runs the tests and release audit before publishing, then verifies that npm reports the package as MIT licensed. Writer-study kits stay optional research. Product publish uses the version bump and CI. Keep writer-checkpoint claims off the publish.
 
 ## Support
 
