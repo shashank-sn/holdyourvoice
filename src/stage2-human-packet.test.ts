@@ -39,9 +39,22 @@ test('Stage 2 human packet executes outside the repository and remains blocked w
     assert.equal(status.decision, 'BLOCKED');
     assert.equal(status.promotable, false);
     assert.deepEqual(status.blockers, output.blockers);
+    const identities = JSON.parse(readFileSync(join(outputRoot, 'IDENTITIES.json'), 'utf8')) as {
+      rebuildCommit: string | null;
+    };
+    assert.equal(identities.rebuildCommit, '387de69eae9ec176f32bfb0f3a7b769a4e0b6686');
+    const protocolSkeleton = JSON.parse(readFileSync(join(outputRoot, 'protocol-skeleton.json'), 'utf8')) as {
+      rebuild: { sourceCommit: string | null };
+      baseline: { packageVersion: string };
+    };
+    assert.equal(protocolSkeleton.rebuild.sourceCommit, identities.rebuildCommit);
+    assert.equal(protocolSkeleton.baseline.packageVersion, '3.2.0');
     const operator = readFileSync(join(outputRoot, 'OPERATOR.md'), 'utf8');
     assert.match(operator, /four separate reports/);
+    assert.match(operator, /Product publish does not wait on this kit/);
     assert.match(operator, /Never record PROCEED_TO_MAR_365/);
+    assert.match(operator, /product npm publish may proceed without this kit/);
+    assert.match(operator, /do not claim writer checkpoints passed/);
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }

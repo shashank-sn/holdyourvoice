@@ -76,7 +76,7 @@ Automation stops before locked evidence. A locked run still needs:
 5. A mapping-custody attestation and a human checkpoint disposition after the bound release audit.
 
 Synthetic fixtures, model-generated ballots, unsigned records, missing assignments, or digest drift can never produce `PROCEED_TO_MAR_363`.
-The current harness rejects `PROCEED_TO_MAR_363` unconditionally. MAR-362 stays open until the external verifier and reviewer-roster check are implemented and the real writer study is complete.
+The current harness rejects `PROCEED_TO_MAR_363` unconditionally. MAR-362 stays an optional research checkpoint. Product npm publish uses the version bump and CI.
 
 ## Stage 2 and rebuild reports
 
@@ -86,4 +86,4 @@ Stage 2 adoption evidence is a separate operator kit:
 npm run stage2:human-packet -- --out /absolute/path/outside-the-repository/stage2-human-packet
 ```
 
-Expected result: `BLOCKED`, `promotable: false`, with `stage2_adoption_evidence_deferred`, `stage1_checkpoint_unpassed`, and `rebuild_release_claim_blocked`. Compare 3.2.0, Stage 1, advanced edit, and rebuild as four reports. Do not merge edit and rebuild preservation. Do not record `PROCEED_TO_MAR_365`. Stay on package version `3.2.0` until a human release review authorizes a versioned publish.
+Expected result: `BLOCKED`, `promotable: false`, with `stage2_adoption_evidence_deferred`, `stage1_checkpoint_unpassed`, and `rebuild_release_claim_blocked`. Compare 3.2.0, Stage 1, advanced edit, and rebuild as four reports. Do not merge edit and rebuild preservation. Do not record `PROCEED_TO_MAR_365`. This kit stays optional research. Product npm publish uses the version bump and CI. Keep writer-checkpoint claims off a 3.3.0 publish.

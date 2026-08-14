@@ -11,7 +11,7 @@ In Claude Code, run:
 /plugin install hold-your-voice@hold-your-voice
 ```
 
-Node.js 20 or newer and npm must be installed. Claude Code uses `npm exec --package=@holdyourvoice/hyv@3.2.0 -- hyv mcp` to download the pinned public package and start a local stdio process.
+Node.js 20 or newer and npm must be installed. Claude Code uses `npm exec --package=@holdyourvoice/hyv@3.3.0 -- hyv mcp` to download the pinned public package and start a local stdio process.
 
 ## What it exposes
 

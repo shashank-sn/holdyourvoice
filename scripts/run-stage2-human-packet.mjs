@@ -61,11 +61,12 @@ if (!outsideRepository(resolvedOutputRoot)) {
 const mergedHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repositoryRoot, encoding: 'utf8' }).trim();
 const baselineCheckoutable = checkoutable(BASELINE_COMMIT);
 const stage1CommitCheckoutable = checkoutable(STAGE1_COMMIT);
+const REBUILD_COMMIT = '387de69eae9ec176f32bfb0f3a7b769a4e0b6686';
 const identities = {
   baselineCommit: BASELINE_COMMIT,
   stage1Commit: STAGE1_COMMIT,
   advancedEditMergedCommit: '1ffaabe2586adf11a2ed6db4dba8d1d88095f507',
-  rebuildCommit: null,
+  rebuildCommit: REBUILD_COMMIT,
   mergedHead,
   baselineCheckoutable,
   stage1CommitCheckoutable,
@@ -102,7 +103,7 @@ const protocolSkeleton = {
   baseline: { packageVersion: '3.2.0', sourceCommit: BASELINE_COMMIT },
   stage1: { sourceCommit: STAGE1_COMMIT },
   advancedEdit: { sourceCommit: '1ffaabe2586adf11a2ed6db4dba8d1d88095f507' },
-  rebuild: { sourceCommit: null },
+  rebuild: { sourceCommit: REBUILD_COMMIT },
   benchmark: { manifestDigest: null, partitionDigest: null, partition: 'locked-test', synthetic: false },
   cases: [],
   intentToTreat: { expectedAssignments: null, expectedReviewers: null },
@@ -156,7 +157,7 @@ This packet is preparation material only. It is BLOCKED and cannot establish MAR
 
 ## Separate reports
 
-Compare unchanged Hyv 3.2.0, Stage 1, advanced edit, and rebuild as four separate reports. Do not merge edit and rebuild into one preservation claim. Stage 1 remains unpassed; this kit cannot promote MAR-364 or authorize a versioned release.
+Compare unchanged Hyv 3.2.0, Stage 1, advanced edit, and rebuild as four separate reports. Do not merge edit and rebuild into one preservation claim. Stage 1 remains unpassed; this kit cannot promote MAR-364. Product publish does not wait on this kit.
 
 ## Rights and provenance
 
@@ -180,7 +181,7 @@ Treat every imported human record as \`verificationStatus: unverified\` until an
 
 ## Finish or stop
 
-While \`stage2_adoption_evidence_deferred\` is forced, the result remains BLOCKED. Record only STOP or REPEAT_PROTOCOL with an external checkpoint receipt. Never fabricate missing evidence. Never record PROCEED_TO_MAR_365. Do not publish an npm release that claims writer checkpoints passed.
+While \`stage2_adoption_evidence_deferred\` is forced, the result remains BLOCKED. Record only STOP or REPEAT_PROTOCOL with an external checkpoint receipt. Never fabricate missing evidence. Never record PROCEED_TO_MAR_365. A product npm publish may proceed without this kit; do not claim writer checkpoints passed.
 `;
 const commands = `#!/bin/sh
 npm run stage2:human-packet -- --out /absolute/path/outside-the-repository/stage2-human-packet
