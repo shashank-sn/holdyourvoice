@@ -20,6 +20,8 @@
 
 [pattern catalog](Pattern-Catalog)
 
+[AI writing patterns](AI-Writing-Patterns)
+
 [architecture](Architecture)
 
 [privacy and data rights](Privacy-and-Data-Rights)

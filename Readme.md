@@ -14,7 +14,7 @@ Those programs keep separate findings, scores, and pass states. A strong result 
 
 Everything in the CLI runs from local files: accounts, API calls, telemetry, payment collection, and runtime network requests stay out of the core path. The optional Claude extension adds a local stdio MCP adapter around that same engine; it is not a hosted service.
 
-> **Status:** the public CLI is published as [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv). It runs locally and makes no runtime network requests. Version 3.3.0 adds pre-edit judgments, range edits, and authorized rebuild. Writer-study kits remain blocked optional research. Product publish uses the version bump and CI.
+> **Status:** [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv) **3.3.0** is the public founder-aware rewrite. It runs locally and makes no runtime network requests. The package includes Profile v3 policy, pre-edit SHIP/EDIT/REBUILD judgments, contiguous range edits, authorized rebuild, and a signed semantic lifecycle.
 
 ## Why it exists
 
@@ -27,6 +27,7 @@ Hold Your Voice keeps the work visible:
 | Does the draft still resemble this writer’s observable mechanics? | VoiceDNA | A profile-based score, findings, and pass state. |
 | Does the draft contain a configured editorial pattern worth inspecting? | AI Editor | A rule-based score, sentence findings, and pass state. |
 | Did the rewrite introduce a new blocker or replace too much? | Verification | Regressions, preservation score, and a release decision. |
+| Should this draft ship, take a bounded edit, or rebuild? | Judgment | A SHIP, EDIT, or REBUILD recommendation bound to the draft and profile. |
 
 Its scope is a local writing gate. Authorship detection, fact checking, plagiarism review, and hosted generation each need their own tools. Hold Your Voice gives a writer or chosen model a narrow editing brief, then asks the same two engines to inspect the result.
 
@@ -228,7 +229,27 @@ flowchart LR
   G --> R[Pass or inspect regressions]
 ```
 
-The tool never applies changes to your draft. You decide which findings are valid, apply replacement sentences deliberately, and run the final check.
+The tool never applies changes to your draft. You decide which findings are valid, apply replacement sentences or an authorized rebuild deliberately, and run the final check.
+
+## Founder-aware rewrite
+
+3.3.0 keeps the original analyze → brief → verify loop and adds a structured rewrite path.
+
+1. Prepare a pre-edit judgment. Findings reduce to **SHIP**, bounded **EDIT**, or **REBUILD**.
+2. **SHIP** returns the original bytes. No model call.
+3. **EDIT** applies eligible sentence replacements or contiguous range edits through `prepare-rewrite` / `apply-rewrite`. Clean and unflagged text stays in place. Overlapping, out-of-order, or partly locked ranges fail before a candidate is built.
+4. **REBUILD** prepares a whole-document candidate only after a matching REBUILD recommendation, a CopySpec, and a signed `hyv.rebuild-authorization` capability. `prepare-rebuild` / `apply-rebuild` re-check that capability and the bound profile. Claim, polarity, hygiene, and semantic gates stay in force. Edit and rebuild responses are mutually incompatible.
+
+```bash
+hyv prepare-judgment pre-edit argument draft.md profile.json task.json
+hyv reduce-judgment envelope-a.json envelope-b.json envelope-c.json
+hyv prepare-rewrite draft.md profile.json task.json
+hyv apply-rewrite task.json response.json profile.json
+hyv prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json --capability-file capability.json
+hyv apply-rebuild task.json response.json profile.json --capability-file capability.json
+```
+
+CLI and MCP expose the same contracts. The engine never calls a model. An editor or chosen model still sits outside the package.
 
 ## The five rewrite tiers
 
@@ -240,7 +261,7 @@ The prompt has an order. Lower tiers can refine a higher tier; they cannot overr
 4. **Tier 3: AI Editor.** Inspect yellow findings. Change a line only when the repair helps.
 5. **Tier 4: output.** Return replacement sentences keyed by sentence number.
 
-This order protects meaning before style. Read the complete [prompt contract](docs/PROMPT-CONTRACT.md) before changing it.
+This order protects meaning before style. Rebuild is a separate whole-document contract; it does not use sentence-number replacements. Read the complete [prompt contract](docs/PROMPT-CONTRACT.md) before changing either path.
 
 ## VoiceDNA: 13 observable elements
 
@@ -302,8 +323,12 @@ The preservation score is a guardrail based on retained original words longer th
 | `hyv hygiene <draft> [--fix] [--output=path]` | Draft | Hygiene report or cleaned copy plus receipt | You need to inspect or conservatively clean hidden Unicode. |
 | `hyv final-check <path\|->` | Any final text | Exact accepted text on stdout or a withheld-output report on stderr | Text is about to cross a user-facing boundary. |
 | `hyv rewrite-prompt <draft> <profile.json>` | Draft and profile | Markdown editing brief | You need a constrained request for an editor or model. |
-| `hyv prepare-rewrite <draft> <profile.json> <task.json>` | Draft and profile | Versioned task file plus metadata | A host needs a fingerprint-bound sentence-edit task. |
+| `hyv prepare-rewrite <draft> <profile.json> <task.json>` | Draft and profile | Versioned task file plus metadata | A host needs a fingerprint-bound sentence-edit or range-edit task. |
 | `hyv apply-rewrite <task.json> <response.json> <profile.json>` | Task, response, and profile | Candidate evaluation JSON | A host needs to apply and recheck eligible sentence replacements. |
+| `hyv prepare-judgment <pre-edit\|post-candidate> <kind> <draft> <profile.json> <task.json> [candidate.md]` | Draft, profile, and optional candidate | Versioned judgment task | Findings need a SHIP, EDIT, or REBUILD recommendation. |
+| `hyv reduce-judgment <envelope.json> <envelope.json> [envelope.json...]` | Signed judgment envelopes | Recommendation JSON | Multiple judgment envelopes must reduce to one decision. |
+| `hyv prepare-rebuild <draft> <profile.json> <reduction.json> <copy-spec.json> <task.json>` | Draft, recommendation, CopySpec, and capability | Versioned rebuild task | An upstream REBUILD recommendation needs a whole-document candidate. |
+| `hyv apply-rebuild <task.json> <response.json> <profile.json>` | Task, response, profile, and capability | Candidate evaluation JSON | A host needs to apply and recheck an authorized rebuild. |
 | `hyv verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code | You need the candidate gate. |
 | `hyv verify-spec <original> <candidate> <profile.json> <copy-spec.json>` | Original, candidate, profile, CopySpec | Verification JSON with hard claim gate | A brief contains locked facts or prohibited claims. |
 | `hyv learning <show\|inspect\|add\|record\|ratify\|supersede\|migrate\|clear> ...` | Profile, operation value, and bounded metadata options | Preferences or a text-free mutation receipt | You need to inspect, migrate, or manage profile-scoped learning. |
@@ -314,7 +339,7 @@ Every file argument can be `-` when the command accepts text input from standard
 
 Profile v3 learning is keyed by its stable local profile ID, so compatible history survives profile revisions. `record`, `ratify`, and `supersede` accept bounded `--mutation-id`, `--authority`, `--provenance`, `--weight`, and `--compatibility` options. `ratify` and `supersede` require Profile v3. `migrate` explicitly copies compatible legacy Profile v2 learning into one Profile v3 identity. Replaying an identical mutation is idempotent; reusing its ID for a different operation returns a conflict. Inspection and receipts expose event metadata only, never stored instructions or draft text.
 
-The standalone CLI supports normal-policy semantic review. High-assurance review requires a trusted embedding and is rejected by the CLI. Approval capabilities are accepted only through `--capability-stdin` or a permission-checked `--capability-file`; adapters validate capabilities but never mint them. Rejection needs no capability. Approval and `learning record-approved` require the matching signed final-approval capability. `apply-rewrite`, `lifecycle submit-verdict`, and `lifecycle finalize` exit `2` when the candidate or transition is not accepted, while usage and runtime failures exit `1`.
+The standalone CLI supports normal-policy semantic review. High-assurance review requires a trusted embedding and is rejected by the CLI. Approval and rebuild capabilities are accepted only through `--capability-stdin` or a permission-checked `--capability-file`; adapters validate capabilities but never mint them. Rejection needs no capability. Approval and `learning record-approved` require the matching signed final-approval capability. `apply-rewrite`, `apply-rebuild`, `lifecycle submit-verdict`, and `lifecycle finalize` exit `2` when the candidate or transition is not accepted, while usage and runtime failures exit `1`.
 
 ## Project map
 
@@ -328,7 +353,9 @@ The standalone CLI supports normal-policy semantic review. High-assurance review
 | `src/editorial-packs.ts` | Parses WritingBrief context and runs format and batch checks. |
 | `src/learning.ts` | Stores text-free, profile-scoped verified repairs and composes bounded local preferences. |
 | `src/pipeline.ts` | Combines scored pass states, makes briefs, and verifies candidates. |
-| `src/rewrite-task.ts` | Prepares and evaluates fingerprint-bound sentence-replacement tasks. |
+| `src/rewrite-task.ts` | Prepares and evaluates fingerprint-bound sentence-replacement and range-edit tasks. |
+| `src/judgment-task.ts` | Reduces pre-edit SHIP/EDIT/REBUILD recommendations and post-candidate clearance. |
+| `src/rebuild-task.ts` | Prepares whole-document rebuild after a matching recommendation, CopySpec, and signed capability. |
 | `src/semantic-review.ts` | Defines and reduces semantic and human-review lifecycle artifacts. |
 | `src/approval-capability.ts` | Verifies canonical signed approval capabilities. |
 | `src/approval-context.ts` | Loads permission-checked trust roots and evaluator authorization. |
@@ -378,7 +405,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep chan
 
 ## npm releases
 
-`@holdyourvoice/hyv` is published automatically after a change to the package source reaches `main`. The workflow publishes only when the version in `package.json` is not already on npm, so bump that version in the same pull request as a release-worthy change. It runs the tests and release audit before publishing, then verifies that npm reports the package as MIT licensed. Writer-study kits stay optional research. Product publish uses the version bump and CI. Keep writer-checkpoint claims off the publish.
+`@holdyourvoice/hyv` is published automatically after a change to the package source reaches `main`. The workflow publishes only when the version in `package.json` is not already on npm, so bump that version in the same pull request as a release-worthy change. It runs the tests and release audit before publishing, then verifies that npm reports the package as MIT licensed.
 
 ## Support
 
