@@ -28,3 +28,19 @@ Add local source material to a WritingBrief to make fact lint a default HYV veri
 ```
 
 `verify`, `verify-spec`, rewrite evaluation, and their MCP equivalents run fact lint when `factSources` is present. Any error finding fails the final verification. Source-free work remains a voice and editorial check only.
+
+## required facts
+
+Use `requiredFacts` when a supplied fact must remain in the final output. For example:
+
+```json
+{
+  "factSources": [{ "id": "bio", "text": "Shashank is a LinkedIn Top Voice." }],
+  "requiredFacts": [{
+    "id": "linkedin-top-voice",
+    "text": "Shashank is a LinkedIn Top Voice."
+  }]
+}
+```
+
+HYV fails verification if the final draft drops this fact. It does not force every fact from every source into a post. Mark only the facts that the final output must carry.

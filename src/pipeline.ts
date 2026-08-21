@@ -101,17 +101,26 @@ function compareCandidates(original: string, candidate: string, profile: Profile
   return { baseline, checked, regressions, preservation };
 }
 
+function verifyRequiredFacts(candidate: string, brief?: WritingBrief) {
+  if (!brief?.requiredFacts?.length) return undefined;
+  return verifyClaims(candidate, {
+    version: '1', audience: brief.audience, intent: brief.intent, channel: brief.format,
+    claims: brief.requiredFacts.map((fact) => ({ ...fact, evidence: 'WritingBrief required fact.' })),
+  });
+}
+
 export function verify(original: string, candidate: string, profile: Profile, brief?: WritingBrief): Verification {
   const { baseline, checked, regressions, preservation } = compareCandidates(original, candidate, profile, brief);
   const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
+  const requiredFacts = verifyRequiredFacts(candidate, brief);
   return {
     version: '2',
     original: baseline,
     candidate: checked,
     preservationScore: preservation,
     regressions,
-    ...(factLint ? { factLint } : {}),
-    passed: checked.passed && !regressions.some(isBlockingFinding) && preservation >= 70 && !factLint?.findings.some((finding) => finding.severity === 'error'),
+    ...(factLint ? { factLint } : {}), ...(requiredFacts ? { requiredFacts } : {}),
+    passed: checked.passed && !regressions.some(isBlockingFinding) && preservation >= 70 && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
   };
 }
 
@@ -126,6 +135,8 @@ export function verifyRebuildWithCopySpec(original: string, candidate: string, p
   const claims = verifyClaims(candidate, spec);
   const hygiene = inspectHygiene(candidate);
   const finalCheck = finalOutputCheck(candidate);
+  const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
+  const requiredFacts = verifyRequiredFacts(candidate, brief);
   return {
     version: '2',
     original: baseline,
@@ -133,7 +144,8 @@ export function verifyRebuildWithCopySpec(original: string, candidate: string, p
     preservationScore: preservation,
     regressions,
     claims,
-    passed: checked.passed && !regressions.some(isBlockingFinding) && claims.passed && hygiene.suspiciousCount === 0 && finalCheck.accepted,
+    ...(factLint ? { factLint } : {}), ...(requiredFacts ? { requiredFacts } : {}),
+    passed: checked.passed && !regressions.some(isBlockingFinding) && claims.passed && hygiene.suspiciousCount === 0 && finalCheck.accepted && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
   };
 }
 

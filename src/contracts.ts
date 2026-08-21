@@ -111,6 +111,7 @@ export interface WritingBrief {
   argumentMap?: ArgumentMap;
   factSources?: Array<{ id: string; text: string }>;
   factMetadata?: { allowedAssumptions?: string[]; approvedHypotheses?: string[] };
+  requiredFacts?: Array<{ id: string; text: string; atoms?: string[] }>;
 }
 
 export interface BatchFinding {
@@ -179,6 +180,7 @@ export interface Verification {
   preservationScore: number;
   regressions: Finding[];
   factLint?: import('./fact-linter.js').FactLintReport;
+  requiredFacts?: ClaimVerification;
   passed: boolean;
 }
 

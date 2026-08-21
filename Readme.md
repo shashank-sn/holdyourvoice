@@ -212,6 +212,8 @@ The default is report-only and exits `0`; `--strict` exits `2` for error finding
 
 When a `WritingBrief` includes `factSources`, HYV runs the same local fact lint automatically during `verify`, `verify-spec`, rewrite evaluation, and their MCP equivalents. Error findings block verification. Source-free flows remain unchanged.
 
+Use `requiredFacts` for facts that must appear in the final draft. HYV fails verification if a required fact is missing. It does not assume every source fact belongs in every output.
+
 ### Local voice memory
 
 Learning changes are explicit. Use the learning commands below, or complete the separately authorized semantic-review and final-approval lifecycle before recording approved learning. State lives under `~/.hyv/learning/`, scoped to the portable profile, and stores no draft or candidate text. The next `rewrite-prompt` uses a bounded list of approved repairs.

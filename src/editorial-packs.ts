@@ -19,6 +19,9 @@ function isFactMetadata(value: unknown): boolean {
   const metadata = value as { allowedAssumptions?: unknown; approvedHypotheses?: unknown };
   return (metadata.allowedAssumptions === undefined || isTerms(metadata.allowedAssumptions)) && (metadata.approvedHypotheses === undefined || isTerms(metadata.approvedHypotheses));
 }
+function isRequiredFacts(value: unknown): value is Array<{ id: string; text: string; atoms?: string[] }> {
+  return Array.isArray(value) && value.length > 0 && value.length <= 50 && value.every((fact) => !!fact && typeof fact === 'object' && isText((fact as { id?: unknown }).id, 100) && /^[A-Za-z0-9._-]+$/.test((fact as { id: string }).id) && isText((fact as { text?: unknown }).text, 2_000) && ((fact as { atoms?: unknown }).atoms === undefined || isTerms((fact as { atoms: unknown }).atoms)));
+}
 
 function isArgumentMap(value: unknown): value is ArgumentMap {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -37,7 +40,8 @@ export function parseWritingBrief(value: unknown): WritingBrief {
     || (brief.evidenceStatus !== undefined && !evidenceStatuses.includes(brief.evidenceStatus))
     || (brief.argumentMap !== undefined && !isArgumentMap(brief.argumentMap))
     || (brief.factSources !== undefined && !isFactSources(brief.factSources))
-    || (brief.factMetadata !== undefined && !isFactMetadata(brief.factMetadata))) {
+    || (brief.factMetadata !== undefined && !isFactMetadata(brief.factMetadata))
+    || (brief.requiredFacts !== undefined && !isRequiredFacts(brief.requiredFacts))) {
     throw new Error('WritingBrief needs version "1", audience, intent, a known format, and optional bounded context fields.');
   }
   return brief as WritingBrief;
