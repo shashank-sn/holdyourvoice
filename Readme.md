@@ -212,7 +212,20 @@ The default is report-only and exits `0`; `--strict` exits `2` for error finding
 
 When a `WritingBrief` includes `factSources`, HYV runs the same local fact lint automatically during `verify`, `verify-spec`, rewrite evaluation, and their MCP equivalents. Error findings block verification. Source-free flows remain unchanged.
 
-Use `requiredFacts` for facts that must appear in the final draft. HYV fails verification if a required fact is missing. It does not assume every source fact belongs in every output.
+Use `requiredFacts` for facts that must appear in the final draft. HYV fails verification if a required fact is missing. It does not assume every fact from every source belongs in every output.
+
+```json
+{
+  "version": "1",
+  "audience": "founders",
+  "intent": "write a post",
+  "format": "social",
+  "factSources": [{ "id": "bio", "text": "Shashank is a LinkedIn Top Voice." }],
+  "requiredFacts": [{ "id": "linkedin-top-voice", "text": "Shashank is a LinkedIn Top Voice." }]
+}
+```
+
+HYV does not infer trusted evidence from ordinary prompt prose. Pass source material through `factSources`, then mark only the inclusion-critical statements in `requiredFacts`. Use source material that you are allowed to include in a rewrite task; task handoff is controlled by the calling host.
 
 ### Local voice memory
 

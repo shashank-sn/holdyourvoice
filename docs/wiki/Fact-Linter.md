@@ -44,3 +44,7 @@ Use `requiredFacts` when a supplied fact must remain in the final output. For ex
 ```
 
 HYV fails verification if the final draft drops this fact. It does not force every fact from every source into a post. Mark only the facts that the final output must carry.
+
+HYV does not infer evidence or required facts from ordinary prompt prose, CopySpec evidence notes, or an argument map. Pass trusted source material in `factSources`, then mark inclusion-critical statements in `requiredFacts`. This makes the source-of-truth boundary inspectable instead of guessing that a prompt sentence is evidence.
+
+Use source material that you are permitted to include in the rewrite task. The local fact-lint engine makes no network request; the host controls any later rewrite-provider handoff.
