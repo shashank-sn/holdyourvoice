@@ -9,6 +9,7 @@ import { finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { analyzeVoiceDna } from './voice-dna.js';
 import type { LearningPreference } from './learning.js';
 import { legacySetPreservation } from './preservation.js';
+import { lintFacts } from './fact-linter.js';
 
 export function analyze(text: string, profile: Profile, brief?: WritingBrief): Analysis {
   const voiceDna = analyzeVoiceDna(text, profile);
@@ -102,13 +103,15 @@ function compareCandidates(original: string, candidate: string, profile: Profile
 
 export function verify(original: string, candidate: string, profile: Profile, brief?: WritingBrief): Verification {
   const { baseline, checked, regressions, preservation } = compareCandidates(original, candidate, profile, brief);
+  const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
   return {
     version: '2',
     original: baseline,
     candidate: checked,
     preservationScore: preservation,
     regressions,
-    passed: checked.passed && !regressions.some(isBlockingFinding) && preservation >= 70,
+    ...(factLint ? { factLint } : {}),
+    passed: checked.passed && !regressions.some(isBlockingFinding) && preservation >= 70 && !factLint?.findings.some((finding) => finding.severity === 'error'),
   };
 }
 

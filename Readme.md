@@ -210,6 +210,8 @@ hyv fact-lint final.md --source=release:release-notes.md --strict
 
 The default is report-only and exits `0`; `--strict` exits `2` for error findings. Unknown deterministic matches become `needs_human_review`. No source text leaves the process by default. The linter checks consistency with supplied evidence; it does not prove the sources are true. See the [fact linter guide](docs/wiki/Fact-Linter.md).
 
+When a `WritingBrief` includes `factSources`, HYV runs the same local fact lint automatically during `verify`, `verify-spec`, rewrite evaluation, and their MCP equivalents. Error findings block verification. Source-free flows remain unchanged.
+
 ### Local voice memory
 
 Learning changes are explicit. Use the learning commands below, or complete the separately authorized semantic-review and final-approval lifecycle before recording approved learning. State lives under `~/.hyv/learning/`, scoped to the portable profile, and stores no draft or candidate text. The next `rewrite-prompt` uses a bounded list of approved repairs.

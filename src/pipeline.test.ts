@@ -38,6 +38,13 @@ test('keeps the existing VoiceDNA and AI Editor reports unchanged when no Writin
   assert.deepEqual(contextual.aiEditor, baseline.aiEditor);
 });
 
+test('runs fact lint automatically when a WritingBrief supplies valid local sources', () => {
+  const brief = parseWritingBrief({ version: '1', audience: 'operators', intent: 'explain', format: 'general', factSources: [{ id: 'release', text: 'Atlas launches on 14 August 2026.' }] });
+  const result = verify('Atlas launches on 14 August 2026.', 'Atlas launches on 15 August 2026.', profile, brief);
+  assert.equal(result.factLint?.findings[0]?.kind, 'date_drift');
+  assert.equal(result.passed, false);
+});
+
 test('builds all thirteen VoiceDNA measurements', () => {
   assert.deepEqual(Object.keys(profile.metrics), ['sentenceLength', 'sentenceVariation', 'sentenceStructure', 'rhythm', 'paragraphLength', 'openingMoves', 'vocabulary', 'lexicalDensity', 'pointOfView', 'punctuation', 'caseStyle', 'questionRate', 'transitions']);
 });

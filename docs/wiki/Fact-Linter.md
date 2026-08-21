@@ -12,3 +12,19 @@ Each source uses `id:path`. JSON is the default; `--human` prints compact findin
 Every claim keeps exact text, sentence number, and UTF-16 offsets. Findings include severity, kind, reason, confidence, suggested action, and evidence with source ID, excerpt, and offsets. The deterministic engine checks dates, numbers, multi-word entities, quotes, capabilities, causal/comparative escalation, and opposite draft claims. Clear opinions and approved hypotheses are left alone. Weak evidence gaps become `needs_human_review`.
 
 The built-in checker is local. Semantic matching is an optional adapter interface; when it is absent, JSON reports `skippedChecks: ["semantic_matching"]`. The linter does not prove supplied sources are accurate, complete, current, or representative.
+
+## automatic HYV gate
+
+Add local source material to a WritingBrief to make fact lint a default HYV verification gate:
+
+```json
+{
+  "version": "1",
+  "audience": "operators",
+  "intent": "explain the launch",
+  "format": "general",
+  "factSources": [{ "id": "release", "text": "Atlas launches on 14 August 2026." }]
+}
+```
+
+`verify`, `verify-spec`, rewrite evaluation, and their MCP equivalents run fact lint when `factSources` is present. Any error finding fails the final verification. Source-free work remains a voice and editorial check only.
