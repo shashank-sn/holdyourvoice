@@ -31,6 +31,7 @@ function hasOverlap(claim: string, source: string): boolean {
 }
 function dates(value: string): string[] { return [...value.matchAll(DATE)].map((match) => new Date(match[0]).toISOString().slice(0, 10)).filter((value) => value !== ''); }
 function numbers(value: string): string[] { return value.match(/\b\d+(?:\.\d+)?\s*(?:%|days?|hours?|weeks?|months?|years?)?\b/gi) ?? []; }
+function negated(value: string): boolean { return /\b(?:does not|do not|did not|is not|are not|cannot|can't|won't|not)\b/i.test(value); }
 const NON_ENTITIES = new Set(['A', 'An', 'And', 'After', 'As', 'At', 'But', 'For', 'From', 'He', 'I', 'In', 'It', 'Its', 'On', 'Or', 'She', 'The', 'This', 'That', 'They', 'We', 'With', 'You']);
 function entities(value: string): string[] {
   return (value.match(/\b[A-Z][\p{L}\p{M}'-]*(?:\s+[A-Z][\p{L}\p{M}'-]+)?\b/gu) ?? []).filter((entity) => !NON_ENTITIES.has(entity) && entity !== entity.toUpperCase());
@@ -99,7 +100,12 @@ export function lintFacts(input: FactLintInput): FactLintReport {
     }
     const capabilityTerms = (text: string) => tokens(text).filter((token) => /^(export|exports|supports|include|includes|works|csv|pdf)$/i.test(token));
     const claimCapabilities = capabilityTerms(claim.text).map((token) => token.replace(/s$/, ''));
-    if (claimCapabilities.length && relevant.some(({ text }) => claimCapabilities.every((token) => capabilityTerms(text).map((value) => value.replace(/s$/, '')).includes(token)))) continue;
+    if (claimCapabilities.length && relevant.some(({ text }) => claimCapabilities.every((token) => capabilityTerms(text).map((value) => value.replace(/s$/, '')).includes(token)))) {
+      if (relevant.some(({ text }) => negated(text) !== negated(claim.text))) {
+        findings.push(finding(claim, 'capability_drift', 'error', 'The draft reverses the source capability.', evidenceItems, 'high', 'Match the source capability polarity or cite contrary evidence.')); continue;
+      }
+      continue;
+    }
     if (/\b(exports?|supports|includes?|works? with|can\s+(?:export|support|include))\b/i.test(claim.text) && relevant.length) {
       findings.push(finding(claim, 'capability_drift', 'error', 'The product capability is not established by the relevant source wording.', evidenceItems, 'high', 'Align the capability with the source or add evidence.')); continue;
     }
@@ -131,11 +137,13 @@ export function lintFacts(input: FactLintInput): FactLintReport {
       findings.push(finding(right.claim, 'draft_contradiction', 'error', 'This draft claim contradicts an earlier draft claim.', fallbackEvidence(sourceLines), 'high', 'Resolve the two claims before publishing.'));
     }
   }
-  const unsupported = findings.filter((item) => item.kind === 'unsupported_claim').length;
-  const contradicted = findings.filter((item) => ['draft_contradiction', 'number_drift', 'date_drift', 'entity_drift', 'quote_drift', 'capability_drift', 'semantic_contradiction'].includes(item.kind)).length;
-  const humanReview = findings.filter((item) => item.severity === 'needs_human_review' || item.severity === 'warning').length;
+  const claimKey = (item: FactFinding) => `${item.draftLocation.start}:${item.draftLocation.end}`;
+  const unsupported = new Set(findings.filter((item) => item.kind === 'unsupported_claim').map(claimKey)).size;
+  const contradicted = new Set(findings.filter((item) => ['draft_contradiction', 'number_drift', 'date_drift', 'entity_drift', 'quote_drift', 'capability_drift', 'semantic_contradiction'].includes(item.kind)).map(claimKey)).size;
+  const humanReview = new Set(findings.filter((item) => item.severity === 'needs_human_review' || item.severity === 'warning').map(claimKey)).size;
   const checked = claims.filter((claim) => !claim.kinds.includes('opinion')).length;
-  return { version: '1', summary: { checked, supported: Math.max(0, checked - findings.length), unsupported, contradicted, humanReview }, claims, findings, skippedChecks: semanticAdapter ? [] : ['semantic_matching'] };
+  const affected = new Set(findings.map(claimKey)).size;
+  return { version: '1', summary: { checked, supported: Math.max(0, checked - affected), unsupported, contradicted, humanReview }, claims, findings, skippedChecks: semanticAdapter ? [] : ['semantic_matching'] };
 }
 
 export function formatFactLintReport(report: FactLintReport): string {

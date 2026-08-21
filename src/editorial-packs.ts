@@ -12,7 +12,7 @@ function isTerms(value: unknown): value is string[] {
   return Array.isArray(value) && value.length <= 100 && value.every((term) => isText(term, 200));
 }
 function isFactSources(value: unknown): value is Array<{ id: string; text: string }> {
-  return Array.isArray(value) && value.length > 0 && value.length <= 20 && value.every((source) => !!source && typeof source === 'object' && isText((source as { id?: unknown }).id, 100) && isText((source as { text?: unknown }).text, 100_000));
+  return Array.isArray(value) && value.length > 0 && value.length <= 20 && value.every((source) => !!source && typeof source === 'object' && isText((source as { id?: unknown }).id, 100) && isText((source as { text?: unknown }).text, 40_000)) && value.reduce((total, source) => total + source.id.length + source.text.length, 0) <= 40_000;
 }
 function isFactMetadata(value: unknown): boolean {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;

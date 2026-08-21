@@ -26,6 +26,11 @@ test('flags numeric values and units that differ from relevant evidence', () => 
   assert.equal(report.findings[0]?.kind, 'number_drift');
 });
 
+test('flags a capability whose polarity reverses the supplied source', () => {
+  const report = lintFacts({ sources: [{ id: 'brief', text: 'Atlas supports CSV exports.' }], draft: 'Atlas does not support CSV exports.' });
+  assert.equal(report.findings[0]?.kind, 'capability_drift');
+});
+
 test('flags a single-token product name that drifts from source evidence', () => {
   const report = lintFacts({ sources: [{ id: 'brief', text: 'Atlas exports CSV reports.' }], draft: 'Atlus exports CSV reports.' });
   assert.equal(report.findings[0]?.kind, 'entity_drift');
