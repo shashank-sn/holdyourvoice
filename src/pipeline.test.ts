@@ -57,12 +57,15 @@ test('blocks a final draft that drops a required source-backed fact', () => {
 test('requires source provenance and rejects negated required facts', () => {
   assert.throws(() => parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', requiredFacts: [{ id: 'unsupported', text: 'Mars has two moons.' }] }), /WritingBrief/);
   assert.throws(() => parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'denial', text: 'It is false that Shashank is a LinkedIn Top Voice.' }], requiredFacts: [{ id: 'linkedin-top-voice', text: 'Shashank is a LinkedIn Top Voice.' }] }), /WritingBrief/);
+  assert.throws(() => parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'cross-sentence-denial', text: 'Shashank is a LinkedIn Top Voice. That statement is false.' }], requiredFacts: [{ id: 'linkedin-top-voice', text: 'Shashank is a LinkedIn Top Voice.' }] }), /WritingBrief/);
   const brief = parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'bio', text: 'Shashank is a LinkedIn Top Voice.' }], requiredFacts: [{ id: 'linkedin-top-voice', text: 'Shashank is a LinkedIn Top Voice.' }] });
   const negated = verify('Shashank is a LinkedIn Top Voice.', 'Shashank is not a LinkedIn Top Voice.', profile, brief);
   assert.equal(negated.requiredFacts?.passed, false);
   const denied = verify('Shashank is a LinkedIn Top Voice.', 'The claim "Shashank is a LinkedIn Top Voice." is false.', profile, brief);
   assert.equal(denied.requiredFacts?.passed, false);
   assert.match(denied.requiredFacts?.failures.at(-1)?.message ?? '', /negated or denied/);
+  const crossSentenceDenial = verify('Shashank is a LinkedIn Top Voice.', 'Shashank is a LinkedIn Top Voice. That statement is false.', profile, brief);
+  assert.equal(crossSentenceDenial.requiredFacts?.passed, false);
   const affirmed = verify('Shashank is a LinkedIn Top Voice.', 'This is not a controversial claim. Shashank is a LinkedIn Top Voice.', profile, brief);
   assert.equal(affirmed.requiredFacts?.passed, true);
   const atomBrief = parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'model', text: 'Kimi K2.6 uses INT4 weights. The payload is roughly 600 GB.' }], requiredFacts: [{ id: 'model-weights', text: 'Kimi K2.6 has roughly 600 GB of INT4 weights.', atoms: ['Kimi K2.6 uses INT4 weights', 'payload is roughly 600 GB'] }] });

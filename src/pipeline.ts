@@ -108,12 +108,13 @@ function verifyRequiredFacts(candidate: string, brief?: WritingBrief) {
     version: '1', audience: brief.audience, intent: brief.intent, channel: brief.format,
     claims: brief.requiredFacts.map((fact) => ({ ...fact, evidence: 'WritingBrief required fact.' })),
   });
+  const draftSentences = sentences(candidate);
   const reversed = brief.requiredFacts.filter((fact) => {
     const terms = fact.atoms?.length ? fact.atoms : [fact.text];
     return terms.some((term) => {
       const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const quotedDenial = new RegExp(`${escaped}(?:["']|\\s)*(?:is|was|are|were)?\\s*(?:not|false|untrue|incorrect)`, 'i');
-      return quotedDenial.test(candidate) || sentences(candidate).some((sentence) => sentence.text.toLowerCase().includes(term.toLowerCase()) && /\b(?:not|false|untrue|incorrect)\b/i.test(sentence.text));
+      return quotedDenial.test(candidate) || draftSentences.some((sentence, index) => sentence.text.toLowerCase().includes(term.toLowerCase()) && (/\b(?:not|false|untrue|incorrect)\b/i.test(sentence.text) || /^(?:that|this) (?:statement|claim|fact|assertion|point) (?:is|was) (?:not|false|untrue|incorrect)\b/i.test(draftSentences[index + 1]?.text.trim() ?? '')));
     });
   });
   if (!reversed.length) return result;

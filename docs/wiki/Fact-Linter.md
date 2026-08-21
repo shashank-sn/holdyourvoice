@@ -31,7 +31,7 @@ Add local source material to a WritingBrief to make fact lint a default HYV veri
 
 ## required facts
 
-Use `requiredFacts` when a supplied fact must remain in the final output. Every required fact must be backed by a supplied `factSources` entry. For example:
+Use `requiredFacts` when a supplied fact must remain in the final output. Every required fact must be backed by its source text or declared atoms in a supplied `factSources` entry. For example:
 
 ```json
 {

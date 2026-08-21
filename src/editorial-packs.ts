@@ -25,9 +25,13 @@ function isRequiredFacts(value: unknown): value is Array<{ id: string; text: str
 function isDenied(text: string): boolean {
   return /\b(?:not|false|untrue|incorrect)\b/i.test(text);
 }
+function isFollowUpDenial(text: string): boolean {
+  return /^(?:that|this) (?:statement|claim|fact|assertion|point) (?:is|was) (?:not|false|untrue|incorrect)\b/i.test(text.trim());
+}
 function hasAffirmedSourceText(source: string, text: string): boolean {
   const expected = text.toLowerCase();
-  return sentences(source).some((sentence) => sentence.text.toLowerCase().includes(expected) && !isDenied(sentence.text));
+  const sourceSentences = sentences(source);
+  return sourceSentences.some((sentence, index) => sentence.text.toLowerCase().includes(expected) && !isDenied(sentence.text) && !isFollowUpDenial(sourceSentences[index + 1]?.text ?? ''));
 }
 function requiredFactsAreSourced(brief: Partial<WritingBrief>): boolean {
   if (!brief.requiredFacts?.length) return true;
