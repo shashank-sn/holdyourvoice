@@ -1,6 +1,6 @@
 # getting started
 
-the public CLI is [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv) 3.3.1.
+the public CLI is [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv) 3.3.2.
 
 ```bash
 npx @holdyourvoice/hyv patterns
