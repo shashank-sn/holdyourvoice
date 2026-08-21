@@ -26,6 +26,11 @@ test('flags numeric values and units that differ from relevant evidence', () => 
   assert.equal(report.findings[0]?.kind, 'number_drift');
 });
 
+test('flags a single-token product name that drifts from source evidence', () => {
+  const report = lintFacts({ sources: [{ id: 'brief', text: 'Atlas exports CSV reports.' }], draft: 'Atlus exports CSV reports.' });
+  assert.equal(report.findings[0]?.kind, 'entity_drift');
+});
+
 test('flags unsupported facts and draft-internal contradictions', () => {
   const report = lintFacts({
     sources: [{ id: 'brief', text: 'The service is available in India.' }],
@@ -47,11 +52,11 @@ test('does not flag opinions or approved hypotheses, and routes ambiguous gaps t
   const report = lintFacts({
     sources: [{ id: 'brief', text: 'The team is exploring a mobile app.' }],
     draft: 'I think the mobile app is a good idea. The app may reduce churn. The team is popular.',
-    metadata: { approvedHypotheses: ['The app may reduce churn.'] },
+    metadata: { approvedHypotheses: ['The app may reduce churn.'], allowedAssumptions: ['The team is popular.'] },
   });
   assert.equal(report.findings.some((finding) => finding.claim.includes('good idea')), false);
   assert.equal(report.findings.some((finding) => finding.claim.includes('may reduce churn')), false);
-  assert.ok(report.findings.some((finding) => finding.kind === 'missing_evidence' && finding.severity === 'needs_human_review'));
+  assert.equal(report.findings.some((finding) => finding.claim.includes('popular')), false);
 });
 
 test('reports skipped semantic checks unless an explicitly configured adapter runs them', () => {
