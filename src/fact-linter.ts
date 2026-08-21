@@ -1,7 +1,7 @@
 import { sentences } from './text.js';
 
 export type FactClaimKind = 'fact' | 'number' | 'entity' | 'date_time' | 'causal' | 'comparative' | 'attribution_quote' | 'opinion' | 'hypothesis';
-export type FactFindingKind = 'unsupported_claim' | 'missing_evidence' | 'number_drift' | 'date_drift' | 'entity_drift' | 'quote_drift' | 'capability_drift' | 'causal_overreach' | 'comparative_overreach' | 'draft_contradiction';
+export type FactFindingKind = 'unsupported_claim' | 'missing_evidence' | 'number_drift' | 'date_drift' | 'entity_drift' | 'quote_drift' | 'capability_drift' | 'causal_overreach' | 'comparative_overreach' | 'draft_contradiction' | 'semantic_contradiction';
 export type FactSeverity = 'error' | 'warning' | 'needs_human_review';
 
 export interface FactSource { id: string; text: string; }
@@ -30,6 +30,7 @@ function hasOverlap(claim: string, source: string): boolean {
   return claimTokens.length > 0 && claimTokens.filter((token) => sourceTokens.has(token)).length / claimTokens.length >= 0.65;
 }
 function dates(value: string): string[] { return [...value.matchAll(DATE)].map((match) => new Date(match[0]).toISOString().slice(0, 10)).filter((value) => value !== ''); }
+function numbers(value: string): string[] { return value.match(/\b\d+(?:\.\d+)?\s*(?:%|days?|hours?|weeks?|months?|years?)?\b/gi) ?? []; }
 function entities(value: string): string[] { return value.match(/\b[A-Z][\p{L}\p{M}'-]+\s+[A-Z][\p{L}\p{M}'-]+\b/gu) ?? []; }
 function kindFor(text: string): FactClaimKind[] {
   const kinds: FactClaimKind[] = [];
@@ -79,6 +80,10 @@ export function lintFacts(input: FactLintInput): FactLintReport {
       findings.push(finding(claim, 'quote_drift', 'error', 'The quoted wording differs from the supplied source.', quoteEvidence, 'high', 'Use the source wording or label the text as a paraphrase.')); continue;
     }
     const claimDates = dates(claim.text); const sourceDates = relevant.flatMap(({ text }) => dates(text));
+    const claimNumbers = numbers(claim.text); const sourceNumbers = relevant.flatMap(({ text }) => numbers(text));
+    if (!claimDates.length && !claim.kinds.includes('attribution_quote') && claimNumbers.length && sourceNumbers.length && claimNumbers.some((number) => !sourceNumbers.some((sourceNumber) => normal(sourceNumber) === normal(number)))) {
+      findings.push(finding(claim, 'number_drift', 'error', 'A number or unit differs from relevant source evidence.', evidenceItems, 'high', 'Correct the number or unit, or cite a newer source.')); continue;
+    }
     if (claimDates.length && sourceDates.length && claimDates.some((date) => !sourceDates.includes(date))) {
       findings.push(finding(claim, 'date_drift', 'error', 'The draft date differs from relevant source evidence.', evidenceItems, 'high', 'Correct the date or cite a newer source.')); continue;
     }
@@ -92,8 +97,8 @@ export function lintFacts(input: FactLintInput): FactLintReport {
     if (/\b(exports?|supports|includes?|works? with|can\s+(?:export|support|include))\b/i.test(claim.text) && relevant.length) {
       findings.push(finding(claim, 'capability_drift', 'error', 'The product capability is not established by the relevant source wording.', evidenceItems, 'high', 'Align the capability with the source or add evidence.')); continue;
     }
-    const causalOverreach = claim.kinds.includes('causal') && !sourceLines.some(({ text }) => /\b(caused?|because|led to|resulted in)\b/i.test(text));
-    const comparativeOverreach = claim.kinds.includes('comparative') && !sourceLines.some(({ text }) => /\b(better|more|less|than|best|largest|fastest)\b/i.test(text));
+    const causalOverreach = claim.kinds.includes('causal') && relevant.length && !relevant.some(({ text }) => /\b(caused?|because|led to|resulted in)\b/i.test(text));
+    const comparativeOverreach = claim.kinds.includes('comparative') && relevant.length && !relevant.some(({ text }) => /\b(better|more|less|than|best|largest|fastest)\b/i.test(text));
     if (causalOverreach) findings.push(finding(claim, 'causal_overreach', 'warning', 'The sources describe an outcome but do not establish causation.', evidenceItems, 'medium', 'Use an association claim or add causal evidence.'));
     if (comparativeOverreach) findings.push(finding(claim, 'comparative_overreach', 'warning', 'The sources do not establish the comparison.', evidenceItems, 'medium', 'Narrow the comparison or add comparative evidence.'));
     if (causalOverreach || comparativeOverreach) continue;
@@ -105,7 +110,11 @@ export function lintFacts(input: FactLintInput): FactLintReport {
     if ((!relevant.length || (claim.kinds.includes('number') && !relevant.some(({ text }) => /\b\d+(?:\.\d+)?%?\b/.test(text))))) {
       findings.push(finding(claim, 'unsupported_claim', 'error', 'No supplied source supports this checkable claim.', [], 'medium', 'Add a source, remove the claim, or mark it as an approved hypothesis.')); continue;
     }
-    if (semanticAdapter && semanticAdapter.compare({ claim: claim.text, sources: input.sources }) === 'supported') continue;
+    const semantic = semanticAdapter?.compare({ claim: claim.text, sources: input.sources });
+    if (semantic === 'supported') continue;
+    if (semantic === 'contradicted') {
+      findings.push(finding(claim, 'semantic_contradiction', 'error', 'The configured semantic adapter found contradictory source evidence.', evidenceItems, 'medium', 'Review the cited sources and correct or qualify the claim.')); continue;
+    }
     findings.push(finding(claim, 'missing_evidence', 'needs_human_review', 'Relevant source material exists, but deterministic matching could not establish support.', evidenceItems, 'low', 'Review the source context or enable an approved semantic adapter.'));
   }
   const normalizedClaims = claims.map((claim) => ({ claim, text: normal(claim.text) }));

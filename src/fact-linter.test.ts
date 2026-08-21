@@ -21,6 +21,11 @@ test('flags numeric, date, entity, quote, and capability drift with exact eviden
   assert.ok(report.findings.every((finding) => finding.evidence[0]?.sourceId === 'brief' && finding.evidence[0]?.excerpt));
 });
 
+test('flags numeric values and units that differ from relevant evidence', () => {
+  const report = lintFacts({ sources: [{ id: 'brief', text: 'Acme retains exports for 12 days.' }], draft: 'Acme retains exports for 12 hours.' });
+  assert.equal(report.findings[0]?.kind, 'number_drift');
+});
+
 test('flags unsupported facts and draft-internal contradictions', () => {
   const report = lintFacts({
     sources: [{ id: 'brief', text: 'The service is available in India.' }],
@@ -55,6 +60,8 @@ test('reports skipped semantic checks unless an explicitly configured adapter ru
   const external = { id: 'remote', external: true, compare: () => 'supported' as const };
   assert.deepEqual(lintFacts({ sources: [{ id: 'brief', text: 'Atlas exists.' }], draft: 'Atlas exists.', semanticAdapter: external }).skippedChecks, ['semantic_matching']);
   assert.deepEqual(lintFacts({ sources: [{ id: 'brief', text: 'Atlas exists.' }], draft: 'Atlas exists.', semanticAdapter: external, allowExternalSemantic: true }).skippedChecks, []);
+  const contradicted = lintFacts({ sources: [{ id: 'brief', text: 'Atlas exists.' }], draft: 'Atlas is reliable.', semanticAdapter: { id: 'local', compare: () => 'contradicted' } });
+  assert.equal(contradicted.findings[0]?.kind, 'semantic_contradiction');
 });
 
 test('keeps twenty synthetic source-grounded posts as supported regression fixtures', () => {
