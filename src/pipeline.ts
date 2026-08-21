@@ -10,6 +10,7 @@ import { analyzeVoiceDna } from './voice-dna.js';
 import type { LearningPreference } from './learning.js';
 import { legacySetPreservation } from './preservation.js';
 import { lintFacts } from './fact-linter.js';
+import { sentences } from './text.js';
 
 export function analyze(text: string, profile: Profile, brief?: WritingBrief): Analysis {
   const voiceDna = analyzeVoiceDna(text, profile);
@@ -103,10 +104,20 @@ function compareCandidates(original: string, candidate: string, profile: Profile
 
 function verifyRequiredFacts(candidate: string, brief?: WritingBrief) {
   if (!brief?.requiredFacts?.length) return undefined;
-  return verifyClaims(candidate, {
+  const result = verifyClaims(candidate, {
     version: '1', audience: brief.audience, intent: brief.intent, channel: brief.format,
     claims: brief.requiredFacts.map((fact) => ({ ...fact, evidence: 'WritingBrief required fact.' })),
   });
+  const reversed = brief.requiredFacts.filter((fact) => {
+    const terms = fact.atoms?.length ? fact.atoms : [fact.text];
+    return terms.some((term) => {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const quotedDenial = new RegExp(`${escaped}(?:["']|\\s)*(?:is|was|are|were)?\\s*(?:not|false|untrue|incorrect)`, 'i');
+      return quotedDenial.test(candidate) || sentences(candidate).some((sentence) => sentence.text.toLowerCase().includes(term.toLowerCase()) && /\b(?:not|false|untrue|incorrect)\b/i.test(sentence.text));
+    });
+  });
+  if (!reversed.length) return result;
+  return { ...result, passed: false, failures: [...result.failures, ...reversed.map((fact) => ({ id: fact.id, code: 'missing_immutable_claim' as const, message: `Required fact ${fact.id} is negated or denied.`, evidence: 'WritingBrief required fact.' }))] };
 }
 
 export function verify(original: string, candidate: string, profile: Profile, brief?: WritingBrief): Verification {

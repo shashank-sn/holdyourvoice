@@ -54,6 +54,22 @@ test('blocks a final draft that drops a required source-backed fact', () => {
   assert.equal(retained.requiredFacts?.passed, true);
 });
 
+test('requires source provenance and rejects negated required facts', () => {
+  assert.throws(() => parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', requiredFacts: [{ id: 'unsupported', text: 'Mars has two moons.' }] }), /WritingBrief/);
+  assert.throws(() => parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'denial', text: 'It is false that Shashank is a LinkedIn Top Voice.' }], requiredFacts: [{ id: 'linkedin-top-voice', text: 'Shashank is a LinkedIn Top Voice.' }] }), /WritingBrief/);
+  const brief = parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'bio', text: 'Shashank is a LinkedIn Top Voice.' }], requiredFacts: [{ id: 'linkedin-top-voice', text: 'Shashank is a LinkedIn Top Voice.' }] });
+  const negated = verify('Shashank is a LinkedIn Top Voice.', 'Shashank is not a LinkedIn Top Voice.', profile, brief);
+  assert.equal(negated.requiredFacts?.passed, false);
+  const denied = verify('Shashank is a LinkedIn Top Voice.', 'The claim "Shashank is a LinkedIn Top Voice." is false.', profile, brief);
+  assert.equal(denied.requiredFacts?.passed, false);
+  assert.match(denied.requiredFacts?.failures.at(-1)?.message ?? '', /negated or denied/);
+  const affirmed = verify('Shashank is a LinkedIn Top Voice.', 'This is not a controversial claim. Shashank is a LinkedIn Top Voice.', profile, brief);
+  assert.equal(affirmed.requiredFacts?.passed, true);
+  const atomBrief = parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'model', text: 'Kimi K2.6 uses INT4 weights. The payload is roughly 600 GB.' }], requiredFacts: [{ id: 'model-weights', text: 'Kimi K2.6 has roughly 600 GB of INT4 weights.', atoms: ['Kimi K2.6 uses INT4 weights', 'payload is roughly 600 GB'] }] });
+  const atomDenial = verify('Kimi K2.6 has roughly 600 GB of INT4 weights.', 'Kimi K2.6 uses INT4 weights, which is false. The payload is roughly 600 GB.', profile, atomBrief);
+  assert.equal(atomDenial.requiredFacts?.passed, false);
+});
+
 test('runs fact lint during source-backed rebuild verification', () => {
   const brief = parseWritingBrief({ version: '1', audience: 'operators', intent: 'explain', format: 'general', factSources: [{ id: 'release', text: 'Atlas launches on 14 August 2026.' }] });
   const spec = parseCopySpec({ version: '1', audience: 'operators', intent: 'explain', channel: 'email', claims: [{ id: 'date', text: 'Atlas launches on 15 August 2026.', evidence: 'release' }] });
