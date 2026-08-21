@@ -30,6 +30,10 @@ function formattedCodepoint(codepoint: number): string {
 }
 
 function classification(codepoint: number): CharacterPolicy | undefined {
+  if ((codepoint <= 0x1f && ![0x09, 0x0a, 0x0d].includes(codepoint)) || codepoint === 0x7f) {
+    return { kind: 'ascii_control', label: 'ASCII control character', fix: 'remove' };
+  }
+  if (codepoint >= 0x80 && codepoint <= 0x9f) return { kind: 'c1_control', label: 'C1 control character', fix: 'none' };
   return CHARACTER_POLICIES.get(codepoint) ?? (codepoint >= 0xe0001 && codepoint <= 0xe007f
     ? { kind: 'tag', label: 'Unicode tag character', fix: 'none' }
     : undefined);
@@ -37,7 +41,8 @@ function classification(codepoint: number): CharacterPolicy | undefined {
 
 function policyAt(codepoint: number, offset: number): CharacterPolicy | undefined {
   const policy = classification(codepoint);
-  return codepoint === 0xfeff && offset === 0 && policy ? { ...policy, fix: 'remove' } : policy;
+  if (codepoint === 0xfeff && policy) return { ...policy, kind: offset === 0 ? 'zero_width' : 'mid_document_bom', fix: 'remove' };
+  return policy;
 }
 
 function scanHygiene(text: string, clean: boolean): { report: HygieneReport; cleaned: string; changes: HygieneChange[] } {

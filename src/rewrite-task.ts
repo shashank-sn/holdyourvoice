@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { CopySpec, DeterministicVerificationArtifactV1, HygieneRangeOperation, Profile, RewriteApplyResult, RewriteEvaluation, RewriteFailure, RewriteLifecycleBindingV1, RewriteRangeOperation, RewriteReceipt, RewriteReplacement, RewriteResponse, RewriteResponseV2, RewriteTask, WritingBrief } from './contracts.js';
 import { canonicalJson } from './canonical-json.js';
 import { parseWritingBrief } from './editorial-packs.js';
-import { hygieneSourceFindings } from './hygiene.js';
+import { finalOutputCheck, hygieneSourceFindings } from './hygiene.js';
 import { analyze, deriveEditScope, renderRewritePrompt, verifyDeterministically } from './pipeline.js';
 import { sentences } from './text.js';
 
@@ -232,10 +232,17 @@ function applyRangeResponse(task: RewriteTask, response: RewriteResponseV2, raw:
 export function evaluateRewriteResponse(task: RewriteTask, raw: unknown, profile: Profile): RewriteEvaluation {
   const applied = applyRewriteResponse(task, raw);
   if (applied.status !== 'accepted' || !applied.candidate) return applied;
-  const { verification, artifact: deterministicArtifact } = verifyDeterministically(task.draft, applied.candidate, profile, task.copySpec, task.writingBrief);
-  if (!verification.passed) return { ...applied, status: 'needs_escalation', verification };
+  const output = finalOutputCheck(applied.candidate);
+  const candidate = output.accepted ? output.output : applied.candidate;
+  const checked = verifyDeterministically(task.draft, candidate, profile, task.copySpec, task.writingBrief);
+  const verification = { ...checked.verification, finalOutput: output };
+  const deterministicArtifact = checked.artifact;
+  if (!verification.passed) {
+    const { candidate: _candidate, ...withheld } = applied;
+    return { ...withheld, status: 'needs_escalation', verification };
+  }
   const lifecycleBinding = createRewriteLifecycleBinding(task, applied.receipt, deterministicArtifact);
-  return { ...applied, status: 'needs_semantic_review', verification, deterministicArtifact, lifecycleBinding };
+  return { ...applied, candidate, status: 'needs_semantic_review', verification, deterministicArtifact, lifecycleBinding };
 }
 
 export function createRewriteLifecycleBinding(task: RewriteTask, receipt: RewriteReceipt, deterministic: DeterministicVerificationArtifactV1): RewriteLifecycleBindingV1 {

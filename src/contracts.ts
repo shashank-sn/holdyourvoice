@@ -128,7 +128,7 @@ export interface BatchReport {
   passed: true;
 }
 
-export type HygieneKind = 'zero_width' | 'bidi' | 'tag' | 'unusual_space';
+export type HygieneKind = 'ascii_control' | 'c1_control' | 'mid_document_bom' | 'zero_width' | 'bidi' | 'tag' | 'unusual_space';
 
 interface HygieneHitBase {
   codepoint: string;
@@ -164,6 +164,39 @@ export interface HygieneChange {
   action: 'removed';
 }
 
+export type HiddenTextAction = 'remove' | 'preserve' | 'review' | 'reject';
+export type HiddenTextKind = 'ascii_control' | 'c1_control' | 'mid_document_bom' | 'zero_width' | 'bidi' | 'tag' | 'unusual_space' | 'confusable';
+
+export interface HiddenTextPolicyV1 {
+  version: '1';
+  name: 'minimal-text-control-cleanup';
+  approvedRemovals: Array<'ascii_control' | 'mid_document_bom'>;
+  acknowledgement: 'Removes only listed non-semantic controls; all other findings remain review-only.';
+}
+
+export interface HiddenTextFindingV1 {
+  kind: HiddenTextKind;
+  action: HiddenTextAction;
+  codepoint: string;
+  offset: number;
+  reason: string;
+}
+
+export interface HiddenTextReportV1 {
+  version: '1';
+  inputHash: string;
+  policyFingerprint: string;
+  findings: HiddenTextFindingV1[];
+  proposedChanges: HygieneChange[];
+}
+
+export interface HiddenTextApplyReceiptV1 extends HiddenTextReportV1 {
+  outputHash: string;
+  output: string;
+  remaining: HiddenTextFindingV1[];
+  idempotent: boolean;
+}
+
 export interface Analysis {
   version: string;
   voiceDna: EngineReport;
@@ -179,6 +212,7 @@ export interface Verification {
   candidate: Analysis;
   preservationScore: number;
   regressions: Finding[];
+  finalOutput: FinalOutputCheck;
   factLint?: import('./fact-linter.js').FactLintReport;
   requiredFacts?: ClaimVerification;
   passed: boolean;
@@ -278,7 +312,7 @@ export interface RewriteResponseV2 {
   hygieneOperations?: HygieneRangeOperation[];
 }
 
-export type RewriteFailureCode = 'invalid_json' | 'invalid_response_shape' | 'invalid_response_version' | 'task_fingerprint_mismatch' | 'duplicate_sentence_id' | 'unknown_sentence_id' | 'ineligible_sentence_id' | 'invalid_replacement_text' | 'response_too_large' | 'overlapping_range' | 'noncontiguous_range' | 'out_of_order_range' | 'partly_locked_range' | 'ineligible_hygiene_offset' | 'rebuild_response_on_edit_task' | 'edit_response_on_rebuild_task' | 'invalid_candidate_text';
+export type RewriteFailureCode = 'invalid_json' | 'invalid_response_shape' | 'invalid_response_version' | 'task_fingerprint_mismatch' | 'duplicate_sentence_id' | 'unknown_sentence_id' | 'ineligible_sentence_id' | 'invalid_replacement_text' | 'response_too_large' | 'overlapping_range' | 'noncontiguous_range' | 'out_of_order_range' | 'partly_locked_range' | 'ineligible_hygiene_offset' | 'rebuild_response_on_edit_task' | 'edit_response_on_rebuild_task' | 'invalid_candidate_text' | 'lexical_residual_exceeds_policy';
 
 export type JudgmentStage = 'pre-edit' | 'post-candidate';
 export type JudgmentKind = 'triage' | 'argument' | 'form' | 'polarity' | 'flatness' | 'semantic';
@@ -348,6 +382,8 @@ export interface RewriteReceipt {
   preservationScore?: number;
   authorizationFingerprint?: string;
   recommendationFingerprint?: string;
+  lexicalResidual?: LexicalResidualReportV1;
+  provenanceStatus?: ProvenanceStatusV1;
 }
 
 export interface RewriteApplyResult {
@@ -375,6 +411,45 @@ export interface RebuildTask {
   authorizationFingerprint: string;
   profileId: string;
   profileRevisionDigest: string;
+  recompositionPolicy?: RecompositionPolicyV1;
+}
+
+export interface RebuildWriterRequestV1 {
+  version: '1';
+  taskFingerprint: string;
+  prompt: string;
+  copySpecFingerprint: string;
+  recompositionPolicyFingerprint?: string;
+}
+
+export type ProvenanceStatusV1 =
+  | { version: '1'; state: 'not_configured' }
+  | { version: '1'; state: 'unknown'; reason: 'private_or_unavailable_verifier' }
+  | { version: '1'; state: 'verified_present'; verifier: { id: string; version: string }; evidenceFingerprint: string }
+  | { version: '1'; state: 'verified_clear'; verifier: { id: string; version: string }; evidenceFingerprint: string }
+  | { version: '1'; state: 'inconclusive'; verifier: { id: string; version: string }; reason: string };
+
+export interface RecompositionPolicyV1 {
+  version: '1';
+  mode: 'meaning-first';
+  lexicalResidual: {
+    ngramSize: 5;
+    maxSharedNgramFraction: number;
+    maxLongestSharedRunTokens: number;
+  };
+  acknowledgement: 'Measures shared wording only; does not detect or prove removal of a watermark.';
+}
+
+export interface LexicalResidualReportV1 {
+  version: '1';
+  sourceTokenCount: number;
+  candidateTokenCount: number;
+  ngramSize: 5;
+  sharedNgramFraction: number;
+  longestSharedRunTokens: number;
+  allowedResiduals: Array<{ reason: 'copy-spec-claim' | 'copy-spec-atom'; count: number }>;
+  passed: boolean;
+  statement: 'Lexical overlap is not a watermark detector.';
 }
 
 export interface RebuildResponse {

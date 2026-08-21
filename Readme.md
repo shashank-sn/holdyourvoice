@@ -94,9 +94,9 @@ producer | hyv final-check -
 hyv final-check final-response.md
 ```
 
-Clean text is written to stdout byte-for-byte. A leading U+FEFF byte-order mark is removed before output. When other hidden Unicode remains, stdout stays empty, the report goes to stderr, and the command exits `2`. Put this command immediately before display, copy, export, posting, or an API response. The producer and the presence of a VoiceDNA profile do not change the policy.
+Clean text is written to stdout byte-for-byte. The gate removes only non-semantic ASCII controls and byte-order marks. When any other hidden Unicode remains, stdout stays empty, the report goes to stderr, and the command exits `2`. Put this command immediately before display, copy, export, posting, or an API response. The producer and the presence of a VoiceDNA profile do not change the policy.
 
-This is an integration boundary, not a background interceptor. A GUI, agent host, or external tool must pass its exact final text to `hyv final-check -` or the read-only `hyv_final_check` MCP tool and deliver only accepted output. Run it after the last rewrite, formatter, template expansion, or manual edit; checking an earlier draft does not cover later changes.
+This is an integration boundary, not a background interceptor. HYV applies the same gate by default during rewrite and rebuild verification; unresolved output is withheld from their CLI and MCP evaluation result. A GUI, agent host, or external tool must still pass any later changed text to `hyv final-check -` or the read-only `hyv_final_check` MCP tool and deliver only accepted output. Run it after the last rewrite, formatter, template expansion, or manual edit; checking an earlier draft does not cover later changes.
 
 ### Inspect and clean hidden Unicode
 
@@ -113,7 +113,16 @@ hyv hygiene draft.md --fix
 hyv hygiene draft.md --fix --output=review-copy.md
 ```
 
-The fix receipt lists every changed UTF-16 offset and code point. The conservative cleaner removes only a leading U+FEFF byte-order mark. It reports other zero-width characters, unusual spaces, bidirectional controls, and tag characters without changing them because they can carry legitimate language, typography, or emoji behavior. Existing output files are never overwritten.
+The fix receipt lists every changed UTF-16 offset and code point. The conservative cleaner removes ASCII controls and byte-order marks. It reports other zero-width characters, unusual spaces, bidirectional controls, and tag characters without changing them because they can carry legitimate language, typography, or emoji behavior. Existing output files are never overwritten.
+
+For a deliberately narrow, policy-backed cleanup of non-semantic ASCII controls and mid-document byte-order marks, inspect first and write a separate result:
+
+```bash
+hyv inspect-hidden-text draft.md policy.json
+hyv apply-hidden-text-policy draft.md policy.json draft.sanitized.md
+```
+
+The receipt carries the input/output hashes, exact changes, remaining review findings, and an idempotence result. It does not label Unicode findings as watermarks or claim that any provider watermark was removed.
 
 ### Add contextual editorial guidance
 
@@ -272,12 +281,14 @@ The tool never applies changes to your draft. You decide which findings are vali
 3. **EDIT** applies eligible sentence replacements or contiguous range edits through `prepare-rewrite` / `apply-rewrite`. Clean and unflagged text stays in place. Overlapping, out-of-order, or partly locked ranges fail before a candidate is built.
 4. **REBUILD** prepares a whole-document candidate only after a matching REBUILD recommendation, a CopySpec, and a signed `hyv.rebuild-authorization` capability. `prepare-rebuild` / `apply-rebuild` re-check that capability and the bound profile. Claim, polarity, hygiene, and semantic gates stay in force. Edit and rebuild responses are mutually incompatible.
 
+For a meaning-first recomposition, pass an explicit lexical-residual policy to `prepare-rebuild`. HYV gives the external writer structured facts and constraints rather than automatically including the source draft in its prompt, then measures shared wording after the candidate returns. A passed residual report means only that the candidate meets the configured overlap policy. It does not detect, remove, or prove the absence of a provider watermark, and it does not establish authorship.
+
 ```bash
 hyv prepare-judgment pre-edit argument draft.md profile.json task.json
 hyv reduce-judgment envelope-a.json envelope-b.json envelope-c.json
 hyv prepare-rewrite draft.md profile.json task.json
 hyv apply-rewrite task.json response.json profile.json
-hyv prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json --capability-file capability.json
+hyv prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json --recomposition-policy policy.json --capability-file capability.json
 hyv apply-rebuild task.json response.json profile.json --capability-file capability.json
 ```
 
@@ -359,7 +370,7 @@ The preservation score is a guardrail based on retained original words longer th
 | `hyv apply-rewrite <task.json> <response.json> <profile.json>` | Task, response, and profile | Candidate evaluation JSON | A host needs to apply and recheck eligible sentence replacements. |
 | `hyv prepare-judgment <pre-edit\|post-candidate> <kind> <draft> <profile.json> <task.json> [candidate.md]` | Draft, profile, and optional candidate | Versioned judgment task | Findings need a SHIP, EDIT, or REBUILD recommendation. |
 | `hyv reduce-judgment <envelope.json> <envelope.json> [envelope.json...]` | Signed judgment envelopes | Recommendation JSON | Multiple judgment envelopes must reduce to one decision. |
-| `hyv prepare-rebuild <draft> <profile.json> <reduction.json> <copy-spec.json> <task.json>` | Draft, recommendation, CopySpec, and capability | Versioned rebuild task | An upstream REBUILD recommendation needs a whole-document candidate. |
+| `hyv prepare-rebuild <draft> <profile.json> <reduction.json> <copy-spec.json> <task.json> [--recomposition-policy policy.json]` | Draft, recommendation, CopySpec, capability, and optional policy | Versioned rebuild task | An upstream REBUILD recommendation needs a whole-document candidate; an optional policy makes it meaning-first and adds lexical-residual evidence. |
 | `hyv apply-rebuild <task.json> <response.json> <profile.json>` | Task, response, profile, and capability | Candidate evaluation JSON | A host needs to apply and recheck an authorized rebuild. |
 | `hyv verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code | You need the candidate gate. |
 | `hyv verify-spec <original> <candidate> <profile.json> <copy-spec.json>` | Original, candidate, profile, CopySpec | Verification JSON with hard claim gate | A brief contains locked facts or prohibited claims. |
@@ -388,6 +399,7 @@ The standalone CLI supports normal-policy semantic review. High-assurance review
 | `src/rewrite-task.ts` | Prepares and evaluates fingerprint-bound sentence-replacement and range-edit tasks. |
 | `src/judgment-task.ts` | Reduces pre-edit SHIP/EDIT/REBUILD recommendations and post-candidate clearance. |
 | `src/rebuild-task.ts` | Prepares whole-document rebuild after a matching recommendation, CopySpec, and signed capability. |
+| `src/recomposition.ts` | Builds meaning-first rebuild briefs and measures declared lexical-residual evidence. |
 | `src/semantic-review.ts` | Defines and reduces semantic and human-review lifecycle artifacts. |
 | `src/approval-capability.ts` | Verifies canonical signed approval capabilities. |
 | `src/approval-context.ts` | Loads permission-checked trust roots and evaluator authorization. |

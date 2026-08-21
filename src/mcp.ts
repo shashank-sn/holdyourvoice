@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { analyzeBatchForMcp, analyzeForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, rebuildWriterRequestForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { HYV_VERSION } from './version.js';
 import { loadApprovalContext } from './approval-context.js';
 
@@ -71,6 +71,16 @@ server.registerTool('hyv_hygiene', {
   inputSchema: { draft: hygieneText },
   annotations: { readOnlyHint: true },
 }, async ({ draft }) => json(inspectHygieneForMcp(draft)));
+
+server.registerTool('hyv_inspect_hidden_text', {
+  description: 'Inspect hidden text controls with a non-mutating policy report. Findings are not watermark verdicts.',
+  inputSchema: { text: hygieneText, policy_json: lifecycleJson.optional() }, annotations: { readOnlyHint: true },
+}, async ({ text, policy_json }) => json(inspectHiddenTextForMcp(text, policy_json)));
+
+server.registerTool('hyv_apply_hidden_text_policy', {
+  description: 'Apply only explicitly approved minimal hidden-text removals and return hashes, exact changes, and remaining review findings.',
+  inputSchema: { text: hygieneText, policy_json: lifecycleJson }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+}, async ({ text, policy_json }) => json(applyHiddenTextPolicyForMcp(text, policy_json)));
 
 server.registerTool('hyv_final_check', {
   description: 'Gate exact user-facing text from any model, tool, or interface. Returns output only when clean or after removing a leading byte-order mark; unresolved hidden characters withhold output.',
@@ -260,17 +270,18 @@ if (redactsSensitiveInputs) {
       copy_spec_json: copySpecJson,
       capability_json: lifecycleJson,
       writing_brief_json: writingBriefJson.optional(),
+      recomposition_policy_json: lifecycleJson.optional(),
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async (args) => {
     try {
-      return json(prepareRebuildForMcp(args.draft, args.profile_json, args.reduction_json, args.copy_spec_json, args.capability_json, loadApprovalContext(), args.writing_brief_json));
+      return json(prepareRebuildForMcp(args.draft, args.profile_json, args.reduction_json, args.copy_spec_json, args.capability_json, loadApprovalContext(), args.writing_brief_json, args.recomposition_policy_json));
     } catch {
       return failure(new Error('Rebuild preparation failed.'));
     }
   });
 
-  server.registerTool('hyv_apply_rebuild', {
+server.registerTool('hyv_apply_rebuild', {
     description: 'Validate and evaluate a whole-document rebuild response against a prepared authorized rebuild task. Capability input requires host-guaranteed sensitive-input redaction. It never calls a provider.',
     inputSchema: { task_json: lifecycleJson, response_json: z.string().min(1).max(100_000), profile_json: profileJson, capability_json: lifecycleJson },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
@@ -280,7 +291,14 @@ if (redactsSensitiveInputs) {
     } catch {
       return failure(new Error('Rebuild application failed.'));
     }
-  });
+});
+
+server.registerTool('hyv_rebuild_writer_request', {
+  description: 'Create the writer-only payload for a prepared rebuild. It excludes source draft, capability, profile body, and validation evidence.',
+  inputSchema: { task_json: lifecycleJson }, annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+}, async ({ task_json }) => {
+  try { return json(rebuildWriterRequestForMcp(task_json)); } catch { return failure(new Error('Writer request could not be prepared.')); }
+});
 } else {
   server.registerTool('hyv_lifecycle_finalize', {
     description: 'Record an authorized human rejection. Approval is unavailable because this host does not guarantee sensitive-input redaction.',

@@ -134,6 +134,32 @@ test('inspects stdin and refuses to clean it without a preservable input file', 
   assert.match(refused.stderr, /requires a file path/);
 });
 
+test('applies the explicit hidden-text policy through CLI without touching review-only Unicode', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-hidden-text-'));
+  try {
+    const draft = join(directory, 'draft.md');
+    const policy = join(directory, 'hidden-text-policy.json');
+    const output = join(directory, 'draft.sanitized.md');
+    const original = 'before\u0007middle\uFEFFafter\u200D';
+    writeFileSync(draft, original);
+    writeFileSync(policy, JSON.stringify({ version: '1', name: 'minimal-text-control-cleanup', approvedRemovals: ['ascii_control', 'mid_document_bom'], acknowledgement: 'Removes only listed non-semantic controls; all other findings remain review-only.' }));
+
+    const inspected = run(['inspect-hidden-text', draft, policy]);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    assert.deepEqual(JSON.parse(inspected.stdout).proposedChanges.map((change: { codepoint: string }) => change.codepoint), ['U+0007', 'U+FEFF']);
+
+    const applied = run(['apply-hidden-text-policy', draft, policy, output]);
+    assert.equal(applied.status, 0, applied.stderr);
+    const receipt = JSON.parse(applied.stdout);
+    assert.equal(receipt.idempotent, true);
+    assert.equal(readFileSync(draft, 'utf8'), original);
+    assert.equal(readFileSync(output, 'utf8'), 'beforemiddleafter\u200D');
+    assert.equal(receipt.remaining[0].codepoint, 'U+200D');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('gates final output from any producer without a voice profile', () => {
   const clean = run(['final-check', '-'], process.env, 'exact output\n');
   assert.equal(clean.status, 0, clean.stderr);
@@ -166,7 +192,7 @@ test('uses exit code 2 for a failed candidate gate and 1 for misuse', () => {
     assert.equal(run(['profile', profile, first, second, '--avoid=unlock']).status, 0);
     const verification = run(['verify', original, candidate, profile]);
     assert.equal(verification.status, 2);
-    assert.deepEqual(Object.keys(JSON.parse(verification.stdout)).sort(), ['candidate', 'original', 'passed', 'preservationScore', 'regressions', 'version']);
+    assert.deepEqual(Object.keys(JSON.parse(verification.stdout)).sort(), ['candidate', 'finalOutput', 'original', 'passed', 'preservationScore', 'regressions', 'version']);
     assert.equal(run(['unknown-command']).status, 1);
     assert.equal(run(['mcp', 'unexpected']).status, 1);
   } finally {
@@ -430,12 +456,13 @@ test('prepares and applies an authorized rebuild through CLI', () => {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-rebuild-'));
   try {
     const first = join(directory, 'first.md'); const second = join(directory, 'second.md'); const profile = join(directory, 'profile.json');
-    const draft = join(directory, 'draft.md'); const spec = join(directory, 'copy-spec.json');
+    const draft = join(directory, 'draft.md'); const spec = join(directory, 'copy-spec.json'); const policy = join(directory, 'recomposition-policy.json');
     const reduction = join(directory, 'reduction.json'); const task = join(directory, 'rebuild-task.json');
-    const response = join(directory, 'response.json'); const capability = join(directory, 'capability.json');
+    const response = join(directory, 'response.json'); const capability = join(directory, 'capability.json'); const writerRequest = join(directory, 'writer-request.json');
     writeFileSync(first, 'I write plainly. I name the work.'); writeFileSync(second, 'I keep the mechanism clear. I avoid filler.');
     writeFileSync(draft, 'I leverage the answer. The launch is on 14 August.');
     writeFileSync(spec, JSON.stringify({ version: '1', audience: 'operators', intent: 'explain', channel: 'email', claims: [{ id: 'launch-date', text: 'The launch is on 14 August.', evidence: 'Release calendar, 7 August.' }] }));
+    writeFileSync(policy, JSON.stringify({ version: '1', mode: 'meaning-first', lexicalResidual: { ngramSize: 5, maxSharedNgramFraction: 0, maxLongestSharedRunTokens: 4 }, acknowledgement: 'Measures shared wording only; does not detect or prove removal of a watermark.' }));
     assert.equal(run(['profile', profile, first, second, '--avoid=leverage']).status, 0);
     const envelopes = (['triage', 'argument', 'form'] as const).map((kind) => {
       const taskPath = join(directory, `${kind}.json`);
@@ -467,8 +494,13 @@ test('prepares and applies an authorized rebuild through CLI', () => {
     const payload = Buffer.from(canonicalJson(claims));
     writeFileSync(capability, canonicalJson({ payload: payload.toString('base64url'), signature: sign(null, payload, privateKey).toString('base64url') }));
     chmodSync(capability, 0o600);
-    const prepared = run(['prepare-rebuild', draft, profile, reduction, spec, task, '--capability-file', capability], env);
+    const prepared = run(['prepare-rebuild', draft, profile, reduction, spec, task, '--recomposition-policy', policy, '--capability-file', capability], env);
     assert.equal(prepared.status, 0, prepared.stderr);
+    assert.match(JSON.parse(prepared.stdout).recompositionPolicy.acknowledgement, /not detect/);
+    assert.doesNotMatch(JSON.parse(readFileSync(task, 'utf8')).prompt, /I leverage the answer/);
+    const writer = run(['rebuild-writer-request', task, writerRequest]);
+    assert.equal(writer.status, 0, writer.stderr);
+    assert.doesNotMatch(readFileSync(writerRequest, 'utf8'), /I leverage the answer|capability|profile/i);
     writeFileSync(response, JSON.stringify({
       version: '1', mode: 'REBUILD', taskFingerprint: JSON.parse(readFileSync(task, 'utf8')).fingerprint,
       candidate: 'Ship planning now treats one calendar fact as fixed. The launch is on 14 August. Every other sentence in this note is new operational language for the release desk.',
@@ -476,6 +508,7 @@ test('prepares and applies an authorized rebuild through CLI', () => {
     const applied = run(['apply-rebuild', task, response, profile, '--capability-file', capability], env);
     assert.equal(applied.status, 2, applied.stderr);
     assert.equal(JSON.parse(applied.stdout).status, 'needs_semantic_review');
+    assert.equal(JSON.parse(applied.stdout).receipt.lexicalResidual.passed, true);
     assert.equal(run(['apply-rebuild', task, response, profile], env).status, 1);
   } finally {
     rmSync(directory, { recursive: true, force: true });

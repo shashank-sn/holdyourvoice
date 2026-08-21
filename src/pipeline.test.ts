@@ -101,6 +101,13 @@ test('post gate reports a new AI regression', () => {
   assert.equal(result.candidate.aiEditor.passed, false);
 });
 
+test('verification applies the final-output gate by default', () => {
+  const result = verify('I ship clear ideas.', 'I ship clear ideas.\u200B', profile);
+  assert.equal(result.passed, false);
+  assert.equal(result.finalOutput.accepted, false);
+  assert.equal('output' in result.finalOutput, false);
+});
+
 test('advisory and pending-judgment findings pass while blocking findings fail', () => {
   const advisory = analyze('Firstly, check the invoice.', profile);
   assert.equal(advisory.passed, true);
