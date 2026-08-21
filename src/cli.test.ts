@@ -191,6 +191,24 @@ test('fails the CopySpec gate when a locked claim changes', () => {
   }
 });
 
+test('reports fact consistency as JSON or compact text and only fails strict mode on errors', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-fact-lint-'));
+  try {
+    const source = join(directory, 'source.md'); const draft = join(directory, 'draft.md');
+    writeFileSync(source, 'Atlas launched on 14 August 2026 and exports CSV reports.');
+    writeFileSync(draft, 'Atlas launched on 15 August 2026 and exports CSV reports.');
+    const report = run(['fact-lint', draft, `--source=release:${source}`]);
+    assert.equal(report.status, 0, report.stderr);
+    assert.equal(JSON.parse(report.stdout).findings[0].kind, 'date_drift');
+    assert.equal(run(['fact-lint', draft, `--source=release:${source}`, '--strict']).status, 2);
+    const compact = run(['fact-lint', draft, `--source=release:${source}`, '--human']);
+    assert.equal(compact.status, 0, compact.stderr);
+    assert.match(compact.stdout, /date_drift/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('prepares and applies the same constrained rewrite task without a provider call', () => {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
   try {

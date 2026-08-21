@@ -4,6 +4,8 @@
 
 [cli reference](CLI-Reference)
 
+[fact linter](Fact-Linter)
+
 [faq and troubleshooting](FAQ-and-Troubleshooting)
 
 [core concepts](Core-Concepts)

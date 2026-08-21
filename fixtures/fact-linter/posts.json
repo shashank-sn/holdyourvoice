@@ -1,0 +1,22 @@
+[
+  {"id":"01-launch-date","source":"Atlas launches on 14 August 2026.","draft":"Atlas launches on 14 August 2026."},
+  {"id":"02-csv-export","source":"Atlas exports reports as CSV.","draft":"Atlas exports reports as CSV."},
+  {"id":"03-region","source":"The beta is available in India.","draft":"The beta is available in India."},
+  {"id":"04-team-size","source":"The support team has 12 people.","draft":"The support team has 12 people."},
+  {"id":"05-quote","source":"Maya Chen said, \"We support 12 teams\".","draft":"Maya Chen said, \"We support 12 teams\"."},
+  {"id":"06-security","source":"Atlas encrypts exports at rest.","draft":"Atlas encrypts exports at rest."},
+  {"id":"07-api","source":"The API returns JSON.","draft":"The API returns JSON."},
+  {"id":"08-window","source":"Support responds within two business days.","draft":"Support responds within two business days."},
+  {"id":"09-migration","source":"Migration keeps the previous workspace available.","draft":"Migration keeps the previous workspace available."},
+  {"id":"10-pricing","source":"The starter plan costs $49 per month.","draft":"The starter plan costs $49 per month."},
+  {"id":"11-availability","source":"The service is available on Monday.","draft":"The service is available on Monday."},
+  {"id":"12-format","source":"The report includes a CSV attachment.","draft":"The report includes a CSV attachment."},
+  {"id":"13-owner","source":"Nina Patel owns the rollout.","draft":"Nina Patel owns the rollout."},
+  {"id":"14-retention","source":"The archive retains data for 30 days.","draft":"The archive retains data for 30 days."},
+  {"id":"15-status","source":"The incident is resolved.","draft":"The incident is resolved."},
+  {"id":"16-integration","source":"Atlas works with Slack.","draft":"Atlas works with Slack."},
+  {"id":"17-language","source":"The guide is available in English.","draft":"The guide is available in English."},
+  {"id":"18-channel","source":"Updates are posted in the changelog.","draft":"Updates are posted in the changelog."},
+  {"id":"19-access","source":"Administrators can export audit logs.","draft":"Administrators can export audit logs."},
+  {"id":"20-review","source":"The review starts on 1 September 2026.","draft":"The review starts on 1 September 2026."}
+]

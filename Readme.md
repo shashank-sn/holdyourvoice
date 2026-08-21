@@ -29,7 +29,7 @@ Hold Your Voice keeps the work visible:
 | Did the rewrite introduce a new blocker or replace too much? | Verification | Regressions, preservation score, and a release decision. |
 | Should this draft ship, take a bounded edit, or rebuild? | Judgment | A SHIP, EDIT, or REBUILD recommendation bound to the draft and profile. |
 
-Its scope is a local writing gate. Authorship detection, fact checking, plagiarism review, and hosted generation each need their own tools. Hold Your Voice gives a writer or chosen model a narrow editing brief, then asks the same two engines to inspect the result.
+Its scope is a local writing gate. It includes a source-consistency fact linter, not a truth engine: it checks a final draft against the evidence you provide. Authorship detection, plagiarism review, and hosted generation each need their own tools.
 
 ## Start here
 
@@ -196,7 +196,19 @@ Use `verify-spec` when a draft has claims that must remain verbatim unless they 
 hyv verify-spec original.md candidate.md profile.json copy-spec.json
 ```
 
-The check is deterministic. Without `atoms`, an immutable claim remains a verbatim sentence check. With `atoms`, every declared phrase must remain somewhere in the candidate, allowing independent facts to be split or reordered. Atoms are lexical-presence checks, not factual validation: put the whole relationship in one atom when it must stay true (for example, `Kimi K2.6 uses INT4 weights` rather than `INT4`). It covers declared claims and prohibited text; arbitrary unsupported assertions need a separate factual evaluator.
+The check is deterministic. Without `atoms`, an immutable claim remains a verbatim sentence check. With `atoms`, every declared phrase must remain somewhere in the candidate, allowing independent facts to be split or reordered. Atoms are lexical-presence checks, not factual validation.
+
+### Check factual consistency with supplied sources
+
+`fact-lint` compares a final draft with local evidence. It extracts claims with sentence and UTF-16 offsets, checks dates, names, quotes, capabilities, causal/comparative escalation, and draft contradictions, then returns JSON with exact local evidence.
+
+```bash
+hyv fact-lint final.md --source=release:release-notes.md --source=research:research.md
+hyv fact-lint final.md --source=release:release-notes.md --human
+hyv fact-lint final.md --source=release:release-notes.md --strict
+```
+
+The default is report-only and exits `0`; `--strict` exits `2` for error findings. Unknown deterministic matches become `needs_human_review`. No source text leaves the process by default. The linter checks consistency with supplied evidence; it does not prove the sources are true. See the [fact linter guide](docs/wiki/Fact-Linter.md).
 
 ### Local voice memory
 
