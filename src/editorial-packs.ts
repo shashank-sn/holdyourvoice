@@ -11,6 +11,33 @@ function isText(value: unknown, limit: number): value is string {
 function isTerms(value: unknown): value is string[] {
   return Array.isArray(value) && value.length <= 100 && value.every((term) => isText(term, 200));
 }
+function isFactSources(value: unknown): value is Array<{ id: string; text: string }> {
+  return Array.isArray(value) && value.length > 0 && value.length <= 20 && value.every((source) => !!source && typeof source === 'object' && isText((source as { id?: unknown }).id, 100) && isText((source as { text?: unknown }).text, 40_000)) && value.reduce((total, source) => total + source.id.length + source.text.length, 0) <= 40_000;
+}
+function isFactMetadata(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const metadata = value as { allowedAssumptions?: unknown; approvedHypotheses?: unknown };
+  return (metadata.allowedAssumptions === undefined || isTerms(metadata.allowedAssumptions)) && (metadata.approvedHypotheses === undefined || isTerms(metadata.approvedHypotheses));
+}
+function isRequiredFacts(value: unknown): value is Array<{ id: string; text: string; atoms?: string[] }> {
+  return Array.isArray(value) && value.length > 0 && value.length <= 50 && value.every((fact) => !!fact && typeof fact === 'object' && isText((fact as { id?: unknown }).id, 100) && /^[A-Za-z0-9._-]+$/.test((fact as { id: string }).id) && isText((fact as { text?: unknown }).text, 2_000) && ((fact as { atoms?: unknown }).atoms === undefined || isTerms((fact as { atoms: unknown }).atoms)));
+}
+function isDenied(text: string): boolean {
+  return /\b(?:not|false|untrue|incorrect)\b/i.test(text);
+}
+function isFollowUpDenial(text: string): boolean {
+  return /^(?:that|this) (?:statement|claim|fact|assertion|point) (?:is|was) (?:not|false|untrue|incorrect)\b/i.test(text.trim());
+}
+function hasAffirmedSourceText(source: string, text: string): boolean {
+  const expected = text.toLowerCase();
+  const sourceSentences = sentences(source);
+  return sourceSentences.some((sentence, index) => sentence.text.toLowerCase().includes(expected) && !isDenied(sentence.text) && !isFollowUpDenial(sourceSentences[index + 1]?.text ?? ''));
+}
+function requiredFactsAreSourced(brief: Partial<WritingBrief>): boolean {
+  if (!brief.requiredFacts?.length) return true;
+  if (!brief.factSources?.length) return false;
+  return brief.requiredFacts.every((fact) => brief.factSources?.some((source) => hasAffirmedSourceText(source.text, fact.text) || (fact.atoms?.length && fact.atoms.every((atom) => hasAffirmedSourceText(source.text, atom)))));
+}
 
 function isArgumentMap(value: unknown): value is ArgumentMap {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -27,7 +54,11 @@ export function parseWritingBrief(value: unknown): WritingBrief {
     || (brief.prohibitedTerms !== undefined && !isTerms(brief.prohibitedTerms))
     || (brief.title !== undefined && !isText(brief.title, 500))
     || (brief.evidenceStatus !== undefined && !evidenceStatuses.includes(brief.evidenceStatus))
-    || (brief.argumentMap !== undefined && !isArgumentMap(brief.argumentMap))) {
+    || (brief.argumentMap !== undefined && !isArgumentMap(brief.argumentMap))
+    || (brief.factSources !== undefined && !isFactSources(brief.factSources))
+    || (brief.factMetadata !== undefined && !isFactMetadata(brief.factMetadata))
+    || (brief.requiredFacts !== undefined && !isRequiredFacts(brief.requiredFacts))
+    || !requiredFactsAreSourced(brief)) {
     throw new Error('WritingBrief needs version "1", audience, intent, a known format, and optional bounded context fields.');
   }
   return brief as WritingBrief;

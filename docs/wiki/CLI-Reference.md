@@ -5,6 +5,7 @@ node dist/cli.js profile profile.json sample-a.md sample-b.md [--avoid=phrase]
 node dist/cli.js analyze draft.md profile.json [writing-brief.json]
 node dist/cli.js hygiene draft.md [--fix] [--output=cleaned.md]
 node dist/cli.js final-check <path|->
+node dist/cli.js fact-lint <draft|-> --source=id:path [--source=id:path] [--metadata=metadata.json] [--strict] [--human]
 node dist/cli.js batch-analyze draft-a.md draft-b.md [draft-c.md]
 node dist/cli.js rewrite-prompt draft.md profile.json [writing-brief.json] > rewrite-brief.md
 node dist/cli.js prepare-rewrite draft.md profile.json task.json [copy-spec.json] [writing-brief.json]

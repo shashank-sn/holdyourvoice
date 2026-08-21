@@ -4,6 +4,8 @@
 
 a candidate passes only when VoiceDNA passes, AI Editor passes, no new red regression appears, and lexical preservation is at least 70. lexical preservation only measures retained longer words. a human must still check facts, intent, and sources.
 
+when a WritingBrief supplies `factSources`, verification also runs the local fact linter. Error findings fail verification. `needs_human_review` findings remain visible for a human decision; they do not become unsupported-claim errors by guesswork. `requiredFacts` must be source-backed and must not be dropped, negated, or denied.
+
 authorized rebuild keeps claim, polarity, hygiene, fingerprint, and semantic gates. low lexical survival is allowed only on that signed rebuild path.
 
 use exit code `2` for a failed candidate and exit code `1` for a usage or runtime failure. `apply-rewrite`, `apply-rebuild`, `lifecycle submit-verdict`, and `lifecycle finalize` follow the same exit codes.

@@ -29,7 +29,7 @@ Hold Your Voice keeps the work visible:
 | Did the rewrite introduce a new blocker or replace too much? | Verification | Regressions, preservation score, and a release decision. |
 | Should this draft ship, take a bounded edit, or rebuild? | Judgment | A SHIP, EDIT, or REBUILD recommendation bound to the draft and profile. |
 
-Its scope is a local writing gate. Authorship detection, fact checking, plagiarism review, and hosted generation each need their own tools. Hold Your Voice gives a writer or chosen model a narrow editing brief, then asks the same two engines to inspect the result.
+Its scope is a local writing gate. It includes a source-consistency fact linter, not a truth engine: it checks a final draft against the evidence you provide. Authorship detection, plagiarism review, and hosted generation each need their own tools.
 
 ## Start here
 
@@ -196,7 +196,36 @@ Use `verify-spec` when a draft has claims that must remain verbatim unless they 
 hyv verify-spec original.md candidate.md profile.json copy-spec.json
 ```
 
-The check is deterministic. Without `atoms`, an immutable claim remains a verbatim sentence check. With `atoms`, every declared phrase must remain somewhere in the candidate, allowing independent facts to be split or reordered. Atoms are lexical-presence checks, not factual validation: put the whole relationship in one atom when it must stay true (for example, `Kimi K2.6 uses INT4 weights` rather than `INT4`). It covers declared claims and prohibited text; arbitrary unsupported assertions need a separate factual evaluator.
+The check is deterministic. Without `atoms`, an immutable claim remains a verbatim sentence check. With `atoms`, every declared phrase must remain somewhere in the candidate, allowing independent facts to be split or reordered. Atoms are lexical-presence checks, not factual validation.
+
+### Check factual consistency with supplied sources
+
+`fact-lint` compares a final draft with local evidence. It extracts claims with sentence and UTF-16 offsets, checks dates, names, quotes, capabilities, causal/comparative escalation, and draft contradictions, then returns JSON with exact local evidence.
+
+```bash
+hyv fact-lint final.md --source=release:release-notes.md --source=research:research.md
+hyv fact-lint final.md --source=release:release-notes.md --human
+hyv fact-lint final.md --source=release:release-notes.md --strict
+```
+
+The default is report-only and exits `0`; `--strict` exits `2` for error findings. Known conflicts such as a CSV-to-PDF change are errors. A new or unclear capability, or weak evidence such as “exists” versus “grows”, becomes `needs_human_review`. No source text leaves the process by default. The linter checks consistency with supplied evidence; it does not prove the sources are true. See the [fact linter guide](docs/wiki/Fact-Linter.md).
+
+When a `WritingBrief` includes `factSources`, HYV runs the same local fact lint automatically during `verify`, `verify-spec`, rewrite evaluation, and their MCP equivalents. Error findings block verification. Source-free flows remain unchanged.
+
+Use `requiredFacts` for facts that must appear in the final draft. Each required fact must be supported by its source text or declared atoms in `factSources`; HYV fails verification if it is missing, negated, or denied. It does not assume every fact from every source belongs in every output.
+
+```json
+{
+  "version": "1",
+  "audience": "founders",
+  "intent": "write a post",
+  "format": "social",
+  "factSources": [{ "id": "bio", "text": "Shashank is a LinkedIn Top Voice." }],
+  "requiredFacts": [{ "id": "linkedin-top-voice", "text": "Shashank is a LinkedIn Top Voice." }]
+}
+```
+
+HYV does not infer trusted evidence from ordinary prompt prose. Pass source material through `factSources`, then mark only the inclusion-critical statements in `requiredFacts`. Run source-backed `verify` after the last substantive edit. `final-check` is a hygiene gate; it does not re-run evidence checks. Use source material that you are allowed to include in a rewrite task; task handoff is controlled by the calling host.
 
 ### Local voice memory
 
@@ -226,7 +255,10 @@ flowchart LR
   T --> G[Verify candidate]
   C --> G
   D --> G
-  G --> R[Pass or inspect regressions]
+  F[Optional factSources + requiredFacts] --> L[Local fact lint]
+  L --> G
+  G --> R[Errors block; review findings stay visible]
+  R --> H[final-check: hygiene before output]
 ```
 
 The tool never applies changes to your draft. You decide which findings are valid, apply replacement sentences or an authorized rebuild deliberately, and run the final check.

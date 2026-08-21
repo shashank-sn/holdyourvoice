@@ -9,6 +9,8 @@ import { finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { analyzeVoiceDna } from './voice-dna.js';
 import type { LearningPreference } from './learning.js';
 import { legacySetPreservation } from './preservation.js';
+import { lintFacts } from './fact-linter.js';
+import { sentences } from './text.js';
 
 export function analyze(text: string, profile: Profile, brief?: WritingBrief): Analysis {
   const voiceDna = analyzeVoiceDna(text, profile);
@@ -100,15 +102,37 @@ function compareCandidates(original: string, candidate: string, profile: Profile
   return { baseline, checked, regressions, preservation };
 }
 
+function verifyRequiredFacts(candidate: string, brief?: WritingBrief) {
+  if (!brief?.requiredFacts?.length) return undefined;
+  const result = verifyClaims(candidate, {
+    version: '1', audience: brief.audience, intent: brief.intent, channel: brief.format,
+    claims: brief.requiredFacts.map((fact) => ({ ...fact, evidence: 'WritingBrief required fact.' })),
+  });
+  const draftSentences = sentences(candidate);
+  const reversed = brief.requiredFacts.filter((fact) => {
+    const terms = fact.atoms?.length ? fact.atoms : [fact.text];
+    return terms.some((term) => {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const quotedDenial = new RegExp(`${escaped}(?:["']|\\s)*(?:is|was|are|were)?\\s*(?:not|false|untrue|incorrect)`, 'i');
+      return quotedDenial.test(candidate) || draftSentences.some((sentence, index) => sentence.text.toLowerCase().includes(term.toLowerCase()) && (/\b(?:not|false|untrue|incorrect)\b/i.test(sentence.text) || /^(?:that|this) (?:statement|claim|fact|assertion|point) (?:is|was) (?:not|false|untrue|incorrect)\b/i.test(draftSentences[index + 1]?.text.trim() ?? '')));
+    });
+  });
+  if (!reversed.length) return result;
+  return { ...result, passed: false, failures: [...result.failures, ...reversed.map((fact) => ({ id: fact.id, code: 'missing_immutable_claim' as const, message: `Required fact ${fact.id} is negated or denied.`, evidence: 'WritingBrief required fact.' }))] };
+}
+
 export function verify(original: string, candidate: string, profile: Profile, brief?: WritingBrief): Verification {
   const { baseline, checked, regressions, preservation } = compareCandidates(original, candidate, profile, brief);
+  const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
+  const requiredFacts = verifyRequiredFacts(candidate, brief);
   return {
     version: '2',
     original: baseline,
     candidate: checked,
     preservationScore: preservation,
     regressions,
-    passed: checked.passed && !regressions.some(isBlockingFinding) && preservation >= 70,
+    ...(factLint ? { factLint } : {}), ...(requiredFacts ? { requiredFacts } : {}),
+    passed: checked.passed && !regressions.some(isBlockingFinding) && preservation >= 70 && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
   };
 }
 
@@ -123,6 +147,8 @@ export function verifyRebuildWithCopySpec(original: string, candidate: string, p
   const claims = verifyClaims(candidate, spec);
   const hygiene = inspectHygiene(candidate);
   const finalCheck = finalOutputCheck(candidate);
+  const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
+  const requiredFacts = verifyRequiredFacts(candidate, brief);
   return {
     version: '2',
     original: baseline,
@@ -130,7 +156,8 @@ export function verifyRebuildWithCopySpec(original: string, candidate: string, p
     preservationScore: preservation,
     regressions,
     claims,
-    passed: checked.passed && !regressions.some(isBlockingFinding) && claims.passed && hygiene.suspiciousCount === 0 && finalCheck.accepted,
+    ...(factLint ? { factLint } : {}), ...(requiredFacts ? { requiredFacts } : {}),
+    passed: checked.passed && !regressions.some(isBlockingFinding) && claims.passed && hygiene.suspiciousCount === 0 && finalCheck.accepted && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
   };
 }
 

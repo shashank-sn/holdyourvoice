@@ -17,8 +17,9 @@ import { canonicalJson, parseCanonicalJson } from './canonical-json.js';
 import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
 import { buildProfile } from './voice-dna.js';
 import { loadApprovalContext } from './approval-context.js';
+import { formatFactLintReport, lintFacts, type FactMetadata, type FactSource } from './fact-linter.js';
 
-const usage = 'Commands: profile, analyze, hygiene, final-check, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, mcp';
+const usage = 'Commands: profile, analyze, hygiene, final-check, fact-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, mcp';
 const MAX_JSON_BYTES = 1024 * 1024;
 
 function input(path: string): string {
@@ -230,6 +231,25 @@ export async function runCli(args: string[]): Promise<number> {
     if (result.changed) console.error(JSON.stringify({ changed: true, changes: result.changes }, null, 2));
     process.stdout.write(result.output);
     return 0;
+  }
+  if (command === 'fact-lint') {
+    const [draftPath, ...options] = rest;
+    const sources: FactSource[] = []; let metadata: FactMetadata | undefined; let strict = false; let human = false;
+    if (!draftPath) throw new Error('Usage: hyv fact-lint <draft|-> --source=id:path [--source=id:path] [--metadata=metadata.json] [--strict] [--human]');
+    for (const option of options) {
+      if (option === '--strict') { strict = true; continue; }
+      if (option === '--human') { human = true; continue; }
+      if (option.startsWith('--source=')) {
+        const value = option.slice('--source='.length); const separator = value.indexOf(':'); const id = value.slice(0, separator).trim(); const path = value.slice(separator + 1);
+        if (separator < 1 || !id || !path) throw new Error('Sources must use --source=id:path.');
+        sources.push({ id, text: input(path) }); continue;
+      }
+      if (option.startsWith('--metadata=')) { metadata = JSON.parse(input(option.slice('--metadata='.length))) as FactMetadata; continue; }
+      throw new Error('Usage: hyv fact-lint <draft|-> --source=id:path [--source=id:path] [--metadata=metadata.json] [--strict] [--human]');
+    }
+    const report = lintFacts({ sources, draft: input(draftPath), metadata });
+    if (human) console.log(formatFactLintReport(report)); else json(report);
+    return strict && report.findings.some((item) => item.severity === 'error') ? 2 : 0;
   }
   if (command === 'batch-analyze') {
     if (rest.length < 2) throw new Error('Usage: hyv batch-analyze draft-a.md draft-b.md [draft-c.md]');

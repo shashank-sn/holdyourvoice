@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { analyze, rewritePrompt, verify, verifyDeterministically, verifyWithCopySpec } from './pipeline.js';
+import { analyze, rewritePrompt, verify, verifyDeterministically, verifyRebuildWithCopySpec, verifyWithCopySpec } from './pipeline.js';
 import { parseCopySpec } from './copy-spec.js';
 import { parseWritingBrief } from './editorial-packs.js';
 import { buildProfile } from './voice-dna.js';
@@ -36,6 +36,49 @@ test('keeps the existing VoiceDNA and AI Editor reports unchanged when no Writin
   assert.equal(baseline.editorial, undefined);
   assert.deepEqual(contextual.voiceDna, baseline.voiceDna);
   assert.deepEqual(contextual.aiEditor, baseline.aiEditor);
+});
+
+test('runs fact lint automatically when a WritingBrief supplies valid local sources', () => {
+  const brief = parseWritingBrief({ version: '1', audience: 'operators', intent: 'explain', format: 'general', factSources: [{ id: 'release', text: 'Atlas launches on 14 August 2026.' }] });
+  const result = verify('Atlas launches on 14 August 2026.', 'Atlas launches on 15 August 2026.', profile, brief);
+  assert.equal(result.factLint?.findings[0]?.kind, 'date_drift');
+  assert.equal(result.passed, false);
+});
+
+test('blocks a final draft that drops a required source-backed fact', () => {
+  const brief = parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'bio', text: 'Shashank is a LinkedIn Top Voice.' }], requiredFacts: [{ id: 'linkedin-top-voice', text: 'Shashank is a LinkedIn Top Voice.' }] });
+  const missing = verify('Shashank is a LinkedIn Top Voice.', 'Shashank writes about AI systems.', profile, brief);
+  assert.equal(missing.requiredFacts?.failures[0]?.code, 'missing_immutable_claim');
+  assert.equal(missing.passed, false);
+  const retained = verify('Shashank is a LinkedIn Top Voice.', 'Shashank is a LinkedIn Top Voice. Shashank writes about AI systems.', profile, brief);
+  assert.equal(retained.requiredFacts?.passed, true);
+});
+
+test('requires source provenance and rejects negated required facts', () => {
+  assert.throws(() => parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', requiredFacts: [{ id: 'unsupported', text: 'Mars has two moons.' }] }), /WritingBrief/);
+  assert.throws(() => parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'denial', text: 'It is false that Shashank is a LinkedIn Top Voice.' }], requiredFacts: [{ id: 'linkedin-top-voice', text: 'Shashank is a LinkedIn Top Voice.' }] }), /WritingBrief/);
+  assert.throws(() => parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'cross-sentence-denial', text: 'Shashank is a LinkedIn Top Voice. That statement is false.' }], requiredFacts: [{ id: 'linkedin-top-voice', text: 'Shashank is a LinkedIn Top Voice.' }] }), /WritingBrief/);
+  const brief = parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'bio', text: 'Shashank is a LinkedIn Top Voice.' }], requiredFacts: [{ id: 'linkedin-top-voice', text: 'Shashank is a LinkedIn Top Voice.' }] });
+  const negated = verify('Shashank is a LinkedIn Top Voice.', 'Shashank is not a LinkedIn Top Voice.', profile, brief);
+  assert.equal(negated.requiredFacts?.passed, false);
+  const denied = verify('Shashank is a LinkedIn Top Voice.', 'The claim "Shashank is a LinkedIn Top Voice." is false.', profile, brief);
+  assert.equal(denied.requiredFacts?.passed, false);
+  assert.match(denied.requiredFacts?.failures.at(-1)?.message ?? '', /negated or denied/);
+  const crossSentenceDenial = verify('Shashank is a LinkedIn Top Voice.', 'Shashank is a LinkedIn Top Voice. That statement is false.', profile, brief);
+  assert.equal(crossSentenceDenial.requiredFacts?.passed, false);
+  const affirmed = verify('Shashank is a LinkedIn Top Voice.', 'This is not a controversial claim. Shashank is a LinkedIn Top Voice.', profile, brief);
+  assert.equal(affirmed.requiredFacts?.passed, true);
+  const atomBrief = parseWritingBrief({ version: '1', audience: 'founders', intent: 'write a post', format: 'social', factSources: [{ id: 'model', text: 'Kimi K2.6 uses INT4 weights. The payload is roughly 600 GB.' }], requiredFacts: [{ id: 'model-weights', text: 'Kimi K2.6 has roughly 600 GB of INT4 weights.', atoms: ['Kimi K2.6 uses INT4 weights', 'payload is roughly 600 GB'] }] });
+  const atomDenial = verify('Kimi K2.6 has roughly 600 GB of INT4 weights.', 'Kimi K2.6 uses INT4 weights, which is false. The payload is roughly 600 GB.', profile, atomBrief);
+  assert.equal(atomDenial.requiredFacts?.passed, false);
+});
+
+test('runs fact lint during source-backed rebuild verification', () => {
+  const brief = parseWritingBrief({ version: '1', audience: 'operators', intent: 'explain', format: 'general', factSources: [{ id: 'release', text: 'Atlas launches on 14 August 2026.' }] });
+  const spec = parseCopySpec({ version: '1', audience: 'operators', intent: 'explain', channel: 'email', claims: [{ id: 'date', text: 'Atlas launches on 15 August 2026.', evidence: 'release' }] });
+  const result = verifyRebuildWithCopySpec('Atlas launches on 14 August 2026.', 'Atlas launches on 15 August 2026.', profile, spec, brief);
+  assert.equal(result.factLint?.findings[0]?.kind, 'date_drift');
+  assert.equal(result.passed, false);
 });
 
 test('builds all thirteen VoiceDNA measurements', () => {
