@@ -192,9 +192,22 @@ test('uses exit code 2 for a failed candidate gate and 1 for misuse', () => {
     assert.equal(run(['profile', profile, first, second, '--avoid=unlock']).status, 0);
     const verification = run(['verify', original, candidate, profile]);
     assert.equal(verification.status, 2);
-    assert.deepEqual(Object.keys(JSON.parse(verification.stdout)).sort(), ['candidate', 'finalOutput', 'original', 'passed', 'preservationScore', 'regressions', 'version']);
+    assert.deepEqual(Object.keys(JSON.parse(verification.stdout)).sort(), ['candidate', 'finalOutput', 'logicLint', 'original', 'passed', 'preservationScore', 'regressions', 'version']);
     assert.equal(run(['unknown-command']).status, 1);
     assert.equal(run(['mcp', 'unexpected']).status, 1);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('runs the logic linter as a standalone final gate', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-logic-lint-'));
+  try {
+    const draft = join(directory, 'draft.md');
+    writeFileSync(draft, 'The release checklist names rollback ownership. Each owner signs before deployment. Espresso machines use a dual boiler for stable temperature control. The checklist catches missing rollback steps.');
+    const result = run(['logic-lint', draft]);
+    assert.equal(result.status, 2, result.stderr);
+    assert.equal(JSON.parse(result.stdout).findings[0].kind, 'topic_drift');
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

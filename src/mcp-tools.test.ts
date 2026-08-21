@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, rebuildWriterRequestForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, logicLintForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, rebuildWriterRequestForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { canonicalJson } from './canonical-json.js';
 
 const profile = buildProfileForMcp(['I write clearly. I keep the useful detail.', 'I make the call. Then I explain the trade-off.'], ['leverage']);
@@ -26,6 +26,12 @@ test('inspects Unicode hygiene through MCP without a voice profile', () => {
   const result = inspectHygieneForMcp('one\u200Btwo\u00A0three');
   assert.equal(result.suspiciousCount, 2);
   assert.equal(result.fixableCount, 0);
+});
+
+test('exposes the deterministic logic gate through MCP helpers', () => {
+  const report = logicLintForMcp('The service records cache keys. Each build writes its cache key. Espresso machines use dual boilers for stable temperature control. The service uses cache keys during incident review.');
+  assert.equal(report.passed, false);
+  assert.equal(report.findings[0]?.kind, 'topic_drift');
 });
 
 test('applies only explicit hidden-text removals through MCP', () => {

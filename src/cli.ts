@@ -19,8 +19,9 @@ import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLe
 import { buildProfile } from './voice-dna.js';
 import { loadApprovalContext } from './approval-context.js';
 import { formatFactLintReport, lintFacts, type FactMetadata, type FactSource } from './fact-linter.js';
+import { formatLogicLintReport, lintLogic } from './logic-linter.js';
 
-const usage = 'Commands: profile, analyze, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, fact-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, mcp';
+const usage = 'Commands: profile, analyze, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, mcp';
 const MAX_JSON_BYTES = 1024 * 1024;
 
 function input(path: string): string {
@@ -280,6 +281,13 @@ export async function runCli(args: string[]): Promise<number> {
     const report = lintFacts({ sources, draft: input(draftPath), metadata });
     if (human) console.log(formatFactLintReport(report)); else json(report);
     return strict && report.findings.some((item) => item.severity === 'error') ? 2 : 0;
+  }
+  if (command === 'logic-lint') {
+    const [draftPath, briefPath, ...extra] = rest;
+    if (!draftPath || extra.length) throw new Error('Usage: hyv logic-lint <draft|-> [writing-brief.json]');
+    const report = lintLogic(input(draftPath), readBrief(briefPath));
+    json(report);
+    return report.passed ? 0 : 2;
   }
   if (command === 'batch-analyze') {
     if (rest.length < 2) throw new Error('Usage: hyv batch-analyze draft-a.md draft-b.md [draft-c.md]');

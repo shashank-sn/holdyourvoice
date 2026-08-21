@@ -108,6 +108,15 @@ test('verification applies the final-output gate by default', () => {
   assert.equal('output' in result.finalOutput, false);
 });
 
+test('verification blocks a candidate with document-level topic drift', () => {
+  const source = 'The checklist names rollback ownership. Each owner signs before deployment. The checklist catches missing rollback steps. The owner reviews the checklist after release.';
+  const candidate = 'The checklist names rollback ownership. Each owner signs before deployment. Espresso machines use a dual boiler for stable temperature control. The checklist catches missing rollback steps.';
+  const result = verify(source, candidate, profile);
+  assert.equal(result.logicLint.passed, false);
+  assert.equal(result.logicLint.findings[0]?.kind, 'topic_drift');
+  assert.equal(result.passed, false);
+});
+
 test('advisory and pending-judgment findings pass while blocking findings fail', () => {
   const advisory = analyze('Firstly, check the invoice.', profile);
   assert.equal(advisory.passed, true);

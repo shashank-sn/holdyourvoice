@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, rebuildWriterRequestForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, logicLintForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, rebuildWriterRequestForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { HYV_VERSION } from './version.js';
 import { loadApprovalContext } from './approval-context.js';
 
@@ -87,6 +87,18 @@ server.registerTool('hyv_final_check', {
   inputSchema: { text: hygieneText },
   annotations: { readOnlyHint: true },
 }, async ({ text }) => json(finalOutputCheckForMcp(text)));
+
+server.registerTool('hyv_logic_lint', {
+  description: 'Run the deterministic document-coherence gate. It detects configured topic drift, unanchored inference, and direct internal contradictions; it does not verify facts or approve publication.',
+  inputSchema: { draft: writing, writing_brief_json: writingBriefJson.optional() },
+  annotations: { readOnlyHint: true },
+}, async ({ draft, writing_brief_json }) => {
+  try {
+    return json(logicLintForMcp(draft, writing_brief_json));
+  } catch (error) {
+    return failure(error);
+  }
+});
 
 server.registerTool('hyv_rewrite_prompt', {
   description: 'Create a constrained editing brief. It does not rewrite the draft or call a model.',

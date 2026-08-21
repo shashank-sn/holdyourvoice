@@ -4,6 +4,7 @@ import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
 import type { ApprovalCapabilityEnvelopeV1, ApprovalTrustStoreV1, DeterministicVerificationArtifactV1, PreEditReduction, ProfileV3, RecompositionPolicyV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteLifecycleContextV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
 import { clearLearning, composeLearning, inspectLearning, type LearningOptions, migrateLearningV2ToV3, ratifyLearningEvent, recordLearningInstruction, supersedeLearningEvent } from './learning.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
+import { lintLogic } from './logic-linter.js';
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
 import { parseJudgmentEnvelope, preparePostCandidateJudgment, preparePreEditJudgment, reducePostCandidate, reducePreEdit } from './judgment-task.js';
@@ -139,6 +140,10 @@ export function verifyForMcp(original: string, candidate: string, profileJson: s
 export function verifyCopySpecForMcp(original: string, candidate: string, profileJson: string, copySpecJson: string, writingBriefJson?: string) {
   const profile = profileFromJson(profileJson);
   return verifyWithCopySpec(original, candidate, profile, copySpecFromJson(copySpecJson), writingBriefFromJson(writingBriefJson));
+}
+
+export function logicLintForMcp(draft: string, writingBriefJson?: string) {
+  return lintLogic(draft, writingBriefFromJson(writingBriefJson));
 }
 
 function parsed<T>(json: string, label: string): T {
