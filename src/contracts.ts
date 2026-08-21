@@ -213,6 +213,7 @@ export interface Verification {
   preservationScore: number;
   regressions: Finding[];
   finalOutput: FinalOutputCheck;
+  logicLint: import('./logic-linter.js').LogicLintReport;
   factLint?: import('./fact-linter.js').FactLintReport;
   requiredFacts?: ClaimVerification;
   passed: boolean;
