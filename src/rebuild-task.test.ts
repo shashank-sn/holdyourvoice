@@ -191,7 +191,7 @@ test('CLI and MCP rebuild helpers share fingerprints', () => {
     version: '1', audience: 'operators', intent: 'explain', format: 'outreach',
   });
   assert.match(briefTask.prompt, /# WritingBrief/);
-  assert.equal(HYV_VERSION, '3.3.2');
+  assert.equal(HYV_VERSION, '3.3.3');
 });
 
 test('apply rejects forged tasks, missing capability, and substituted profiles', () => {
