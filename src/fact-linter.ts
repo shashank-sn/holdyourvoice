@@ -27,14 +27,20 @@ function evidence(source: FactSource, text: string): FactEvidence { const start 
 function sourceSentences(sources: FactSource[]): { source: FactSource; text: string }[] { return sources.flatMap((source) => sentences(source.text).map((sentence) => ({ source, text: sentence.text }))); }
 function hasOverlap(claim: string, source: string): boolean {
   const claimTokens = tokens(claim); const sourceTokens = new Set(tokens(source));
-  return claimTokens.length > 0 && claimTokens.filter((token) => sourceTokens.has(token)).length / claimTokens.length >= 0.65;
+  return claimTokens.length > 0 && claimTokens.filter((token) => sourceTokens.has(token)).length / claimTokens.length >= 0.8;
 }
 function dates(value: string): string[] { return [...value.matchAll(DATE)].map((match) => new Date(match[0]).toISOString().slice(0, 10)).filter((value) => value !== ''); }
 function numbers(value: string): string[] { return value.match(/\b\d+(?:\.\d+)?\s*(?:%|days?|hours?|weeks?|months?|years?)?\b/gi) ?? []; }
 function negated(value: string): boolean { return /\b(?:does not|do not|did not|is not|are not|cannot|can't|won't|not)\b/i.test(value); }
 const NON_ENTITIES = new Set(['A', 'An', 'And', 'After', 'As', 'At', 'But', 'For', 'From', 'He', 'I', 'In', 'It', 'Its', 'On', 'Or', 'She', 'The', 'This', 'That', 'They', 'We', 'With', 'You']);
+const CAPABILITY = /\b(?:exports?|supports|includes?|works with|can\s+(?:export|support|include)|(?:does not|do not|did not|is not|are not)\s+support)\s+([^.!?]+)/gi;
+const CAPABILITY_FILLER = new Set(['a', 'an', 'as', 'data', 'file', 'files', 'report', 'reports', 'the']);
+const CAPABILITY_FORMATS = new Set(['csv', 'json', 'pdf', 'xml']);
 function entities(value: string): string[] {
   return (value.match(/\b[A-Z][\p{L}\p{M}'-]*(?:\s+[A-Z][\p{L}\p{M}'-]+)?\b/gu) ?? []).filter((entity) => !NON_ENTITIES.has(entity) && entity !== entity.toUpperCase());
+}
+function capabilityObjects(text: string): string[][] {
+  return [...text.matchAll(CAPABILITY)].map((match) => [...new Set(tokens(match[1]).map((token) => token.replace(/s$/, '')).filter((token) => !CAPABILITY_FILLER.has(token)))]).filter((items) => items.length > 0);
 }
 function kindFor(text: string): FactClaimKind[] {
   const kinds: FactClaimKind[] = [];
@@ -98,16 +104,25 @@ export function lintFacts(input: FactLintInput): FactLintReport {
     if (claimEntities.length && sourceEntities.length && claimEntities.some((entity) => !sourceEntities.some((sourceEntity) => normal(sourceEntity) === normal(entity)))) {
       findings.push(finding(claim, 'entity_drift', 'error', 'A named entity differs from relevant source evidence.', evidenceItems, 'high', 'Correct the name or cite the source that supports it.')); continue;
     }
-    const capabilityTerms = (text: string) => tokens(text).filter((token) => /^(export|exports|supports|include|includes|works|csv|pdf)$/i.test(token));
-    const claimCapabilities = capabilityTerms(claim.text).map((token) => token.replace(/s$/, ''));
-    if (claimCapabilities.length && relevant.some(({ text }) => claimCapabilities.every((token) => capabilityTerms(text).map((value) => value.replace(/s$/, '')).includes(token)))) {
-      if (relevant.some(({ text }) => negated(text) !== negated(claim.text))) {
+    const claimCapabilities = capabilityObjects(claim.text);
+    if (claimCapabilities.length && relevant.length) {
+      const sourceCapabilities = relevant.flatMap(({ text }) => capabilityObjects(text));
+      const supportedCapability = claimCapabilities.every((capability) => sourceCapabilities.some((sourceCapability) => capability.every((token) => sourceCapability.includes(token))));
+      if (supportedCapability && relevant.some(({ text }) => negated(text) !== negated(claim.text))) {
         findings.push(finding(claim, 'capability_drift', 'error', 'The draft reverses the source capability.', evidenceItems, 'high', 'Match the source capability polarity or cite contrary evidence.')); continue;
       }
-      continue;
-    }
-    if (/\b(exports?|supports|includes?|works? with|can\s+(?:export|support|include))\b/i.test(claim.text) && relevant.length) {
-      findings.push(finding(claim, 'capability_drift', 'error', 'The product capability is not established by the relevant source wording.', evidenceItems, 'high', 'Align the capability with the source or add evidence.')); continue;
+      if (supportedCapability) continue;
+      const knownFormatMismatch = claimCapabilities.some((capability) => {
+        const claimFormats = capability.filter((token) => CAPABILITY_FORMATS.has(token));
+        return claimFormats.length > 0 && sourceCapabilities.some((sourceCapability) => {
+          const sourceFormats = sourceCapability.filter((token) => CAPABILITY_FORMATS.has(token));
+          return sourceFormats.length > 0 && claimFormats.some((format) => !sourceFormats.includes(format));
+        });
+      });
+      if (knownFormatMismatch) {
+        findings.push(finding(claim, 'capability_drift', 'error', 'The product capability differs from the supplied source.', evidenceItems, 'high', 'Match the source capability or cite contrary evidence.')); continue;
+      }
+      findings.push(finding(claim, 'missing_evidence', 'needs_human_review', 'The product capability is not established by the relevant source wording.', evidenceItems, 'medium', 'Confirm the capability with a reviewer or add evidence.')); continue;
     }
     const causalOverreach = claim.kinds.includes('causal') && relevant.length && !relevant.some(({ text }) => /\b(caused?|because|led to|resulted in)\b/i.test(text));
     const comparativeOverreach = claim.kinds.includes('comparative') && relevant.length && !relevant.some(({ text }) => /\b(better|more|less|than|best|largest|fastest)\b/i.test(text));

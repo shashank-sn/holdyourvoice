@@ -31,6 +31,18 @@ test('flags a capability whose polarity reverses the supplied source', () => {
   assert.equal(report.findings[0]?.kind, 'capability_drift');
 });
 
+test('routes an unsupported product capability to human review', () => {
+  const report = lintFacts({ sources: [{ id: 'brief', text: 'Atlas supports CSV exports.' }], draft: 'Atlas supports real-time API alerts.' });
+  assert.equal(report.findings[0]?.kind, 'missing_evidence');
+  assert.equal(report.findings[0]?.severity, 'needs_human_review');
+});
+
+test('routes sparse overlap without a matching predicate to human review', () => {
+  const report = lintFacts({ sources: [{ id: 'brief', text: 'Harbor Studio exists.' }], draft: 'Harbor Studio grows.' });
+  assert.equal(report.findings[0]?.kind, 'missing_evidence');
+  assert.equal(report.findings[0]?.severity, 'needs_human_review');
+});
+
 test('flags a single-token product name that drifts from source evidence', () => {
   const report = lintFacts({ sources: [{ id: 'brief', text: 'Atlas exports CSV reports.' }], draft: 'Atlus exports CSV reports.' });
   assert.equal(report.findings[0]?.kind, 'entity_drift');
