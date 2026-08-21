@@ -14,7 +14,7 @@ Those programs keep separate findings, scores, and pass states. A strong result 
 
 Everything in the CLI runs from local files: accounts, API calls, telemetry, payment collection, and runtime network requests stay out of the core path. The optional Claude extension adds a local stdio MCP adapter around that same engine; it is not a hosted service.
 
-> **Status:** [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv) **3.3.1** is the public founder-aware rewrite. It runs locally and makes no runtime network requests. The package includes Profile v3 policy, pre-edit SHIP/EDIT/REBUILD judgments, contiguous range edits, authorized rebuild, and a signed semantic lifecycle.
+> **Status:** [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv) **3.3.2** is the public founder-aware rewrite. It runs locally and makes no runtime network requests. The package includes Profile v3 policy, pre-edit SHIP/EDIT/REBUILD judgments, contiguous range edits, authorized rebuild, and a signed semantic lifecycle.
 
 ## Why it exists
 
