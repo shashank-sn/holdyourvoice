@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyzeBatchForMcp, analyzeForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, rebuildWriterRequestForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { canonicalJson } from './canonical-json.js';
 
 const profile = buildProfileForMcp(['I write clearly. I keep the useful detail.', 'I make the call. Then I explain the trade-off.'], ['leverage']);
@@ -26,6 +26,15 @@ test('inspects Unicode hygiene through MCP without a voice profile', () => {
   const result = inspectHygieneForMcp('one\u200Btwo\u00A0three');
   assert.equal(result.suspiciousCount, 2);
   assert.equal(result.fixableCount, 0);
+});
+
+test('applies only explicit hidden-text removals through MCP', () => {
+  const policy = JSON.stringify({ version: '1', name: 'minimal-text-control-cleanup', approvedRemovals: ['ascii_control'], acknowledgement: 'Removes only listed non-semantic controls; all other findings remain review-only.' });
+  const inspected = inspectHiddenTextForMcp('one\u0007two\uFEFFthree\u200D', policy);
+  assert.deepEqual(inspected.proposedChanges.map((change) => change.codepoint), ['U+0007']);
+  const applied = applyHiddenTextPolicyForMcp('one\u0007two\uFEFFthree\u200D', policy);
+  assert.equal(applied.output, 'onetwo\uFEFFthree\u200D');
+  assert.equal(applied.idempotent, true);
 });
 
 test('gates exact final output through MCP without a voice profile', () => {
@@ -225,11 +234,16 @@ test('prepares and evaluates authorized rebuild through MCP helpers', () => {
   const capability = { payload: payload.toString('base64url'), signature: sign(null, payload, privateKey).toString('base64url') };
   const copySpec = JSON.stringify({ version: '1', audience: 'operators', intent: 'explain', channel: 'email', claims: [{ id: 'launch-date', text: 'The launch is on 14 August.', evidence: 'Release calendar, 7 August.' }] });
   const context = { now: 150, trustStore, authorizedSemanticEvaluatorIds: { normal: [], highAssurance: [] }, authorizedHumanFinalizerIds: [] };
-  const task = prepareRebuildForMcp(draft, profileJson, JSON.stringify(reduction), copySpec, JSON.stringify(capability), context);
+  const policy = JSON.stringify({ version: '1', mode: 'meaning-first', lexicalResidual: { ngramSize: 5, maxSharedNgramFraction: 0, maxLongestSharedRunTokens: 4 }, acknowledgement: 'Measures shared wording only; does not detect or prove removal of a watermark.' });
+  const task = prepareRebuildForMcp(draft, profileJson, JSON.stringify(reduction), copySpec, JSON.stringify(capability), context, undefined, policy);
+  assert.doesNotMatch(task.prompt, /I leverage the answer/);
+  const writerRequest = rebuildWriterRequestForMcp(JSON.stringify(task));
+  assert.doesNotMatch(JSON.stringify(writerRequest), /I leverage the answer|capability|profile/i);
   const result = applyRebuildForMcp(JSON.stringify(task), JSON.stringify({
     version: '1', mode: 'REBUILD', taskFingerprint: task.fingerprint,
     candidate: 'Ship planning now treats one calendar fact as fixed. The launch is on 14 August. Every other sentence in this note is new operational language for the release desk.',
   }), profileJson, JSON.stringify(capability), context);
   assert.equal(result.status, 'needs_semantic_review');
   assert.equal(result.receipt.mode, 'REBUILD');
+  assert.equal(result.receipt.lexicalResidual?.passed, true);
 });

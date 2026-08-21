@@ -17,15 +17,15 @@ test('reports zero-width, bidi, tag, and unusual-space characters with exact off
   assert.deepEqual(report.hits.find((hit) => hit.codepoint === 'U+E0001')?.offsets, [13]);
 });
 
-test('removes only a leading byte-order mark and preserves language, spacing, bidi, and tag controls', () => {
+test('removes byte-order marks and preserves language, spacing, bidi, and tag controls', () => {
   const text = `\uFEFFa\u200Bb\uFEFFc\u00A0d\u200Ce\u200Df\u202Eg\u{E0001}`;
   const result = cleanHygiene(text);
 
-  assert.equal(result.cleaned, `a\u200Bb\uFEFFc\u00A0d\u200Ce\u200Df\u202Eg\u{E0001}`);
+  assert.equal(result.cleaned, `a\u200Bbc\u00A0d\u200Ce\u200Df\u202Eg\u{E0001}`);
   assert.equal(result.changed, true);
-  assert.deepEqual(result.changes.map((change) => [change.codepoint, change.action]), [['U+FEFF', 'removed']]);
+  assert.deepEqual(result.changes.map((change) => [change.codepoint, change.action]), [['U+FEFF', 'removed'], ['U+FEFF', 'removed']]);
   assert.equal(result.report.suspiciousCount, 8);
-  assert.equal(result.report.fixableCount, 1);
+  assert.equal(result.report.fixableCount, 2);
 });
 
 test('leaves clean text byte-for-byte unchanged', () => {
@@ -66,7 +66,7 @@ test('preserves multilingual spacing and word-boundary controls byte-for-byte', 
   assert.equal(result.report.fixableCount, 0);
 });
 
-test('accepts exact clean output and minimally removes only a leading BOM', () => {
+test('accepts exact clean output and removes only non-semantic controls by default', () => {
   const clean = finalOutputCheck('exact output\n');
   assert.equal(clean.accepted, true);
   assert.equal(clean.accepted && clean.output, 'exact output\n');
@@ -76,6 +76,11 @@ test('accepts exact clean output and minimally removes only a leading BOM', () =
   assert.equal(bom.accepted, true);
   assert.equal(bom.accepted && bom.output, 'exact output');
   assert.deepEqual(bom.changes, [{ offset: 0, codepoint: 'U+FEFF', action: 'removed' }]);
+
+  const controls = finalOutputCheck('one\u0007two\uFEFFthree');
+  assert.equal(controls.accepted, true);
+  assert.equal(controls.accepted && controls.output, 'onetwothree');
+  assert.deepEqual(controls.changes.map((change) => change.codepoint), ['U+0007', 'U+FEFF']);
 });
 
 test('withholds output when hidden characters remain unresolved', () => {
@@ -85,4 +90,11 @@ test('withholds output when hidden characters remain unresolved', () => {
   assert.equal('output' in result, false);
   assert.equal(result.changed, false);
   assert.deepEqual(result.remaining.hits.map((hit) => hit.codepoint), ['U+200B', 'U+200D']);
+});
+
+test('withholds C1 controls rather than removing them', () => {
+  const result = finalOutputCheck('safe\u009Bhidden');
+  assert.equal(result.accepted, false);
+  assert.equal('output' in result, false);
+  assert.deepEqual(result.remaining.hits.map((hit) => [hit.codepoint, hit.kind]), [['U+009B', 'c1_control']]);
 });

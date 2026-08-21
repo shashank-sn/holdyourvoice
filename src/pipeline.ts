@@ -123,6 +123,7 @@ function verifyRequiredFacts(candidate: string, brief?: WritingBrief) {
 
 export function verify(original: string, candidate: string, profile: Profile, brief?: WritingBrief): Verification {
   const { baseline, checked, regressions, preservation } = compareCandidates(original, candidate, profile, brief);
+  const finalOutput = finalOutputCheck(candidate);
   const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
   const requiredFacts = verifyRequiredFacts(candidate, brief);
   return {
@@ -131,8 +132,9 @@ export function verify(original: string, candidate: string, profile: Profile, br
     candidate: checked,
     preservationScore: preservation,
     regressions,
+    finalOutput,
     ...(factLint ? { factLint } : {}), ...(requiredFacts ? { requiredFacts } : {}),
-    passed: checked.passed && !regressions.some(isBlockingFinding) && preservation >= 70 && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
+    passed: checked.passed && !regressions.some(isBlockingFinding) && preservation >= 70 && finalOutput.accepted && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
   };
 }
 
@@ -145,7 +147,6 @@ export function verifyWithCopySpec(original: string, candidate: string, profile:
 export function verifyRebuildWithCopySpec(original: string, candidate: string, profile: Profile, spec: CopySpec, brief?: WritingBrief): CopySpecVerification {
   const { baseline, checked, regressions, preservation } = compareCandidates(original, candidate, profile, brief);
   const claims = verifyClaims(candidate, spec);
-  const hygiene = inspectHygiene(candidate);
   const finalCheck = finalOutputCheck(candidate);
   const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
   const requiredFacts = verifyRequiredFacts(candidate, brief);
@@ -156,8 +157,9 @@ export function verifyRebuildWithCopySpec(original: string, candidate: string, p
     preservationScore: preservation,
     regressions,
     claims,
+    finalOutput: finalCheck,
     ...(factLint ? { factLint } : {}), ...(requiredFacts ? { requiredFacts } : {}),
-    passed: checked.passed && !regressions.some(isBlockingFinding) && claims.passed && hygiene.suspiciousCount === 0 && finalCheck.accepted && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
+    passed: checked.passed && !regressions.some(isBlockingFinding) && claims.passed && finalCheck.accepted && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
   };
 }
 

@@ -1,13 +1,14 @@
 import { RULESET_VERSION, serializedRules } from './ai-editor.js';
 import { parseCopySpec } from './copy-spec.js';
 import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
-import type { ApprovalCapabilityEnvelopeV1, ApprovalTrustStoreV1, DeterministicVerificationArtifactV1, PreEditReduction, ProfileV3, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteLifecycleContextV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
+import type { ApprovalCapabilityEnvelopeV1, ApprovalTrustStoreV1, DeterministicVerificationArtifactV1, PreEditReduction, ProfileV3, RecompositionPolicyV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteLifecycleContextV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
 import { clearLearning, composeLearning, inspectLearning, type LearningOptions, migrateLearningV2ToV3, ratifyLearningEvent, recordLearningInstruction, supersedeLearningEvent } from './learning.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
 import { parseJudgmentEnvelope, preparePostCandidateJudgment, preparePreEditJudgment, reducePostCandidate, reducePreEdit } from './judgment-task.js';
-import { evaluateRebuildResponse, parseRebuildTask, prepareRebuildTask } from './rebuild-task.js';
+import { evaluateRebuildResponse, parseRebuildTask, prepareRebuildTask, writerRequestForRebuild } from './rebuild-task.js';
+import { inspectHiddenText, applyHiddenTextPolicy, parseHiddenTextPolicy } from './hidden-text.js';
 import { buildProfile } from './voice-dna.js';
 import { finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
@@ -92,6 +93,7 @@ export function prepareRebuildForMcp(
   capabilityJson: string,
   context: RewriteLifecycleContextV1,
   writingBriefJson?: string,
+  recompositionPolicyJson?: string,
 ) {
   return prepareRebuildTask(
     draft,
@@ -102,6 +104,7 @@ export function prepareRebuildForMcp(
     context.trustStore as ApprovalTrustStoreV1,
     context.now,
     writingBriefFromJson(writingBriefJson),
+    recompositionPolicyJson ? parsed<RecompositionPolicyV1>(recompositionPolicyJson, 'Recomposition policy') : undefined,
   );
 }
 
@@ -114,6 +117,18 @@ export function applyRebuildForMcp(taskJson: string, responseJson: string, profi
     context.trustStore as ApprovalTrustStoreV1,
     context.now,
   );
+}
+
+export function inspectHiddenTextForMcp(text: string, policyJson?: string) {
+  return inspectHiddenText(text, policyJson ? parseHiddenTextPolicy(parsed<unknown>(policyJson, 'Hidden-text policy')) : undefined);
+}
+
+export function applyHiddenTextPolicyForMcp(text: string, policyJson: string) {
+  return applyHiddenTextPolicy(text, parseHiddenTextPolicy(parsed<unknown>(policyJson, 'Hidden-text policy')));
+}
+
+export function rebuildWriterRequestForMcp(taskJson: string) {
+  return writerRequestForRebuild(parseRebuildTask(parsed<unknown>(taskJson, 'Rebuild task')));
 }
 
 export function verifyForMcp(original: string, candidate: string, profileJson: string, writingBriefJson?: string) {

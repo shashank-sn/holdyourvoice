@@ -132,6 +132,23 @@ test('keeps a valid response byte-for-byte unchanged by repair adapters', () => 
   assert.deepEqual(result.receipt.replacementSentenceIds, [1]);
 });
 
+test('withholds an unresolved final-output candidate from evaluation results', () => {
+  const task = prepareRewriteTask('I leverage the answer.', profile);
+  const result = evaluateRewriteResponse(task, { version: '1', taskFingerprint: task.fingerprint, replacements: [{ sentenceId: 1, text: 'I use the answer.\u200B' }] }, profile);
+  assert.equal(result.status, 'needs_escalation');
+  assert.equal(result.candidate, undefined);
+  assert.equal(result.verification?.finalOutput.accepted, false);
+});
+
+test('returns the final-gate-cleaned candidate and hashes that value', () => {
+  const task = prepareRewriteTask('I leverage the answer with useful detail and clear mechanism.', profile);
+  const result = evaluateRewriteResponse(task, { version: '1', taskFingerprint: task.fingerprint, replacements: [{ sentenceId: 1, text: 'I use the\u0007 answer with useful detail and clear mechanism.' }] }, profile);
+  assert.equal(result.status, 'needs_semantic_review');
+  assert.equal(result.candidate, 'I use the answer with useful detail and clear mechanism.');
+  assert.equal(result.verification?.finalOutput.changed, true);
+  assert.equal(result.deterministicArtifact?.candidateHash, createHash('sha256').update('I use the answer with useful detail and clear mechanism.').digest('hex'));
+});
+
 test('binds the task, response, deterministic artifact, text hashes, and profile revision', () => {
   const draft = 'I write clear notes.';
   const task = prepareRewriteTask(draft, profile);

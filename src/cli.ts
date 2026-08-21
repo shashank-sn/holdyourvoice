@@ -7,19 +7,20 @@ import type { Profile, ProfileV3, WritingBrief } from './contracts.js';
 import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
 import { clearLearning, composeLearning, inspectLearning, type LearningOptions, migrateLearningV2ToV3, profileFingerprint, ratifyLearningEvent, recordLearningInstruction, supersedeLearningEvent } from './learning.js';
 import { cleanHygiene, finalOutputCheck, inspectHygiene } from './hygiene.js';
+import { applyHiddenTextPolicy, inspectHiddenText, parseHiddenTextPolicy } from './hidden-text.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { parseProfile } from './profile.js';
 import { evaluateRewriteResponse, parseRewriteTask, prepareRewriteTask } from './rewrite-task.js';
 import { parseJudgmentEnvelope, preparePostCandidateJudgment, preparePreEditJudgment, reducePostCandidate, reducePreEdit } from './judgment-task.js';
-import { evaluateRebuildResponse, parseRebuildTask, prepareRebuildTask } from './rebuild-task.js';
-import type { ApprovalCapabilityEnvelopeV1, DeterministicVerificationArtifactV1, PreEditReduction, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
+import { evaluateRebuildResponse, parseRebuildTask, prepareRebuildTask, writerRequestForRebuild } from './rebuild-task.js';
+import type { ApprovalCapabilityEnvelopeV1, DeterministicVerificationArtifactV1, PreEditReduction, RecompositionPolicyV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
 import { canonicalJson, parseCanonicalJson } from './canonical-json.js';
 import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
 import { buildProfile } from './voice-dna.js';
 import { loadApprovalContext } from './approval-context.js';
 import { formatFactLintReport, lintFacts, type FactMetadata, type FactSource } from './fact-linter.js';
 
-const usage = 'Commands: profile, analyze, hygiene, final-check, fact-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, mcp';
+const usage = 'Commands: profile, analyze, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, fact-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, mcp';
 const MAX_JSON_BYTES = 1024 * 1024;
 
 function input(path: string): string {
@@ -70,6 +71,20 @@ function capabilityArguments(args: string[]): { values: string[]; capability?: A
   }
   if (Buffer.byteLength(raw, 'utf8') > MAX_JSON_BYTES) throw new Error('JSON input exceeds the byte limit.');
   return { values, capability: parseCanonicalJson(Buffer.from(raw, 'utf8')) as ApprovalCapabilityEnvelopeV1 };
+}
+
+function rebuildArguments(args: string[]): { values: string[]; capability?: ApprovalCapabilityEnvelopeV1; recompositionPolicy?: RecompositionPolicyV1 } {
+  const values: string[] = [];
+  let policyPath: string | undefined;
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== '--recomposition-policy') { values.push(args[index]!); continue; }
+    const path = args[index + 1];
+    if (policyPath || !path || path === '-' || path.startsWith('--')) throw new Error('Choose one recomposition policy file.');
+    policyPath = path;
+    index += 1;
+  }
+  const capability = capabilityArguments(values);
+  return { ...capability, ...(policyPath ? { recompositionPolicy: readJson(policyPath) as RecompositionPolicyV1 } : {}) };
 }
 
 function readProfile(path: string): Profile {
@@ -220,6 +235,21 @@ export async function runCli(args: string[]): Promise<number> {
     json({ ...result.report, changed: result.changed, changes: result.changes, outputPath });
     return 0;
   }
+  if (command === 'inspect-hidden-text') {
+    const [path, policyPath, ...extra] = rest;
+    if (!path || extra.length) throw new Error('Usage: hyv inspect-hidden-text draft.md [policy.json]');
+    json(inspectHiddenText(input(path), policyPath ? parseHiddenTextPolicy(readJson(policyPath)) : undefined));
+    return 0;
+  }
+  if (command === 'apply-hidden-text-policy') {
+    const [path, policyPath, output, ...extra] = rest;
+    if (!path || !policyPath || !output || extra.length) throw new Error('Usage: hyv apply-hidden-text-policy draft.md policy.json output.md');
+    if (path === '-' || resolve(path) === resolve(output)) throw new Error('Hidden-text output must differ from the input path.');
+    const result = applyHiddenTextPolicy(input(path), parseHiddenTextPolicy(readJson(policyPath)));
+    writeNewFileAtomically(output, result.output);
+    json({ ...result, outputPath: output });
+    return 0;
+  }
   if (command === 'final-check') {
     const [path, ...options] = rest;
     if (!path || options.length) throw new Error('Usage: hyv final-check <path|->');
@@ -299,10 +329,10 @@ export async function runCli(args: string[]): Promise<number> {
     return 0;
   }
   if (command === 'prepare-rebuild') {
-    const { values, capability } = capabilityArguments(rest);
+    const { values, capability, recompositionPolicy } = rebuildArguments(rest);
     const [draft, profilePath, reductionPath, specPath, output, briefPath] = values;
     if (!draft || !profilePath || !reductionPath || !specPath || !output || !capability) {
-      throw new Error('Usage: hyv prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json [writing-brief.json] (--capability-stdin|--capability-file path)');
+      throw new Error('Usage: hyv prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json [writing-brief.json] [--recomposition-policy policy.json] (--capability-stdin|--capability-file path)');
     }
     const context = loadApprovalContext();
     const task = prepareRebuildTask(
@@ -314,9 +344,10 @@ export async function runCli(args: string[]): Promise<number> {
       context.trustStore,
       context.now,
       briefPath ? parseWritingBrief(JSON.parse(input(briefPath))) : undefined,
+      recompositionPolicy,
     );
     writeFileSync(output, `${JSON.stringify(task, null, 2)}\n`);
-    json({ version: task.version, fingerprint: task.fingerprint, recommendationFingerprint: task.recommendationFingerprint, authorizationFingerprint: task.authorizationFingerprint });
+    json({ version: task.version, fingerprint: task.fingerprint, recommendationFingerprint: task.recommendationFingerprint, authorizationFingerprint: task.authorizationFingerprint, ...(task.recompositionPolicy ? { recompositionPolicy: task.recompositionPolicy } : {}) });
     return 0;
   }
   if (command === 'apply-rebuild') {
@@ -327,6 +358,14 @@ export async function runCli(args: string[]): Promise<number> {
     const result = evaluateRebuildResponse(parseRebuildTask(JSON.parse(input(taskPath))), input(responsePath), readProfile(profilePath), capability, context.trustStore, context.now);
     json(result);
     return result.status === 'accepted' ? 0 : 2;
+  }
+  if (command === 'rebuild-writer-request') {
+    const [taskPath, output, ...extra] = rest;
+    if (!taskPath || !output || extra.length) throw new Error('Usage: hyv rebuild-writer-request task.json writer-request.json');
+    const request = writerRequestForRebuild(parseRebuildTask(JSON.parse(input(taskPath))));
+    writeFileSync(output, `${JSON.stringify(request, null, 2)}\n`);
+    json({ version: request.version, taskFingerprint: request.taskFingerprint, copySpecFingerprint: request.copySpecFingerprint, ...(request.recompositionPolicyFingerprint ? { recompositionPolicyFingerprint: request.recompositionPolicyFingerprint } : {}) });
+    return 0;
   }
   if (command === 'verify') {
     const [original, candidate, profilePath, briefPath] = rest;

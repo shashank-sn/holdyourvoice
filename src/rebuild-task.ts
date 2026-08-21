@@ -7,6 +7,7 @@ import type {
   Profile,
   RebuildResponse,
   RebuildTask,
+  RecompositionPolicyV1,
   RewriteApplyResult,
   RewriteEvaluation,
   RewriteFailure,
@@ -19,8 +20,11 @@ import { parseWritingBrief } from './editorial-packs.js';
 import { verifyApprovalCapability } from './approval-capability.js';
 import { fingerprintPreEditReduction } from './judgment-task.js';
 import { verifyRebuildDeterministically } from './pipeline.js';
+import { finalOutputCheck } from './hygiene.js';
 import { sentences } from './text.js';
 import { HYV_VERSION } from './version.js';
+import { buildRecompositionBrief, measureLexicalResidual, parseRecompositionPolicy } from './recomposition.js';
+import { provenanceStatusForRebuild, writerRequestForRebuild } from './provenance-status.js';
 
 const MAX_RESPONSE_BYTES = 100_000;
 const MAX_CANDIDATE_CHARACTERS = 100_000;
@@ -81,7 +85,8 @@ function parseRebuildResponse(value: unknown): RebuildResponse | RewriteFailure 
   return response as unknown as RebuildResponse;
 }
 
-function renderRebuildPrompt(draft: string, copySpec: CopySpec, writingBrief?: WritingBrief): string {
+function renderRebuildPrompt(draft: string, copySpec: CopySpec, writingBrief?: WritingBrief, recompositionPolicy?: RecompositionPolicyV1): string {
+  if (recompositionPolicy) return buildRecompositionBrief(copySpec, writingBrief);
   return [
     '# Rebuild contract',
     'Return a whole-document candidate. Do not emit sentence replacements or range operations.',
@@ -140,6 +145,7 @@ export function prepareRebuildTask(
   trustStore: ApprovalTrustStoreV1 | unknown,
   now: number,
   writingBrief?: WritingBrief,
+  recompositionPolicy?: RecompositionPolicyV1,
 ): RebuildTask {
   if (reduction.decision !== 'REBUILD') throw new Error('Rebuild requires an upstream REBUILD recommendation.');
   if (fingerprintPreEditReduction(reduction) !== reduction.recommendationFingerprint || reduction.recommendationFingerprint.length !== 64) {
@@ -149,16 +155,18 @@ export function prepareRebuildTask(
   const identity = profileIdentity(profile);
   const authorized = verifyRebuildAuthorization(draft, profile, reduction.recommendationFingerprint, capability, trustStore, now);
   if (writingBrief) parseWritingBrief(writingBrief);
+  if (recompositionPolicy) parseRecompositionPolicy(recompositionPolicy);
   const taskBase = {
     version: '1' as const,
     draft,
-    prompt: renderRebuildPrompt(draft, spec, writingBrief),
+    prompt: renderRebuildPrompt(draft, spec, writingBrief, recompositionPolicy),
     copySpec: spec,
     recommendationFingerprint: reduction.recommendationFingerprint,
     authorizationFingerprint: authorized.capabilityFingerprint,
     profileId: identity.profileId,
     profileRevisionDigest: identity.profileRevisionDigest,
     ...(writingBrief ? { writingBrief } : {}),
+    ...(recompositionPolicy ? { recompositionPolicy } : {}),
   };
   return { ...taskBase, fingerprint: fingerprint(taskBase) };
 }
@@ -173,6 +181,7 @@ export function parseRebuildTask(value: unknown): RebuildTask {
   }
   parseCopySpec(task.copySpec);
   if (task.writingBrief !== undefined) parseWritingBrief(task.writingBrief);
+  if (task.recompositionPolicy !== undefined) parseRecompositionPolicy(task.recompositionPolicy);
   const { fingerprint: suppliedFingerprint, ...base } = task;
   if (fingerprint(base) !== suppliedFingerprint) throw new Error('Rebuild task fingerprint does not match its contents.');
   return task as RebuildTask;
@@ -232,17 +241,39 @@ export function evaluateRebuildResponse(
   if (authorized.capabilityFingerprint !== task.authorizationFingerprint) throw new Error('Rebuild authorization is invalid.');
   const applied = applyRebuildResponse(task, raw);
   if (applied.status !== 'accepted' || !applied.candidate) return applied;
-  const { verification, artifact: deterministicArtifact } = verifyRebuildDeterministically(task.draft, applied.candidate, profile, task.copySpec, task.writingBrief);
+  const output = finalOutputCheck(applied.candidate);
+  const candidate = output.accepted ? output.output : applied.candidate;
+  const checked = verifyRebuildDeterministically(task.draft, candidate, profile, task.copySpec, task.writingBrief);
+  const verification = { ...checked.verification, finalOutput: output };
+  const deterministicArtifact = checked.artifact;
   const receipt = {
     ...applied.receipt,
     preservationBypass: true,
     authorizationFingerprint: authorized.capabilityFingerprint,
     preservationScore: verification.preservationScore,
+    ...(task.recompositionPolicy ? { lexicalResidual: measureLexicalResidual(task.draft, candidate, task.copySpec, task.recompositionPolicy) } : {}),
+    provenanceStatus: provenanceStatusForRebuild(task),
   };
-  if (!verification.passed) return { ...applied, receipt, status: 'needs_escalation', verification, deterministicArtifact };
+  if (!verification.passed) {
+    const { candidate: _candidate, ...withheld } = applied;
+    return { ...withheld, receipt, status: 'needs_escalation', verification, deterministicArtifact };
+  }
+  if (receipt.lexicalResidual && !receipt.lexicalResidual.passed) {
+    const { candidate: _candidate, ...withheld } = applied;
+    return {
+      ...withheld,
+      receipt,
+      failures: [failure('lexical_residual_exceeds_policy', 'Candidate exceeds the configured lexical-residual policy.')],
+      status: 'needs_escalation',
+      verification,
+      deterministicArtifact,
+    };
+  }
   const lifecycleBinding = createRebuildLifecycleBinding(task, receipt, deterministicArtifact);
-  return { ...applied, receipt, status: 'needs_semantic_review', verification, deterministicArtifact, lifecycleBinding };
+  return { ...applied, candidate, receipt, status: 'needs_semantic_review', verification, deterministicArtifact, lifecycleBinding };
 }
+
+export { writerRequestForRebuild };
 
 export function createRebuildLifecycleBinding(task: RebuildTask, receipt: RewriteApplyResult['receipt'], deterministic: DeterministicVerificationArtifactV1): RewriteLifecycleBindingV1 {
   if (!deterministic.passed || receipt.taskFingerprint !== task.fingerprint || receipt.mode !== 'REBUILD' || deterministic.verificationKind !== 'rebuild') {

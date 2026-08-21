@@ -10,6 +10,7 @@ import { verifyDeterministically, verifyRebuildWithCopySpec } from './pipeline.j
 import { prepareLifecycle, recordApprovedLearning } from './lifecycle-adapter.js';
 import { buildProfile } from './voice-dna.js';
 import { HYV_VERSION } from './version.js';
+import type { RecompositionPolicyV1 } from './contracts.js';
 
 const profile = buildProfile([
   'I write clear notes. I keep the mechanism visible.',
@@ -24,6 +25,12 @@ const copySpec: CopySpec = {
   intent: 'explain',
   channel: 'email',
   claims: [{ id: 'launch-date', text: 'The launch is on 14 August.', evidence: 'Release calendar, 7 August.' }],
+};
+
+const recompositionPolicy: RecompositionPolicyV1 = {
+  version: '1', mode: 'meaning-first',
+  lexicalResidual: { ngramSize: 5, maxSharedNgramFraction: 0, maxLongestSharedRunTokens: 4 },
+  acknowledgement: 'Measures shared wording only; does not detect or prove removal of a watermark.',
 };
 
 const { publicKey, privateKey } = generateKeyPairSync('ed25519');
@@ -142,6 +149,13 @@ test('authorized rebuild allows low lexical survival while claims and hygiene st
   assert.equal(missingClaim.status, 'needs_escalation');
   const hygiene = evaluate(task, { version: '1', mode: 'REBUILD', taskFingerprint: task.fingerprint, candidate: `${rebuilt}\u200B` }, reduction);
   assert.equal(hygiene.status, 'needs_escalation');
+  assert.equal(hygiene.candidate, undefined);
+  assert.equal(hygiene.verification?.finalOutput.accepted, false);
+  const cleaned = evaluate(task, { version: '1', mode: 'REBUILD', taskFingerprint: task.fingerprint, candidate: `${rebuilt}\u0007` }, reduction);
+  assert.equal(cleaned.status, 'needs_semantic_review');
+  assert.equal(cleaned.candidate, rebuilt);
+  assert.equal(cleaned.verification?.finalOutput.changed, true);
+  assert.equal(cleaned.deterministicArtifact?.candidateHash, createHash('sha256').update(rebuilt).digest('hex'));
 });
 
 test('rebuild disagreement cannot record accepted learning', () => {
@@ -192,4 +206,20 @@ test('apply rejects forged tasks, missing capability, and substituted profiles',
   assert.throws(() => evaluateRebuildResponse(task, response, profile, {}, trustStore, 150), /Rebuild authorization is invalid/);
   const other = buildProfile(['I speak in a different register altogether.', 'I keep every sentence longer than the first profile would.'], ['mechanism']);
   assert.throws(() => evaluate(task, response, reduction, other), /Rebuild profile binding does not match this task/);
+});
+
+test('meaning-first rebuild binds the residual policy and blocks carried-over wording', () => {
+  const source = 'The operating review keeps the launch checklist small and the handoff calm. The launch is on 14 August.';
+  const reduction = rebuildRecommendation(source);
+  const task = prepareRebuildTask(source, profile, reduction, copySpec, capability(reduction, {}, source), trustStore, 150, undefined, recompositionPolicy);
+  assert.doesNotMatch(task.prompt, /The operating review keeps the launch checklist/);
+  assert.match(task.prompt, /Meaning-first recomposition contract/);
+  const repeated = evaluateRebuildResponse(task, { version: '1', mode: 'REBUILD', taskFingerprint: task.fingerprint, candidate: source }, profile, capability(reduction, {}, source), trustStore, 150);
+  assert.equal(repeated.status, 'needs_escalation');
+  assert.equal(repeated.failures[0]?.code, 'lexical_residual_exceeds_policy');
+  assert.equal(repeated.receipt.lexicalResidual?.passed, false);
+  assert.equal(repeated.candidate, undefined);
+  const fresh = evaluateRebuildResponse(task, { version: '1', mode: 'REBUILD', taskFingerprint: task.fingerprint, candidate: 'Release owners now work from a compact calendar note. The launch is on 14 August. Nothing else in this message repeats the original framing.' }, profile, capability(reduction, {}, source), trustStore, 150);
+  assert.equal(fresh.status, 'needs_semantic_review');
+  assert.equal(fresh.receipt.lexicalResidual?.passed, true);
 });
