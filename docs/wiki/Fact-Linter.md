@@ -11,7 +11,19 @@ Each source uses `id:path`. JSON is the default; `--human` prints compact findin
 
 Every claim keeps exact text, sentence number, and UTF-16 offsets. Findings include severity, kind, reason, confidence, suggested action, and evidence with source ID, excerpt, and offsets. The deterministic engine checks dates, numbers, multi-word entities, quotes, capabilities, causal/comparative escalation, and opposite draft claims. Clear opinions and approved hypotheses are left alone. Weak evidence gaps become `needs_human_review`.
 
-The built-in checker is local. Semantic matching is an optional adapter interface; when it is absent, JSON reports `skippedChecks: ["semantic_matching"]`. The linter does not prove supplied sources are accurate, complete, current, or representative.
+The built-in checker is local. Semantic matching is an optional adapter interface; when it is absent, JSON reports `skippedChecks: ["semantic_matching"]`. Known conflicts such as a date, quote, or CSV-to-PDF change are errors. New or unclear capabilities and weak lexical evidence become `needs_human_review` instead of a manufactured error. The linter does not prove supplied sources are accurate, complete, current, or representative.
+
+```mermaid
+flowchart LR
+  S[factSources] --> L[Local fact lint]
+  R[requiredFacts] --> P[Presence and denial gate]
+  D[Final draft] --> L
+  D --> P
+  L --> E[Error: verification fails]
+  L --> H[needs_human_review: report]
+  P --> E
+  H --> V[Human decision]
+```
 
 ## automatic HYV gate
 
@@ -46,5 +58,7 @@ Use `requiredFacts` when a supplied fact must remain in the final output. Every 
 HYV fails verification if the final draft drops, negates, or denies this fact. It does not force every fact from every source into a post. Mark only the facts that the final output must carry.
 
 HYV does not infer evidence or required facts from ordinary prompt prose, CopySpec evidence notes, or an argument map. Pass trusted source material in `factSources`, then mark inclusion-critical statements in `requiredFacts`. This makes the source-of-truth boundary inspectable instead of guessing that a prompt sentence is evidence.
+
+Run source-backed `verify` after the last substantive edit. `final-check` checks output hygiene only; it does not re-run evidence checks.
 
 Use source material that you are permitted to include in the rewrite task. The local fact-lint engine makes no network request; the host controls any later rewrite-provider handoff.
