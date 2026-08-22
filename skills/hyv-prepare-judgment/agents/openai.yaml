@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Prepare Judgment"
+  short_description: "Prepare a versioned pre-edit or post-candidate judgment task."
+  default_prompt: "Use $hyv-prepare-judgment to prepare a versioned pre-edit or post-candidate judgment task."

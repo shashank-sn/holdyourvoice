@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Reduce Judgment"
+  short_description: "Reduce bound judgment envelopes into SHIP, EDIT, REBUILD, CLEAR, or ESCALATE."
+  default_prompt: "Use $hyv-reduce-judgment to reduce bound judgment envelopes into ship, edit, rebuild, clear, or escalate."

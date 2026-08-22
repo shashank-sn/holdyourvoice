@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Hygiene"
+  short_description: "Inspect text for zero-width characters, bidirectional controls, tag characters, and unusual spaces."
+  default_prompt: "Use $hyv-hygiene to inspect text for zero-width characters, bidirectional controls, tag characters, and unusual spaces."

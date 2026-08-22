@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Learning"
+  short_description: "Inspect or explicitly mutate text-free local learning state for a profile."
+  default_prompt: "Use $hyv-learning to inspect or explicitly mutate text-free local learning state for a profile."

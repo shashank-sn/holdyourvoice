@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Analyze"
+  short_description: "Run separate VoiceDNA and AI Editor checks plus a non-scoring Unicode hygiene inspection against a draft."
+  default_prompt: "Use $hyv-analyze to run separate voicedna and ai editor checks plus a non-scoring unicode hygiene inspection against a draft."

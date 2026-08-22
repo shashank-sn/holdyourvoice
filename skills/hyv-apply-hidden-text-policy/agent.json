@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-apply-hidden-text-policy",
+  "title": "hyv-apply-hidden-text-policy",
+  "description": "Apply only explicitly approved minimal hidden-text removals and return hashes, exact changes, and remaining findings.",
+  "instruction_file": "SKILL.md",
+  "role": "Hidden-text editor",
+  "workflow_phase": "edit",
+  "input": {
+    "required": [
+      "draft path",
+      "policy path",
+      "output path"
+    ],
+    "optional": []
+  },
+  "output": {
+    "required": [
+      "written output.md",
+      "change report"
+    ],
+    "optional": []
+  },
+  "evidence_requirements": [
+    "Report only the deterministic result the command returns; never invent a model or provider call that did not occur."
+  ],
+  "permissions": [
+    "execute_commands",
+    "read_repository",
+    "write_repository"
+  ],
+  "stop_conditions": [
+    "Stop when required input is missing, when the command cannot run without changing existing behavior, or when a claimed capability is unavailable."
+  ],
+  "tool_free_mode": {
+    "available": true,
+    "behavior": "Provide the decision, artifact template, and exact unavailable capability; never claim a tool action occurred.",
+    "unavailable_statuses": [
+      "NOT_AVAILABLE",
+      "NOT_CONFIGURED",
+      "NOT_RUN",
+      "STALE",
+      "ERROR"
+    ]
+  },
+  "handoff_to": [
+    "hyv-final-check"
+  ]
+}

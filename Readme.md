@@ -120,21 +120,31 @@ The tool never edits your draft. You decide which findings are valid, apply the 
 | `hyv profile <profile.json> <sample...>` | Two or more text files | Profile JSON |
 | `hyv analyze <draft> <profile.json>` | Draft and profile | Analysis JSON |
 | `hyv hygiene <draft> [--fix] [--output=path]` | Draft | Hygiene report or cleaned copy plus receipt |
+| `hyv inspect-hidden-text <draft> [policy.json]` | Draft and optional policy | Hidden-text inspection report |
+| `hyv apply-hidden-text-policy <draft> <policy.json> <output.md>` | Draft and approved policy | Sanitized output plus receipt |
 | `hyv final-check <path\|->` | Any final text | Accepted text on stdout or a withheld-output report |
+| `hyv logic-lint <draft\|-> [writing-brief.json]` | Draft and optional brief | Deterministic logic-lint report |
 | `hyv rewrite-prompt <draft> <profile.json>` | Draft and profile | Markdown editing brief |
 | `hyv prepare-rewrite <draft> <profile.json> <task.json>` | Draft and profile | Versioned task file |
 | `hyv apply-rewrite <task.json> <response.json> <profile.json>` | Task, response, profile | Candidate evaluation JSON |
 | `hyv prepare-judgment <pre-edit\|post-candidate> <kind> <draft> <profile.json> <task.json> [candidate.md]` | Draft, profile, optional candidate | Versioned judgment task |
 | `hyv reduce-judgment <envelope.json> ...` | Signed judgment envelopes | Recommendation JSON |
 | `hyv prepare-rebuild <draft> <profile.json> <reduction.json> <copy-spec.json> <task.json> [--recomposition-policy policy.json]` | Draft, recommendation, CopySpec, capability, optional policy | Versioned rebuild task |
+| `hyv rebuild-writer-request <task.json> <writer-request.json>` | Rebuild task | Writer-only rebuild request |
 | `hyv apply-rebuild <task.json> <response.json> <profile.json>` | Task, response, profile, capability | Candidate evaluation JSON |
 | `hyv verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code |
 | `hyv verify-spec <original> <candidate> <profile.json> <copy-spec.json>` | Original, candidate, profile, CopySpec | Verification JSON with hard claim gate |
-| `hyv learning <show\|inspect\|add\|record\|ratify\|supersede\|migrate\|clear> ...` | Profile, operation, bounded metadata | Preferences or a text-free receipt |
+| `hyv learning <show\|inspect\|add\|record\|record-approved\|ratify\|supersede\|migrate\|clear> ...` | Profile, operation, bounded metadata | Preferences or a text-free receipt |
 | `hyv lifecycle <prepare-semantic\|submit-verdict\|inspect\|validate-final-approval\|finalize> ...` | Versioned lifecycle artifacts | Lifecycle artifact or metadata |
 | `hyv patterns` | None | Ruleset JSON |
+| `hyv mcp` | None | Local MCP server on stdio |
+| `hyv agent list\|validate\|describe\|emit <id> [--host HOST] [--mode prompt\|json] [--output FILE]` | Optional agent id | Portable agent contract (see below) |
 
 Every file argument can be `-` when the command accepts input on standard input. Use `npx @holdyourvoice/hyv <command>` if you have not installed the CLI globally.
+
+## Portable agents
+
+The 23 writing and runtime commands are also model-neutral portable agent packages under `skills/hyv-*/` (an `agent.json` contract, a `SKILL.md`, and an `agents/openai.yaml` interface), mirroring the clean-code portable-agent pattern. `hyv agent list` prints every package; `hyv agent validate [id]` checks the contract schema; `hyv agent describe <id> --host HOST` resolves permissions against a host catalog; and `hyv agent emit <id> --mode prompt|json --host HOST` emits a host-aware contract. The subcommand stays local. `emit --output` creates a new contract file and refuses an existing target. Read the [portable agents guide](docs/wiki/Portable-Agents.md) for the package contract, host model, and examples.
 
 ## Privacy
 
@@ -151,6 +161,7 @@ Keep writing samples, edit histories, and client text out of public commits unle
 | [Prompt contract](docs/PROMPT-CONTRACT.md) | The tier order and editing constraints. |
 | [VoiceDNA](docs/VOICE-DNA.md) | The 13 profile elements. |
 | [Fact linter](docs/wiki/Fact-Linter.md) | The source-consistency checker. |
+| [Portable agents](docs/wiki/Portable-Agents.md) | Load or emit a host-aware contract for one HYV command. |
 | [Support](SUPPORT.md) | Funding without a feature gate. |
 
 ## Contribute

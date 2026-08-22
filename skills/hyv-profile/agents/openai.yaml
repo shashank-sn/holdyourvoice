@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Profile"
+  short_description: "Build a portable VoiceDNA profile from at least two writing samples."
+  default_prompt: "Use $hyv-profile to build a portable voicedna profile from at least two writing samples."

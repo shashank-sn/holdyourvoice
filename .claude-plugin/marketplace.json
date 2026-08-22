@@ -10,7 +10,7 @@
       "name": "hold-your-voice",
       "source": "./claude-plugin",
       "description": "Keep a writer's voice while using Claude.",
-      "version": "3.3.5",
+      "version": "3.4.0",
       "author": {
         "name": "Shashank SN"
       }

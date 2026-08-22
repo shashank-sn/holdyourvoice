@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Logic Lint"
+  short_description: "Run the deterministic document-coherence gate for topic drift, unanchored inference, and internal contradictions."
+  default_prompt: "Use $hyv-logic-lint to run the deterministic document-coherence gate for topic drift, unanchored inference, and internal contradictions."

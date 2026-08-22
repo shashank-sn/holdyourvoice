@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Prepare Rewrite"
+  short_description: "Prepare a local, versioned, fingerprint-bound rewrite task."
+  default_prompt: "Use $hyv-prepare-rewrite to prepare a local, versioned, fingerprint-bound rewrite task."

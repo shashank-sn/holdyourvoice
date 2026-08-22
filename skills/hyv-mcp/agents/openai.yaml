@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Mcp"
+  short_description: "Start the local Hold Your Voice MCP server."
+  default_prompt: "Use $hyv-mcp to start the local hold your voice mcp server."

@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-verify-spec",
+  "title": "hyv-verify-spec",
+  "description": "Verify a candidate against the existing voice gates and a local CopySpec.",
+  "instruction_file": "SKILL.md",
+  "role": "CopySpec verifier",
+  "workflow_phase": "verify",
+  "input": {
+    "required": [
+      "original path",
+      "candidate path",
+      "profile path",
+      "copy-spec.json"
+    ],
+    "optional": [
+      "writing-brief.json"
+    ]
+  },
+  "output": {
+    "required": [
+      "verification report with CopySpec claim gate"
+    ],
+    "optional": []
+  },
+  "evidence_requirements": [
+    "Report only the deterministic result the command returns; never invent a model or provider call that did not occur."
+  ],
+  "permissions": [
+    "execute_commands",
+    "read_repository"
+  ],
+  "stop_conditions": [
+    "Stop when required input is missing, when the command cannot run without changing existing behavior, or when a claimed capability is unavailable."
+  ],
+  "tool_free_mode": {
+    "available": true,
+    "behavior": "Provide the decision, artifact template, and exact unavailable capability; never claim a tool action occurred.",
+    "unavailable_statuses": [
+      "NOT_AVAILABLE",
+      "NOT_CONFIGURED",
+      "NOT_RUN",
+      "STALE",
+      "ERROR"
+    ]
+  },
+  "handoff_to": [
+    "hyv-lifecycle"
+  ]
+}

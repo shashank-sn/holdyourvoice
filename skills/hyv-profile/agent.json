@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-profile",
+  "title": "hyv-profile",
+  "description": "Build a portable VoiceDNA profile from at least two writing samples.",
+  "instruction_file": "SKILL.md",
+  "role": "Profile builder",
+  "workflow_phase": "analyze",
+  "input": {
+    "required": [
+      "profile output path",
+      "two or more sample paths"
+    ],
+    "optional": [
+      "--avoid=phrase avoid-list entries"
+    ]
+  },
+  "output": {
+    "required": [
+      "written profile.json"
+    ],
+    "optional": []
+  },
+  "evidence_requirements": [
+    "Report only the deterministic result the command returns; never invent a model or provider call that did not occur."
+  ],
+  "permissions": [
+    "execute_commands",
+    "read_repository",
+    "write_repository"
+  ],
+  "stop_conditions": [
+    "Stop when required input is missing, when the command cannot run without changing existing behavior, or when a claimed capability is unavailable."
+  ],
+  "tool_free_mode": {
+    "available": true,
+    "behavior": "Provide the decision, artifact template, and exact unavailable capability; never claim a tool action occurred.",
+    "unavailable_statuses": [
+      "NOT_AVAILABLE",
+      "NOT_CONFIGURED",
+      "NOT_RUN",
+      "STALE",
+      "ERROR"
+    ]
+  },
+  "handoff_to": [
+    "hyv-analyze",
+    "hyv-rewrite-prompt"
+  ]
+}

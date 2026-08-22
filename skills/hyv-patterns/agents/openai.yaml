@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Patterns"
+  short_description: "List the exact AI Editor rules that run."
+  default_prompt: "Use $hyv-patterns to list the exact ai editor rules that run."

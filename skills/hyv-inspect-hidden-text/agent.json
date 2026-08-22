@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-inspect-hidden-text",
+  "title": "hyv-inspect-hidden-text",
+  "description": "Inspect hidden text controls with a non-mutating policy report.",
+  "instruction_file": "SKILL.md",
+  "role": "Hidden-text inspector",
+  "workflow_phase": "verify",
+  "input": {
+    "required": [
+      "draft path"
+    ],
+    "optional": [
+      "policy.json"
+    ]
+  },
+  "output": {
+    "required": [
+      "hidden-text inspection report"
+    ],
+    "optional": []
+  },
+  "evidence_requirements": [
+    "Report only the deterministic result the command returns; never invent a model or provider call that did not occur."
+  ],
+  "permissions": [
+    "execute_commands",
+    "read_repository"
+  ],
+  "stop_conditions": [
+    "Stop when required input is missing, when the command cannot run without changing existing behavior, or when a claimed capability is unavailable."
+  ],
+  "tool_free_mode": {
+    "available": true,
+    "behavior": "Provide the decision, artifact template, and exact unavailable capability; never claim a tool action occurred.",
+    "unavailable_statuses": [
+      "NOT_AVAILABLE",
+      "NOT_CONFIGURED",
+      "NOT_RUN",
+      "STALE",
+      "ERROR"
+    ]
+  },
+  "handoff_to": [
+    "hyv-apply-hidden-text-policy",
+    "hyv-final-check"
+  ]
+}

@@ -527,3 +527,85 @@ test('prepares and applies an authorized rebuild through CLI', () => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test('agent list enumerates every command as one portable package', () => {
+  const result = run(['agent', 'list']);
+  assert.equal(result.status, 0, result.stderr);
+  const entries = JSON.parse(result.stdout);
+  assert.equal(entries.length, 23);
+  const ids = entries.map((entry: { id: string }) => entry.id);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const id of ['hyv-profile', 'hyv-analyze', 'hyv-verify', 'hyv-mcp', 'hyv-patterns']) {
+    assert.ok(ids.includes(id), `missing ${id}`);
+  }
+  for (const entry of entries) {
+    assert.ok(entry.role);
+    assert.ok(entry.workflow_phase);
+    assert.ok(entry.description);
+  }
+});
+
+test('agent validate passes over the full package tree and rejects unknown ids', () => {
+  const result = run(['agent', 'validate']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).status, 'PASS');
+  assert.equal(run(['agent', 'validate', 'hyv-verify']).status, 0);
+  const unknown = run(['agent', 'validate', 'hyv-does-not-exist']);
+  assert.equal(unknown.status, 1);
+  assert.match(unknown.stderr, /unknown agent/);
+});
+
+test('agent describe resolves a host and reports the runtime descriptor', () => {
+  const result = run(['agent', 'describe', 'hyv-verify', '--host', 'codex']);
+  assert.equal(result.status, 0, result.stderr);
+  const descriptor = JSON.parse(result.stdout);
+  assert.equal(descriptor.agent.id, 'hyv-verify');
+  assert.equal(descriptor.host.id, 'codex');
+  assert.ok(descriptor.available_capabilities.includes('read_repository'));
+  assert.ok(Array.isArray(descriptor.unavailable_capabilities));
+});
+
+test('agent emit writes a prompt or json contract to stdout or a named file', () => {
+  const prompt = run(['agent', 'emit', 'hyv-verify', '--mode=prompt', '--host=generic']);
+  assert.equal(prompt.status, 0, prompt.stderr);
+  assert.match(prompt.stdout, /# hyv-verify/);
+  assert.match(prompt.stdout, /Required input: original path, candidate path, profile path/);
+
+  const jsonOut = run(['agent', 'emit', 'hyv-verify', '--mode', 'json', '--host', 'generic']);
+  assert.equal(jsonOut.status, 0, jsonOut.stderr);
+  assert.equal(JSON.parse(jsonOut.stdout).agent.id, 'hyv-verify');
+
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-agent-'));
+  try {
+    const target = join(directory, 'verify.json');
+    const emitted = run(['agent', 'emit', 'hyv-verify', '--mode', 'json', '--output', target]);
+    assert.equal(emitted.status, 0, emitted.stderr);
+    assert.equal(JSON.parse(readFileSync(target, 'utf8')).agent.id, 'hyv-verify');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('agent commands locate the installed package tree outside a repository', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-agent-cwd-'));
+  try {
+    mkdirSync(join(directory, 'skills'));
+    const result = spawnSync(process.execPath, [cli, 'agent', 'validate'], { cwd: directory, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).status, 'PASS');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('agent usage errors return exit 1 and never mutate', () => {
+  assert.equal(run(['agent']).status, 1);
+  assert.equal(run(['agent', 'emit', 'hyv-verify']).status, 1);
+  assert.equal(run(['agent', 'emit', 'hyv-verify', '--mode', 'bad']).status, 1);
+  assert.equal(run(['agent', 'describe']).status, 1);
+  assert.equal(run(['agent', 'describe', 'hyv-verify', '--mode', 'json']).status, 1);
+  assert.equal(run(['agent', 'describe', 'hyv-verify', '--output', 'ignored.json']).status, 1);
+  assert.equal(run(['agent', 'list', '--host', 'codex']).status, 1);
+  assert.equal(run(['agent', 'list', 'extra']).status, 1);
+  assert.equal(run(['agent', 'nope']).status, 1);
+});

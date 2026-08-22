@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Final Check"
+  short_description: "Gate exact user-facing text from any model, tool, or interface."
+  default_prompt: "Use $hyv-final-check to gate exact user-facing text from any model, tool, or interface."

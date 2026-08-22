@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-prepare-rewrite",
+  "title": "hyv-prepare-rewrite",
+  "description": "Prepare a local, versioned, fingerprint-bound rewrite task.",
+  "instruction_file": "SKILL.md",
+  "role": "Task preparer",
+  "workflow_phase": "plan",
+  "input": {
+    "required": [
+      "draft path",
+      "profile path",
+      "task output path"
+    ],
+    "optional": [
+      "copy-spec.json",
+      "writing-brief.json"
+    ]
+  },
+  "output": {
+    "required": [
+      "written task.json"
+    ],
+    "optional": []
+  },
+  "evidence_requirements": [
+    "Report only the deterministic result the command returns; never invent a model or provider call that did not occur."
+  ],
+  "permissions": [
+    "execute_commands",
+    "read_repository",
+    "write_repository"
+  ],
+  "stop_conditions": [
+    "Stop when required input is missing, when the command cannot run without changing existing behavior, or when a claimed capability is unavailable."
+  ],
+  "tool_free_mode": {
+    "available": true,
+    "behavior": "Provide the decision, artifact template, and exact unavailable capability; never claim a tool action occurred.",
+    "unavailable_statuses": [
+      "NOT_AVAILABLE",
+      "NOT_CONFIGURED",
+      "NOT_RUN",
+      "STALE",
+      "ERROR"
+    ]
+  },
+  "handoff_to": [
+    "hyv-apply-rewrite"
+  ]
+}

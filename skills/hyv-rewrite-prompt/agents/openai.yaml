@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Rewrite Prompt"
+  short_description: "Create a constrained editing brief without rewriting the draft."
+  default_prompt: "Use $hyv-rewrite-prompt to create a constrained editing brief without rewriting the draft."

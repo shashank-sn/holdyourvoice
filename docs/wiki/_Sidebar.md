@@ -4,6 +4,8 @@
 
 [cli reference](CLI-Reference)
 
+[portable agents](Portable-Agents)
+
 [fact linter](Fact-Linter)
 
 [faq and troubleshooting](FAQ-and-Troubleshooting)
