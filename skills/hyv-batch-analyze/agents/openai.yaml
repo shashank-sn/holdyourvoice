@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Batch Analyze"
+  short_description: "Inspect two to one hundred drafts for repeated opening and closing sentences."
+  default_prompt: "Use $hyv-batch-analyze to inspect two to one hundred drafts for repeated opening and closing sentences."

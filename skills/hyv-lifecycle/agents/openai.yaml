@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Lifecycle"
+  short_description: "Advance and inspect the rewrite lifecycle: prepare-semantic, submit-verdict, inspect, validate-final-approval, finalize."
+  default_prompt: "Use $hyv-lifecycle to advance and inspect the rewrite lifecycle: prepare-semantic, submit-verdict, inspect, validate-final-approval, finalize."

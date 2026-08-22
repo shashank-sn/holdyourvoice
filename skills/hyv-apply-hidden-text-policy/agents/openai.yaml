@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Apply Hidden Text Policy"
+  short_description: "Apply only explicitly approved minimal hidden-text removals and return hashes, exact changes, and remaining findings."
+  default_prompt: "Use $hyv-apply-hidden-text-policy to apply only explicitly approved minimal hidden-text removals and return hashes, exact changes, and remaining findings."

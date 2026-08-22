@@ -8,12 +8,13 @@ node dist/cli.js inspect-hidden-text draft.md [policy.json]
 node dist/cli.js apply-hidden-text-policy draft.md policy.json output.md
 node dist/cli.js final-check <path|->
 node dist/cli.js fact-lint <draft|-> --source=id:path [--source=id:path] [--metadata=metadata.json] [--strict] [--human]
+node dist/cli.js logic-lint <draft|-> [writing-brief.json]
 node dist/cli.js batch-analyze draft-a.md draft-b.md [draft-c.md]
 node dist/cli.js rewrite-prompt draft.md profile.json [writing-brief.json] > rewrite-brief.md
 node dist/cli.js prepare-rewrite draft.md profile.json task.json [copy-spec.json] [writing-brief.json]
 node dist/cli.js apply-rewrite task.json response.json profile.json
 node dist/cli.js prepare-judgment pre-edit|post-candidate kind draft.md profile.json task.json [candidate.md]
-node dist/cli.js reduce-judgment envelope.json envelope.json [envelope.json...]
+node dist/cli.js reduce-judgment envelope.json envelope.json envelope.json [envelope.json...]
 node dist/cli.js prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json [writing-brief.json] [--recomposition-policy policy.json] (--capability-stdin|--capability-file path)
 node dist/cli.js rebuild-writer-request task.json writer-request.json
 node dist/cli.js apply-rebuild task.json response.json profile.json (--capability-stdin|--capability-file path)
@@ -24,9 +25,14 @@ node dist/cli.js lifecycle submit-verdict lifecycle.json task.json evaluator-id 
 node dist/cli.js lifecycle inspect lifecycle.json
 node dist/cli.js lifecycle validate-final-approval lifecycle.json (--capability-stdin|--capability-file path)
 node dist/cli.js lifecycle finalize lifecycle.json decision.json [--capability-stdin|--capability-file path]
-node dist/cli.js learning <show|inspect|add|record|ratify|supersede|migrate|clear> profile.json [value] [options]
+node dist/cli.js learning <show|inspect|add|record|record-approved|ratify|supersede|migrate|clear> profile.json [value] [options]
 node dist/cli.js learning record-approved ready.json approved.json original.md candidate.md profile.json decision.json [copy-spec.json] [writing-brief.json] (--capability-stdin|--capability-file path)
 node dist/cli.js patterns
+node dist/cli.js mcp
+node dist/cli.js agent list
+node dist/cli.js agent validate [id]
+node dist/cli.js agent describe <id> [--host HOST]
+node dist/cli.js agent emit <id> --mode prompt|json [--host HOST] [--output FILE]
 ```
 
 `profile` needs two or more samples and writes only the profile path you name. `analyze` returns independent VoiceDNA and AI Editor reports plus a separate non-scoring Unicode hygiene report. An optional WritingBrief adds local audience, intent, and format context without changing the VoiceDNA profile. `hygiene` needs no profile; inspection is read-only, while `--fix` writes a new cleaned path, reports every changed offset, and refuses to overwrite either input or an existing output. It removes only ASCII controls and byte-order marks; bidirectional controls, tag characters, and zero-width joiners/non-joiners are reported but preserved. `inspect-hidden-text` and `apply-hidden-text-policy` provide a stricter receipt-backed policy workflow. `batch-analyze` returns advisory exact duplicate opening and closing findings across a local set. `rewrite-prompt` prints markdown and never calls a model. `verify` is read-only; learning changes require an explicit learning command or separately approved lifecycle transition. `verify-spec` adds the CopySpec claim gate.
@@ -44,5 +50,16 @@ HYV applies this gate by default to rewrite and rebuild evaluation. An evaluatio
 HYV does not intercept unrelated applications in the background. Each host must call `hyv final-check -` or the read-only `hyv_final_check` MCP tool at its own final boundary and deliver only accepted output. A check on an earlier draft does not cover text changed later in the pipeline.
 
 `patterns` prints the ruleset version and exact deterministic catalog. the current `3.2.0-reconciled.1` catalog contains 148 stable entries. entries include reconstructable regular-expression source and flags plus an explicit sentence or physical-line scope. applied profile policy controls blocking, advisory, judgment-required, and disabled behavior without changing catalog IDs. with an installed package, the equivalent command is `hyv patterns`. inspection and analysis stay local; the catalog does not add hosted analysis, provider calls, telemetry, or file mutation.
+
+## Portable agents
+
+The 23 writing and runtime commands are also exposed as model-neutral portable agent packages under `skills/hyv-*/`, each containing an `agent.json` (contract: role, phase, inputs, outputs, evidence, permissions, stop conditions, tool-free mode, handoff), a `SKILL.md` (instructions), and an `agents/openai.yaml` (interface metadata). This mirrors the clean-code portable-agent pattern and lets any host load a single operation without invoking the whole CLI or MCP server.
+
+- `agent list` prints every package with its role and workflow phase.
+- `agent validate [id]` validates all packages (or one) against the contract schema and prints `PASS`; an unknown id or a schema violation exits `1`.
+- `agent describe <id> [--host HOST]` resolves the package's permissions against a host capability catalog (`generic`, `codex`, `claude-code`, `cursor`, `copilot`, `gemini-cli`, `ide-agent`, `windsurf`, `cline`, `roo-code`) and prints the runtime descriptor. Unknown hosts fall back to `generic`.
+- `agent emit <id> --mode prompt|json [--host HOST] [--output FILE]` emits a prompt-only or JSON portable agent contract, marking capabilities the host cannot provide as unavailable (`NOT_AVAILABLE`, `NOT_CONFIGURED`, `NOT_RUN`, `STALE`, `ERROR`).
+
+The agent subcommand reads the package tree and never grants permissions. `emit --output` creates a new file and refuses an existing target. It sends no drafts, samples, profiles, or telemetry to any service.
 
 use `-` as a text input path where a command accepts a draft or sample from standard input.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Apply Rewrite"
+  short_description: "Validate and apply a model response to a prepared rewrite task, then run local gates."
+  default_prompt: "Use $hyv-apply-rewrite to validate and apply a model response to a prepared rewrite task, then run local gates."

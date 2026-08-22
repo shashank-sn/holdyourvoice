@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Rebuild Writer Request"
+  short_description: "Create the writer-only payload for a prepared rebuild task."
+  default_prompt: "Use $hyv-rebuild-writer-request to create the writer-only payload for a prepared rebuild task."

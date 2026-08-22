@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Fact Lint"
+  short_description: "Lint factual claims in a draft against named sources."
+  default_prompt: "Use $hyv-fact-lint to lint factual claims in a draft against named sources."

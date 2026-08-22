@@ -25,7 +25,7 @@ function fixture(files: Record<string, string>) {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-audit-'));
   execFileSync('git', ['init', '--quiet'], { cwd: directory });
   const defaults = {
-    'package.json': JSON.stringify({ name: 'audit-fixture', license: 'MIT', files: ['dist', 'Readme.md', 'LICENSE'], scripts: { 'stage1:evaluate': 'node scripts/evaluate-rewrite-benchmark.mjs', 'stage1:dry-run': 'npm run build && node scripts/run-stage1-dry-run.mjs', 'stage1:human-packet': 'npm run build && node scripts/run-stage1-human-packet.mjs', 'stage2:human-packet': 'npm run build && node scripts/run-stage2-human-packet.mjs' }, version: '1.0.0', type: 'module', bin: { hyv: 'dist/cli.js' }, engines: { node: '>=20' } }),
+    'package.json': JSON.stringify({ name: 'audit-fixture', license: 'MIT', files: ['dist', 'skills', 'Readme.md', 'LICENSE'], scripts: { 'stage1:evaluate': 'node scripts/evaluate-rewrite-benchmark.mjs', 'stage1:dry-run': 'npm run build && node scripts/run-stage1-dry-run.mjs', 'stage1:human-packet': 'npm run build && node scripts/run-stage1-human-packet.mjs', 'stage2:human-packet': 'npm run build && node scripts/run-stage2-human-packet.mjs' }, version: '1.0.0', type: 'module', bin: { hyv: 'dist/cli.js' }, engines: { node: '>=20' } }),
     'mcpb/manifest.json': JSON.stringify({ version: '1.0.0' }),
     'claude-plugin/.claude-plugin/plugin.json': JSON.stringify({ version: '1.0.0' }),
     '.claude-plugin/marketplace.json': JSON.stringify({ plugins: [{ name: 'hold-your-voice', version: '1.0.0' }] }),
@@ -38,6 +38,9 @@ function fixture(files: Record<string, string>) {
     ].join('\n'),
     'src/version.ts': "export const HYV_VERSION = '1.0.0';",
     'src/stage1-evaluation.ts': "const baseline = '4e6269121d551c008a34db73077e1e4fea41b3f9'; const stage1 = '550ea24f652291dca13757fdbd2f0fa0b5e3f621';",
+    'skills/hyv-test/agent.json': '{}',
+    'skills/hyv-test/SKILL.md': '# test',
+    'skills/hyv-test/agents/openai.yaml': 'name: test',
     ...Object.fromEntries(stage1Files.map((file) => [file, '{}'])),
   };
   for (const [file, text] of Object.entries({ ...defaults, ...files })) {
@@ -149,6 +152,7 @@ test('requires the npm package runtime contract', () => {
     const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /npm package must include dist/);
+    assert.match(result.stderr, /npm package must include skills/);
     assert.match(result.stderr, /npm package must include Readme\.md/);
     assert.match(result.stderr, /npm package must use the ESM runtime contract/);
     assert.match(result.stderr, /npm hyv binary must point to dist\/cli\.js/);

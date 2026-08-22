@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Inspect Hidden Text"
+  short_description: "Inspect hidden text controls with a non-mutating policy report."
+  default_prompt: "Use $hyv-inspect-hidden-text to inspect hidden text controls with a non-mutating policy report."

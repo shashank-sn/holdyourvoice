@@ -21,8 +21,9 @@ import { buildProfile } from './voice-dna.js';
 import { loadApprovalContext } from './approval-context.js';
 import { formatFactLintReport, lintFacts, type FactMetadata, type FactSource } from './fact-linter.js';
 import { formatLogicLintReport, lintLogic } from './logic-linter.js';
+import { loadAll, validateAll, validateId, sortedIds, describe, emitJson, emitPrompt } from './agents/index.js';
 
-const usage = 'Commands: profile, analyze, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, mcp';
+const usage = 'Commands: agent, profile, analyze, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -208,8 +209,99 @@ function writeNewFileAtomically(path: string, text: string): void {
   if (primaryError) throw primaryError;
 }
 
+function agentFlags(args: string[]): { values: string[]; host: string; mode?: 'prompt' | 'json'; output?: string } {
+  const values: string[] = [];
+  let host = 'generic';
+  let mode: 'prompt' | 'json' | undefined;
+  let output: string | undefined;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index]!;
+    if (argument === '--host') {
+      const value = args[index + 1];
+      if (!value || value.startsWith('--')) throw new Error('Usage: hyv agent --host HOST requires a value.');
+      host = value;
+      index += 1;
+    } else if (argument.startsWith('--host=')) {
+      const value = argument.slice('--host='.length);
+      if (!value) throw new Error('Usage: hyv agent --host HOST requires a value.');
+      host = value;
+    } else if (argument === '--mode') {
+      const value = args[index + 1];
+      if (value !== 'prompt' && value !== 'json') throw new Error('Usage: hyv agent --mode prompt|json requires a mode.');
+      mode = value;
+      index += 1;
+    } else if (argument.startsWith('--mode=')) {
+      const value = argument.slice('--mode='.length) as 'prompt' | 'json';
+      if (value !== 'prompt' && value !== 'json') throw new Error('Usage: hyv agent --mode prompt|json requires a mode.');
+      mode = value;
+    } else if (argument === '--output') {
+      const value = args[index + 1];
+      if (!value || value.startsWith('--')) throw new Error('Usage: hyv agent --output FILE requires a value.');
+      output = value;
+      index += 1;
+    } else if (argument.startsWith('--output=')) {
+      const value = argument.slice('--output='.length);
+      if (!value) throw new Error('Usage: hyv agent --output FILE requires a value.');
+      output = value;
+    } else {
+      values.push(argument);
+    }
+  }
+  return { values, host, mode, output };
+}
+
+function runAgent(args: string[]): number {
+  const [subcommand, ...subargs] = args;
+  if (subcommand === 'list') {
+    if (subargs.length) throw new Error('Usage: hyv agent list');
+    const packages = loadAll();
+    const ids = sortedIds(packages);
+    json(ids.map((id) => {
+      const descriptor = packages.get(id)!.descriptor;
+      return { id, role: descriptor.role, workflow_phase: descriptor.workflow_phase, description: descriptor.description };
+    }));
+    return 0;
+  }
+  if (subcommand === 'validate') {
+    if (subargs.length > 1) throw new Error('Usage: hyv agent validate [id]');
+    const packages = loadAll();
+    const id = subargs[0];
+    if (id !== undefined) validateId(packages, id);
+    validateAll(packages);
+    json({ schema_version: '1.0.0', status: 'PASS', agent: id ?? 'all' });
+    return 0;
+  }
+  if (subcommand === 'describe') {
+    const { values, host, mode, output } = agentFlags(subargs);
+    if (values.length !== 1 || mode !== undefined || output !== undefined) throw new Error('Usage: hyv agent describe <id> [--host HOST]');
+    const packages = loadAll();
+    validateId(packages, values[0]!);
+    json(describe(packages.get(values[0]!)!, host));
+    return 0;
+  }
+  if (subcommand === 'emit') {
+    const { values, host, mode, output } = agentFlags(subargs);
+    if (values.length !== 1) throw new Error('Usage: hyv agent emit <id> --mode prompt|json [--host HOST] [--output FILE]');
+    if (!mode) throw new Error('Usage: hyv agent emit <id> --mode prompt|json [--host HOST] [--output FILE]');
+    const packages = loadAll();
+    validateId(packages, values[0]!);
+    const pkg = packages.get(values[0]!)!;
+    const body = mode === 'prompt' ? emitPrompt(pkg, host) : `${emitJson(pkg, host)}\n`;
+    if (output !== undefined) {
+      writeFileSync(output, body, { encoding: 'utf8', flag: 'wx' });
+    } else {
+      process.stdout.write(body);
+    }
+    return 0;
+  }
+  throw new Error('Usage: hyv agent <list|validate|describe|emit> ...');
+}
+
 export async function runCli(args: string[]): Promise<number> {
   const [command, ...rest] = args;
+  if (command === 'agent') {
+    return runAgent(rest);
+  }
   if (command === 'profile') {
     const { output, samples, avoid } = profileArguments(rest);
     writeFileSync(output, `${JSON.stringify(buildProfile(samples.map(input), avoid), null, 2)}\n`);

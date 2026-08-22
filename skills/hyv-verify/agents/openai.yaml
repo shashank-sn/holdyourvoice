@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Verify"
+  short_description: "Verify a revised candidate against an original draft and portable profile."
+  default_prompt: "Use $hyv-verify to verify a revised candidate against an original draft and portable profile."

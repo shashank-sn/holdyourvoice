@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Prepare Rebuild"
+  short_description: "Prepare a rebuild task only after an upstream REBUILD recommendation, a CopySpec, and a signed rebuild-authorization capability."
+  default_prompt: "Use $hyv-prepare-rebuild to prepare a rebuild task only after an upstream rebuild recommendation, a copyspec, and a signed rebuild-authorization capability."

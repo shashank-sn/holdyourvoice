@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Apply Rebuild"
+  short_description: "Validate and evaluate a whole-document rebuild response against a prepared authorized rebuild task."
+  default_prompt: "Use $hyv-apply-rebuild to validate and evaluate a whole-document rebuild response against a prepared authorized rebuild task."

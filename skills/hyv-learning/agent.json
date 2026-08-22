@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-learning",
+  "title": "hyv-learning",
+  "description": "Inspect or explicitly mutate text-free local learning state for a profile.",
+  "instruction_file": "SKILL.md",
+  "role": "Learning manager",
+  "workflow_phase": "learn",
+  "input": {
+    "required": [
+      "an action and profile path, or record-approved lifecycle inputs"
+    ],
+    "optional": [
+      "instruction, event id, or source/target as needed",
+      "--mutation-id, --authority, --provenance, --weight, --compatibility",
+      "capability stdin or file for record-approved"
+    ]
+  },
+  "output": {
+    "required": [
+      "learning mutation receipt or composition"
+    ],
+    "optional": []
+  },
+  "evidence_requirements": [
+    "Report only the deterministic result the command returns; never invent a model or provider call that did not occur."
+  ],
+  "permissions": [
+    "execute_commands",
+    "read_repository",
+    "write_repository"
+  ],
+  "stop_conditions": [
+    "Stop when required input is missing, when the command cannot run without changing existing behavior, or when a claimed capability is unavailable."
+  ],
+  "tool_free_mode": {
+    "available": true,
+    "behavior": "Provide the decision, artifact template, and exact unavailable capability; never claim a tool action occurred.",
+    "unavailable_statuses": [
+      "NOT_AVAILABLE",
+      "NOT_CONFIGURED",
+      "NOT_RUN",
+      "STALE",
+      "ERROR"
+    ]
+  },
+  "handoff_to": []
+}
