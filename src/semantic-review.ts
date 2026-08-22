@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { DeterministicVerificationArtifactV1, LifecycleError, RewriteLifecycleActionV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteLifecycleContextV1, RewriteReceipt, SemanticPolicy, SemanticReview, SemanticReviewTaskV1, SemanticVerdict, SemanticVerdictV1, SemanticViolation } from './contracts.js';
 import { canonicalJson } from './canonical-json.js';
 import { verifyApprovalCapability } from './approval-capability.js';
+import { exactKeys as exact, isPlainObject as plain } from './internal.js';
 
 const violations = new Set<SemanticViolation>(['action_change', 'dropped_object', 'unsupported_claim', 'constraint_weakened', 'clarity_regression']);
 const HEX = /^[a-f0-9]{64}$/;
@@ -9,8 +10,6 @@ const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 function hash(domain: string, value: unknown): string { return createHash('sha256').update(`${domain}\0`).update(canonicalJson(value)).digest('hex'); }
 function same(left: unknown, right: unknown): boolean { return canonicalJson(left) === canonicalJson(right); }
-function exact(value: Record<string, unknown>, required: string[], optional: string[] = []): boolean { return required.every((key) => key in value) && Object.keys(value).every((key) => required.includes(key) || optional.includes(key)); }
-function plain(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
 function bindingValid(binding: RewriteLifecycleBindingV1): boolean {
   return binding.schemaVersion === '1' && [binding.rewriteTaskFingerprint, binding.rewriteResponseFingerprint, binding.deterministicArtifactFingerprint, binding.sourceHash, binding.candidateHash].every((item) => HEX.test(item))
     && ID.test(binding.profileId) && ID.test(binding.profileRevisionDigest) && ID.test(binding.rulesetVersion);

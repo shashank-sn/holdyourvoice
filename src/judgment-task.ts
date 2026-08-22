@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import type {
   JudgmentEnvelopeV1,
   JudgmentFindingV1,
@@ -14,23 +13,10 @@ import type {
 import { canonicalJson } from './canonical-json.js';
 import { sentences } from './text.js';
 import { HYV_VERSION } from './version.js';
+import { profileIdentity, sha256 as digest } from './internal.js';
 
 const PRE_EDIT_KINDS: JudgmentKind[] = ['triage', 'argument', 'form'];
 const POST_CANDIDATE_KINDS: JudgmentKind[] = ['argument', 'polarity', 'form', 'flatness', 'semantic'];
-
-function digest(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
-}
-
-function digestCanonical(value: unknown): string {
-  return digest(canonicalJson(value));
-}
-
-function profileIdentity(profile: Profile): { profileId: string; profileRevisionDigest: string } {
-  if (profile.version === '3') return { profileId: profile.id, profileRevisionDigest: profile.revisionDigest };
-  const legacy = `legacy-v2:${digestCanonical(profile)}`;
-  return { profileId: legacy, profileRevisionDigest: legacy };
-}
 
 function fingerprintTask(task: Omit<JudgmentTaskV1, 'taskFingerprint'>): string {
   return digest(`hyv:judgment-task:v1\0${canonicalJson(task)}`);

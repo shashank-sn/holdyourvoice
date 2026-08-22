@@ -1,12 +1,9 @@
 import type { ClaimFailure, ClaimVerification, CopyClaim, CopySpec } from './contracts.js';
 import { sentences } from './text.js';
+import { escaped, isText } from './internal.js';
 
 function normalized(value: string): string {
   return value.toLowerCase().replace(/\s+/g, ' ').trim();
-}
-
-function escaped(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function atomMatches(value: string, atom: string): boolean {
@@ -15,10 +12,6 @@ function atomMatches(value: string, atom: string): boolean {
 
 function isAtom(value: unknown): value is string {
   return isText(value, 500) && /[\p{L}\p{N}]/u.test(normalized(value));
-}
-
-function isText(value: unknown, limit: number): value is string {
-  return typeof value === 'string' && value.trim().length > 0 && value.length <= limit;
 }
 
 function isClaim(value: unknown): value is CopyClaim {

@@ -1,6 +1,7 @@
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import type { ApprovalCapabilityClaimsV1, ApprovalCapabilityPurpose, ApprovalTrustKeyV1, ApprovalTrustStoreV1, CapabilityError, RewriteLifecycleBindingV1 } from './contracts.js';
 import { canonicalJsonBytes, parseCanonicalJson } from './canonical-json.js';
+import { exactKeys, isPlainObject as plain } from './internal.js';
 
 const DIGEST = /^[a-f0-9]{64}$/;
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
@@ -8,10 +9,6 @@ const CLAIM_KEYS = ['version', 'purpose', 'issuer', 'audience', 'subjectArtifact
 const STORE_KEYS = ['version', 'audience', 'maxCapabilityLifetimeSeconds', 'keys'];
 
 function fail(error: CapabilityError): { ok: false; error: CapabilityError } { return { ok: false, error }; }
-function plain(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype; }
-function exactKeys(value: Record<string, unknown>, required: string[], optional: string[] = []): boolean {
-  return required.every((key) => key in value) && Object.keys(value).every((key) => required.includes(key) || optional.includes(key));
-}
 function bounded(value: unknown): value is string { return typeof value === 'string' && value.length > 0 && value.length <= 128; }
 function safeTime(value: unknown): value is number { return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0; }
 

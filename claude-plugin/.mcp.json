@@ -2,7 +2,7 @@
   "mcpServers": {
     "hold-your-voice": {
       "command": "npm",
-      "args": ["exec", "--yes", "--package=@holdyourvoice/hyv@3.3.4", "--", "hyv", "mcp"]
+      "args": ["exec", "--yes", "--package=@holdyourvoice/hyv@3.3.5", "--", "hyv", "mcp"]
     }
   }
 }

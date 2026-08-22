@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import type { Analysis, CopySpec, CopySpecVerification, DeterministicVerificationArtifactV1, Finding, Profile, Verification, WritingBrief } from './contracts.js';
 import { canonicalJson } from './canonical-json.js';
 import { HYV_VERSION } from './version.js';
@@ -8,10 +7,11 @@ import { analyzeEditorial } from './editorial-packs.js';
 import { finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { analyzeVoiceDna } from './voice-dna.js';
 import type { LearningPreference } from './learning.js';
-import { legacySetPreservation } from './preservation.js';
+import { legacySetPreservation, LEGACY_SET_PRESERVATION_VERSION } from './preservation.js';
 import { lintFacts } from './fact-linter.js';
 import { lintLogic } from './logic-linter.js';
 import { sentences } from './text.js';
+import { digestCanonical, escaped as escapeRegex, profileIdentity, sha256 as digest } from './internal.js';
 
 export function analyze(text: string, profile: Profile, brief?: WritingBrief): Analysis {
   const voiceDna = analyzeVoiceDna(text, profile);
@@ -113,7 +113,7 @@ function verifyRequiredFacts(candidate: string, brief?: WritingBrief) {
   const reversed = brief.requiredFacts.filter((fact) => {
     const terms = fact.atoms?.length ? fact.atoms : [fact.text];
     return terms.some((term) => {
-      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escaped = escapeRegex(term);
       const quotedDenial = new RegExp(`${escaped}(?:["']|\\s)*(?:is|was|are|were)?\\s*(?:not|false|untrue|incorrect)`, 'i');
       return quotedDenial.test(candidate) || draftSentences.some((sentence, index) => sentence.text.toLowerCase().includes(term.toLowerCase()) && (/\b(?:not|false|untrue|incorrect)\b/i.test(sentence.text) || /^(?:that|this) (?:statement|claim|fact|assertion|point) (?:is|was) (?:not|false|untrue|incorrect)\b/i.test(draftSentences[index + 1]?.text.trim() ?? '')));
     });
@@ -168,15 +168,6 @@ export function verifyRebuildWithCopySpec(original: string, candidate: string, p
   };
 }
 
-function digest(value: string): string { return createHash('sha256').update(value).digest('hex'); }
-function digestCanonical(value: unknown): string { return digest(canonicalJson(value)); }
-
-function profileIdentity(profile: Profile): { profileId: string; profileRevisionDigest: string } {
-  if (profile.version === '3') return { profileId: profile.id, profileRevisionDigest: profile.revisionDigest };
-  const legacy = `legacy-v2:${digestCanonical(profile)}`;
-  return { profileId: legacy, profileRevisionDigest: legacy };
-}
-
 function projectDeterministicVerificationArtifact(
   source: string, candidate: string, profile: Profile,
   verification: Verification | CopySpecVerification, copySpec?: CopySpec, writingBrief?: WritingBrief,
@@ -185,7 +176,7 @@ function projectDeterministicVerificationArtifact(
   const identity = profileIdentity(profile);
   const base = {
     version: '1' as const, verificationKind, passed: verification.passed, analysisVersion: verification.candidate.version,
-    rulesetVersion: HYV_VERSION, preservationMetricVersion: 'legacy-set-v1' as const, preservationScore: verification.preservationScore,
+    rulesetVersion: HYV_VERSION, preservationMetricVersion: LEGACY_SET_PRESERVATION_VERSION, preservationScore: verification.preservationScore,
     sourceHash: digest(source), candidateHash: digest(candidate), ...identity,
     ...(copySpec ? { copySpecHash: digestCanonical(copySpec) } : {}), ...(writingBrief ? { writingBriefHash: digestCanonical(writingBrief) } : {}),
     regressionKeys: verification.regressions.map((finding) => `${finding.engine}:${finding.id}:${finding.sentence}`).sort(),

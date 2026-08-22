@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import type {
   ApprovalTrustStoreV1,
   CopySpec,
@@ -25,21 +24,10 @@ import { sentences } from './text.js';
 import { HYV_VERSION } from './version.js';
 import { buildRecompositionBrief, measureLexicalResidual, parseRecompositionPolicy } from './recomposition.js';
 import { provenanceStatusForRebuild, writerRequestForRebuild } from './provenance-status.js';
+import { fingerprint, profileIdentity, sha256 as digest } from './internal.js';
 
 const MAX_RESPONSE_BYTES = 100_000;
 const MAX_CANDIDATE_CHARACTERS = 100_000;
-
-function fingerprint(value: unknown): string {
-  return createHash('sha256').update(typeof value === 'string' ? value : canonicalJson(value)).digest('hex');
-}
-
-function digest(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
-}
-
-function digestCanonical(value: unknown): string {
-  return digest(canonicalJson(value));
-}
 
 function failure(code: RewriteFailure['code'], message: string, path?: string): RewriteFailure {
   return { code, message, ...(path ? { path } : {}) };
@@ -47,12 +35,6 @@ function failure(code: RewriteFailure['code'], message: string, path?: string): 
 
 function isFailure(value: unknown): value is RewriteFailure {
   return typeof value === 'object' && value !== null && 'code' in value && 'message' in value;
-}
-
-function profileIdentity(profile: Profile): { profileId: string; profileRevisionDigest: string } {
-  if (profile.version === '3') return { profileId: profile.id, profileRevisionDigest: profile.revisionDigest };
-  const legacy = `legacy-v2:${digestCanonical(profile)}`;
-  return { profileId: legacy, profileRevisionDigest: legacy };
 }
 
 function parseJson(value: string): unknown | RewriteFailure {

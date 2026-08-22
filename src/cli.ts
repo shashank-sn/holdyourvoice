@@ -15,6 +15,7 @@ import { parseJudgmentEnvelope, preparePostCandidateJudgment, preparePreEditJudg
 import { evaluateRebuildResponse, parseRebuildTask, prepareRebuildTask, writerRequestForRebuild } from './rebuild-task.js';
 import type { ApprovalCapabilityEnvelopeV1, DeterministicVerificationArtifactV1, PreEditReduction, RecompositionPolicyV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
 import { canonicalJson, parseCanonicalJson } from './canonical-json.js';
+import { MAX_JSON_BYTES } from './internal.js';
 import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
 import { buildProfile } from './voice-dna.js';
 import { loadApprovalContext } from './approval-context.js';
@@ -22,7 +23,6 @@ import { formatFactLintReport, lintFacts, type FactMetadata, type FactSource } f
 import { formatLogicLintReport, lintLogic } from './logic-linter.js';
 
 const usage = 'Commands: profile, analyze, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, mcp';
-const MAX_JSON_BYTES = 1024 * 1024;
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');

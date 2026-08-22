@@ -1,6 +1,5 @@
-import { createHash } from 'node:crypto';
 import type { HiddenTextAction, HiddenTextApplyReceiptV1, HiddenTextFindingV1, HiddenTextKind, HiddenTextPolicyV1, HiddenTextReportV1 } from './contracts.js';
-import { canonicalJson } from './canonical-json.js';
+import { fingerprint as hash } from './internal.js';
 
 const ACKNOWLEDGEMENT = 'Removes only listed non-semantic controls; all other findings remain review-only.' as const;
 
@@ -8,7 +7,6 @@ export const minimalHiddenTextPolicy: HiddenTextPolicyV1 = {
   version: '1', name: 'minimal-text-control-cleanup', approvedRemovals: ['ascii_control', 'mid_document_bom'], acknowledgement: ACKNOWLEDGEMENT,
 };
 
-function hash(value: unknown): string { return createHash('sha256').update(typeof value === 'string' ? value : canonicalJson(value)).digest('hex'); }
 function codepoint(value: number): string { return `U+${value.toString(16).toUpperCase().padStart(4, '0')}`; }
 
 export function parseHiddenTextPolicy(value: unknown): HiddenTextPolicyV1 {
@@ -49,14 +47,7 @@ export function inspectHiddenText(text: string, policy: HiddenTextPolicyV1 = min
 
 export function applyHiddenTextPolicy(text: string, policy: HiddenTextPolicyV1 = minimalHiddenTextPolicy): HiddenTextApplyReceiptV1 {
   const report = inspectHiddenText(text, policy);
-  const offsets = new Set(report.proposedChanges.map((item) => item.offset));
-  let output = '';
-  for (let offset = 0; offset < text.length;) {
-    const value = text.codePointAt(offset)!;
-    const character = String.fromCodePoint(value);
-    if (!offsets.has(offset)) output += character;
-    offset += character.length;
-  }
+  const output = applyOnce(text, policy);
   const remaining = inspectHiddenText(output, policy).findings;
   const again = applyOnce(output, policy);
   return { ...report, outputHash: hash(output), output, remaining, idempotent: again === output };

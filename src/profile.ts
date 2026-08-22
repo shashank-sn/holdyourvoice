@@ -1,15 +1,12 @@
 import { createHash } from 'node:crypto';
 import type { FingerprintMetric, Profile, ProfileV2, ProfileV3, VoiceDnaMetrics } from './contracts.js';
 import { canonicalJson } from './canonical-json.js';
+import { isPlainObject } from './internal.js';
 
 const METRICS_KEYS = ['sentenceLength', 'sentenceVariation', 'sentenceStructure', 'rhythm', 'paragraphLength', 'openingMoves', 'vocabulary', 'lexicalDensity', 'pointOfView', 'punctuation', 'caseStyle', 'questionRate', 'transitions'] as const;
 const PROFILE_V3_KEYS = ['version', 'id', 'revision', 'revisionDigest', 'sampleCount', 'metrics', 'avoid', 'provenance', 'rulePolicy', 'fingerprint', 'tolerances', 'metricFixtures'] as const;
 const FINGERPRINT_METRICS: FingerprintMetric[] = ['contractionRate', 'sentenceLengthDistribution', 'bulletRate', 'enDashRate'];
 const STABLE_ID = /^[a-z0-9](?:[a-z0-9._-]{0,127})$/;
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
-}
 
 function hasKnownKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   return Object.keys(value).every((key) => keys.includes(key)) && keys.every((key) => key in value);
