@@ -13,6 +13,7 @@ import { inspectHiddenText, applyHiddenTextPolicy, parseHiddenTextPolicy } from 
 import { buildProfile } from './voice-dna.js';
 import { finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
+import { MAX_JSON_BYTES } from './internal.js';
 
 function profileFromJson(profileJson: string) {
   try {
@@ -147,7 +148,7 @@ export function logicLintForMcp(draft: string, writingBriefJson?: string) {
 }
 
 function parsed<T>(json: string, label: string): T {
-  if (Buffer.byteLength(json, 'utf8') > 1024 * 1024) throw new Error(`${label} exceeds the byte limit.`);
+  if (Buffer.byteLength(json, 'utf8') > MAX_JSON_BYTES) throw new Error(`${label} exceeds the byte limit.`);
   try { return JSON.parse(json) as T; } catch { throw new Error(`${label} is not valid JSON.`); }
 }
 

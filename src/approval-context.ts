@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import type { Stats } from 'node:fs';
 import type { RewriteLifecycleContextV1 } from './contracts.js';
 import { parseApprovalTrustStore } from './approval-capability.js';
+import { MAX_JSON_BYTES as MAX_BYTES } from './internal.js';
 
-const MAX_BYTES = 1024 * 1024;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 function readBounded(descriptor: number): string {

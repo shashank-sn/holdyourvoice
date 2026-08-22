@@ -4,6 +4,7 @@ import { verifyApprovalCapability } from './approval-capability.js';
 import { createInitialLifecycleArtifact, isValidLifecycleArtifact, parseSemanticVerdict, prepareSemanticReviewTask, reduceRewriteLifecycle, type LifecycleReductionResult } from './semantic-review.js';
 import { verifyDeterministically } from './pipeline.js';
 import { recordVerifiedCandidate, type LearningCaptureStatus } from './learning.js';
+import { MAX_JSON_BYTES } from './internal.js';
 
 export function prepareLifecycle(
   deterministic: DeterministicVerificationArtifactV1,
@@ -89,7 +90,7 @@ export interface ApprovedLearningRequest {
 
 export function recordApprovedLearning(request: ApprovedLearningRequest): LearningCaptureStatus {
   const { ready, approved, decision, capability, source, candidate, profile, context, copySpec, writingBrief } = request;
-  if (Buffer.byteLength(source, 'utf8') > 1024 * 1024 || Buffer.byteLength(candidate, 'utf8') > 1024 * 1024) throw new Error('Approved learning text exceeds the byte limit.');
+  if (Buffer.byteLength(source, 'utf8') > MAX_JSON_BYTES || Buffer.byteLength(candidate, 'utf8') > MAX_JSON_BYTES) throw new Error('Approved learning text exceeds the byte limit.');
   inspectLifecycle(ready); inspectLifecycle(approved);
   const replay = finalizeLifecycle(ready, decision, context, capability);
   if (!replay.ok || canonicalJson(replay.artifact) !== canonicalJson(approved) || approved.status !== 'approved') throw new Error('Approved learning is not authorized.');

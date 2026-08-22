@@ -1,12 +1,9 @@
 import type { ArgumentMap, BatchFinding, BatchReport, EngineReport, Finding, Sentence, Severity, WritingBrief, WritingFormat } from './contracts.js';
 import { paragraphs, sentences, words } from './text.js';
+import { isText } from './internal.js';
 
 const formats: WritingFormat[] = ['general', 'social', 'deck', 'outreach', 'blog', 'audit', 'website'];
 const evidenceStatuses = ['primary', 'attributed', 'internal', 'unverified'] as const;
-
-function isText(value: unknown, limit: number): value is string {
-  return typeof value === 'string' && value.trim().length > 0 && value.length <= limit;
-}
 
 function isTerms(value: unknown): value is string[] {
   return Array.isArray(value) && value.length <= 100 && value.every((term) => isText(term, 200));

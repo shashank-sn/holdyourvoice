@@ -2,77 +2,45 @@
 
 [![npm downloads](https://img.shields.io/npm/dt/%40holdyourvoice%2Fhyv?label=npm%20downloads&color=2f81f7)](https://www.npmjs.com/package/@holdyourvoice/hyv)
 
+Hold Your Voice is a local-first writing gate. It helps you use AI without losing the parts of your writing that make it yours.
 
-Hold Your Voice is an MIT-licensed, local-first writing gate for people who want AI help without losing the parts of their writing that make it theirs.
+It runs two checks on a draft, with separate scores and pass states. A strong result in one engine leaves the other engine's finding unchanged.
 
-It checks a draft through two separate programs:
+- **VoiceDNA** compares your draft with observable elements from your own writing samples.
+- **AI Editor** flags a versioned set of editorial patterns that make writing sound generic or formulaic.
 
-- **VoiceDNA** compares the draft with 13 observable elements from your own local writing samples.
-- **AI Editor** flags a reviewed, versioned set of editorial patterns that can make writing generic, formulaic, or inflated.
+Everything runs from local files. There are no accounts, no telemetry, and no runtime network requests. The optional Claude extension is a local adapter around the same engine.
 
-Those programs keep separate findings, scores, and pass states. A strong result from one never cancels a failure in the other. The tool creates a tiered editing brief, then checks the candidate again before you accept it.
-
-Everything in the CLI runs from local files: accounts, API calls, telemetry, payment collection, and runtime network requests stay out of the core path. The optional Claude extension adds a local stdio MCP adapter around that same engine; it is not a hosted service.
-
-> **Status:** [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv) **3.3.4** is the public founder-aware rewrite. It runs locally and makes no runtime network requests. The package includes Profile v3 policy, pre-edit SHIP/EDIT/REBUILD judgments, contiguous range edits, authorized rebuild, and a signed semantic lifecycle.
-
-## Why it exists
-
-A draft can avoid obvious AI-shaped writing and still sound unlike its author. It can also match a writer’s short sentences while leaning on empty persuasion templates. Those are different problems. Treating them as one generic score hides the useful signal.
-
-Hold Your Voice keeps the work visible:
-
-| Question | Program | Result |
-| --- | --- | --- |
-| Does the draft still resemble this writer’s observable mechanics? | VoiceDNA | A profile-based score, findings, and pass state. |
-| Does the draft contain a configured editorial pattern worth inspecting? | AI Editor | A rule-based score, sentence findings, and pass state. |
-| Did the rewrite introduce a new blocker or replace too much? | Verification | Regressions, preservation score, and a release decision. |
-| Should this draft ship, take a bounded edit, or rebuild? | Judgment | A SHIP, EDIT, or REBUILD recommendation bound to the draft and profile. |
-
-Its scope is a local writing gate. It includes a source-consistency fact linter, not a truth engine: it checks a final draft against the evidence you provide. Authorship detection, plagiarism review, and hosted generation each need their own tools.
+> **Status:** [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv) runs locally and makes no runtime network requests.
 
 ## Start here
 
-### Requirements
+**Requirements:** Node.js 20+, npm, and at least two writing samples you have the right to use.
 
-- Node.js 20 or newer.
-- npm.
-- At least two local writing samples you have the right to use.
-
-### Install and verify
-
-```bash
-npx @holdyourvoice/hyv patterns
-```
-
-Run any command without a global install with `npx @holdyourvoice/hyv`. To use the short `hyv` command repeatedly:
+### Install
 
 ```bash
 npm install --global @holdyourvoice/hyv
 hyv patterns
 ```
 
-To contribute, clone this repository, run `npm install`, then run `npm test` and `npm run check:release`.
+No global install? Run any command with `npx @holdyourvoice/hyv`.
 
-### Use it in Claude Desktop
-
-Build the fully local Claude Desktop extension with `npm run pack:claude`, then install `dist/hold-your-voice.mcpb` from **Settings → Extensions → Advanced settings → Install Extension**. The extension accepts text and portable profile JSON in the current conversation only. Verification is read-only. Learning requires an explicit learning command or an approved lifecycle transition; neither path retains writing text or makes network requests. See the [Claude Desktop guide](docs/CLAUDE-DESKTOP.md).
-
-### Build a local VoiceDNA profile
+### Build a profile
 
 ```bash
-npx @holdyourvoice/hyv profile profile.json samples/one.md samples/two.md --avoid=overused-phrase
+hyv profile profile.json samples/one.md samples/two.md --avoid=overused-phrase
 ```
 
-Use writing by one person, with a similar audience and format where possible. The command needs at least two samples. It creates a portable JSON profile and keeps the samples on your machine. Repeat `--avoid=phrase` for each local phrase that must block a candidate.
+Use writing by one person, with a similar audience and format. The command needs at least two samples. It writes a portable JSON profile and keeps your samples on your machine. Repeat `--avoid=phrase` for each phrase that must block a candidate.
 
-### Inspect a draft
+### Analyze a draft
 
 ```bash
-npx @holdyourvoice/hyv analyze draft.md profile.json
+hyv analyze draft.md profile.json
 ```
 
-The result is JSON with independent reports:
+The result is JSON with independent reports. The outer `passed` field is true only when each engine passes.
 
 ```json
 {
@@ -83,177 +51,39 @@ The result is JSON with independent reports:
 }
 ```
 
-Read both scored reports and the separate hygiene inspection. The outer `passed` field means each engine passed. Unicode hygiene never changes either score or the release decision.
+### Edit and verify
 
-### Gate every final text output
+```bash
+hyv rewrite-prompt draft.md profile.json > rewrite-brief.md
+hyv verify draft.md candidate.md profile.json
+```
 
-`final-check` is a profile-free last-mile boundary for text from any model, tool, agent, API, template, CLI, or GUI:
+Give the brief and draft to a human editor or any model you trust. Ask for replacement sentences keyed by sentence number, then save them as a separate candidate file. `verify` compares the original and candidate, reports new findings, and exits `2` when the candidate fails the gate.
+
+### Gate final output
 
 ```bash
 producer | hyv final-check -
 hyv final-check final-response.md
 ```
 
-Clean text is written to stdout byte-for-byte. The gate removes only non-semantic ASCII controls and byte-order marks. When any other hidden Unicode remains, stdout stays empty, the report goes to stderr, and the command exits `2`. Put this command immediately before display, copy, export, posting, or an API response. The producer and the presence of a VoiceDNA profile do not change the policy.
+`final-check` is the last step before text reaches a user. It needs no profile. Clean text goes to stdout byte-for-byte. If hidden Unicode remains, stdout stays empty and the command exits `2`. Run it after the last edit, formatter, or template expansion.
 
-This is an integration boundary, not a background interceptor. HYV applies the same gate by default during rewrite and rebuild verification; unresolved output is withheld from their CLI and MCP evaluation result. A GUI, agent host, or external tool must still pass any later changed text to `hyv final-check -` or the read-only `hyv_final_check` MCP tool and deliver only accepted output. Run it after the last rewrite, formatter, template expansion, or manual edit; checking an earlier draft does not cover later changes.
-
-### Inspect and clean hidden Unicode
-
-Use the profile-free hygiene command to inspect zero-width characters, bidirectional controls, Unicode tag characters, and unusual spaces:
+### Clean hidden Unicode
 
 ```bash
 hyv hygiene draft.md
-```
-
-Add `--fix` to create `draft.cleaned.md` while keeping `draft.md` unchanged:
-
-```bash
 hyv hygiene draft.md --fix
-hyv hygiene draft.md --fix --output=review-copy.md
 ```
 
-The fix receipt lists every changed UTF-16 offset and code point. The conservative cleaner removes ASCII controls and byte-order marks. It reports other zero-width characters, unusual spaces, bidirectional controls, and tag characters without changing them because they can carry legitimate language, typography, or emoji behavior. Existing output files are never overwritten.
-
-For a deliberately narrow, policy-backed cleanup of non-semantic ASCII controls and mid-document byte-order marks, inspect first and write a separate result:
-
-```bash
-hyv inspect-hidden-text draft.md policy.json
-hyv apply-hidden-text-policy draft.md policy.json draft.sanitized.md
-```
-
-The receipt carries the input/output hashes, exact changes, remaining review findings, and an idempotence result. It does not label Unicode findings as watermarks or claim that any provider watermark was removed.
-
-### Add contextual editorial guidance
-
-Use an optional local WritingBrief when the same writer needs different guidance for a social post, deck, outreach note, blog, audit, or website. A brief activates only the relevant advisory format checks and can block explicitly prohibited local terms. It never changes your VoiceDNA profile or the default two-engine analysis.
-
-```json
-{
-  "version": "1",
-  "audience": "technical founders",
-  "intent": "start a useful discussion",
-  "format": "social",
-  "readerKnowsAuthor": false,
-  "vocabulary": ["deployment", "incident"],
-  "prohibitedTerms": ["internal contract value"],
-  "evidenceStatus": "attributed",
-  "argumentMap": {
-    "observation": "A worker fails during a live request.",
-    "mechanism": "Its in-memory state is lost.",
-    "consequence": "The request restarts instead of resuming.",
-    "readerValue": "Avoid the cost of a cold restart."
-  }
-}
-```
-
-```bash
-hyv analyze draft.md profile.json writing-brief.json
-hyv rewrite-prompt draft.md profile.json writing-brief.json > rewrite-brief.md
-hyv verify original.md candidate.md profile.json writing-brief.json
-```
-
-Format checks, an `unverified` evidence state, and a missing configured reader-value cue are yellow review cues. `argumentMap` is a soft editorial contract surfaced to the rewrite prompt; it does not become a universal formula. Explicit `prohibitedTerms` are red release blockers. Keep client-specific briefs outside public repositories unless you have the right to publish them.
-
-### Inspect a batch
-
-Use batch analysis to catch exact repeated opening or closing sentences across two or more drafts. It is advisory and keeps all drafts local.
-
-```bash
-hyv batch-analyze posts/one.md posts/two.md posts/three.md
-```
-
-### Create an editing brief
-
-```bash
-npx @holdyourvoice/hyv rewrite-prompt draft.md profile.json > rewrite-brief.md
-```
-
-Give the brief and draft to a human editor or any model you trust. This repository stays out of that provider call. Ask for replacement sentences keyed by sentence number, then save the output as a separate candidate file.
-
-### Verify the candidate
-
-```bash
-npx @holdyourvoice/hyv verify draft.md candidate.md profile.json
-```
-
-`verify` returns the original and candidate reports, identifies newly introduced findings, calculates a coarse preservation score, and exits with status `2` when the candidate fails the dual gate. It does not mutate learning state. It exits with `1` for a usage or runtime error. Treat status `2` as a release signal in scripts or CI.
-
-### Lock factual claims with a CopySpec
-
-Use `verify-spec` when a draft has claims that must remain verbatim unless they declare atomic facts. A local CopySpec records each immutable claim alongside its evidence, then blocks a candidate if its required text or atoms are absent, or if it is joined by a prohibited claim.
-
-```json
-{
-  "version": "1",
-  "audience": "operators",
-  "intent": "explain a launch date",
-  "channel": "email",
-  "claims": [
-    {
-      "id": "launch-date",
-      "text": "The launch is on 14 August.",
-      "atoms": ["The launch is on 14 August."],
-      "evidence": "Release calendar, checked 7 August."
-    }
-  ],
-  "prohibitedClaims": ["The launch is guaranteed to double revenue."]
-}
-```
-
-```bash
-hyv verify-spec original.md candidate.md profile.json copy-spec.json
-```
-
-The check is deterministic. Without `atoms`, an immutable claim remains a verbatim sentence check. With `atoms`, every declared phrase must remain somewhere in the candidate, allowing independent facts to be split or reordered. Atoms are lexical-presence checks, not factual validation.
-
-### Check factual consistency with supplied sources
-
-`fact-lint` compares a final draft with local evidence. It extracts claims with sentence and UTF-16 offsets, checks dates, names, quotes, capabilities, causal/comparative escalation, and draft contradictions, then returns JSON with exact local evidence.
-
-```bash
-hyv fact-lint final.md --source=release:release-notes.md --source=research:research.md
-hyv fact-lint final.md --source=release:release-notes.md --human
-hyv fact-lint final.md --source=release:release-notes.md --strict
-```
-
-The default is report-only and exits `0`; `--strict` exits `2` for error findings. Known conflicts such as a CSV-to-PDF change are errors. A new or unclear capability, or weak evidence such as “exists” versus “grows”, becomes `needs_human_review`. No source text leaves the process by default. The linter checks consistency with supplied evidence; it does not prove the sources are true. See the [fact linter guide](docs/wiki/Fact-Linter.md).
-
-When a `WritingBrief` includes `factSources`, HYV runs the same local fact lint automatically during `verify`, `verify-spec`, rewrite evaluation, and their MCP equivalents. Error findings block verification. Source-free flows remain unchanged.
-
-Use `requiredFacts` for facts that must appear in the final draft. Each required fact must be supported by its source text or declared atoms in `factSources`; HYV fails verification if it is missing, negated, or denied. It does not assume every fact from every source belongs in every output.
-
-```json
-{
-  "version": "1",
-  "audience": "founders",
-  "intent": "write a post",
-  "format": "social",
-  "factSources": [{ "id": "bio", "text": "Shashank is a LinkedIn Top Voice." }],
-  "requiredFacts": [{ "id": "linkedin-top-voice", "text": "Shashank is a LinkedIn Top Voice." }]
-}
-```
-
-HYV does not infer trusted evidence from ordinary prompt prose. Pass source material through `factSources`, then mark only the inclusion-critical statements in `requiredFacts`. Run source-backed `verify` after the last substantive edit. `final-check` is a hygiene gate; it does not re-run evidence checks. Use source material that you are allowed to include in a rewrite task; task handoff is controlled by the calling host.
-
-### Local voice memory
-
-Learning changes are explicit. Use the learning commands below, or complete the separately authorized semantic-review and final-approval lifecycle before recording approved learning. State lives under `~/.hyv/learning/`, scoped to the portable profile, and stores no draft or candidate text. The next `rewrite-prompt` uses a bounded list of approved repairs.
-
-```bash
-hyv learning show profile.json
-hyv learning add profile.json "Keep the direct opening."
-hyv learning clear profile.json
-```
-
-`show` lets you inspect the exact local preferences. `clear` removes only that profile's learning file. Set `HYV_HOME` to place this local state elsewhere.
+Inspect zero-width characters, bidirectional controls, tag characters, and unusual spaces. Add `--fix` to write a cleaned copy while leaving the original untouched. The cleaner only removes non-semantic ASCII controls and byte-order marks; everything else is reported for review because it can carry real meaning.
 
 ## The editing loop
 
 ```mermaid
 flowchart LR
-  S[Your local samples] --> P[Build profile]
-  P --> D[VoiceDNA JSON]
+  S[Your samples] --> P[Build profile]
+  P --> D[VoiceDNA profile]
   T[Draft] --> A[Analyze]
   D --> A
   A --> V[VoiceDNA report]
@@ -264,178 +94,63 @@ flowchart LR
   T --> G[Verify candidate]
   C --> G
   D --> G
-  F[Optional factSources + requiredFacts] --> L[Local fact lint]
-  L --> G
-  G --> R[Errors block; review findings stay visible]
-  R --> H[final-check: hygiene before output]
+  G --> R[Errors block; findings stay visible]
+  R --> H[final-check before output]
 ```
 
-The tool never applies changes to your draft. You decide which findings are valid, apply replacement sentences or an authorized rebuild deliberately, and run the final check.
+The tool never edits your draft. You decide which findings are valid, apply the changes yourself, and run the final check.
 
-## Founder-aware rewrite
+## A few more commands
 
-3.3.0 keeps the original analyze → brief → verify loop and adds a structured rewrite path.
-
-1. Prepare a pre-edit judgment. Findings reduce to **SHIP**, bounded **EDIT**, or **REBUILD**.
-2. **SHIP** returns the original bytes. No model call.
-3. **EDIT** applies eligible sentence replacements or contiguous range edits through `prepare-rewrite` / `apply-rewrite`. Clean and unflagged text stays in place. Overlapping, out-of-order, or partly locked ranges fail before a candidate is built.
-4. **REBUILD** prepares a whole-document candidate only after a matching REBUILD recommendation, a CopySpec, and a signed `hyv.rebuild-authorization` capability. `prepare-rebuild` / `apply-rebuild` re-check that capability and the bound profile. Claim, polarity, hygiene, and semantic gates stay in force. Edit and rebuild responses are mutually incompatible.
-
-For a meaning-first recomposition, pass an explicit lexical-residual policy to `prepare-rebuild`. HYV gives the external writer structured facts and constraints rather than automatically including the source draft in its prompt, then measures shared wording after the candidate returns. A passed residual report means only that the candidate meets the configured overlap policy. It does not detect, remove, or prove the absence of a provider watermark, and it does not establish authorship.
-
-```bash
-hyv prepare-judgment pre-edit argument draft.md profile.json task.json
-hyv reduce-judgment envelope-a.json envelope-b.json envelope-c.json
-hyv prepare-rewrite draft.md profile.json task.json
-hyv apply-rewrite task.json response.json profile.json
-hyv prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json --recomposition-policy policy.json --capability-file capability.json
-hyv apply-rebuild task.json response.json profile.json --capability-file capability.json
-```
-
-CLI and MCP expose the same contracts. The engine never calls a model. An editor or chosen model still sits outside the package.
-
-## The five rewrite tiers
-
-The prompt has an order. Lower tiers can refine a higher tier; they cannot override it.
-
-1. **Tier 0: preservation.** Keep facts, names, numbers, claims, and every unflagged sentence exactly. Keep the response within the supplied sentences.
-2. **Tier 1: release blockers.** Resolve profile avoid-list phrases and red findings.
-3. **Tier 2: VoiceDNA.** Use the 13 profile elements as a writer-specific target.
-4. **Tier 3: AI Editor.** Inspect yellow findings. Change a line only when the repair helps.
-5. **Tier 4: output.** Return replacement sentences keyed by sentence number.
-
-This order protects meaning before style. Rebuild is a separate whole-document contract; it does not use sentence-number replacements. Read the complete [prompt contract](docs/PROMPT-CONTRACT.md) before changing either path.
-
-## VoiceDNA: 13 observable elements
-
-VoiceDNA is a local profile of writing mechanics drawn from the samples you choose. It makes no claim about personality. Its structural measurements support Unicode writing; the current point-of-view and transition lists are English-specific evidence.
-
-| # | Element | What it captures | Current gate behavior |
-| --- | --- | --- | --- |
-| 1 | Sentence length | Mean words per sentence | Yellow finding outside the profile band. |
-| 2 | Sentence variation | Spread of sentence lengths | Used to set the sentence-length tolerance. |
-| 3 | Sentence structure | Frequent three-word openings | Profile evidence. |
-| 4 | Rhythm | Change between neighbouring sentence lengths | Profile evidence. |
-| 5 | Paragraph length | Mean sentences per paragraph | Profile evidence. |
-| 6 | Opening moves | Frequent first words | Profile evidence. |
-| 7 | Vocabulary | Frequent non-stop words | Profile evidence and rewrite context. |
-| 8 | Lexical density | Share of non-stop words | Profile evidence. |
-| 9 | Point of view | First, second, third, or mixed | Yellow finding for a dominant-profile mismatch. |
-| 10 | Punctuation | Counts of selected marks | Profile evidence. |
-| 11 | Case style | Lowercase, standard, or mixed | Yellow finding on mismatch. |
-| 12 | Question rate | Sentences ending in questions | Yellow finding for a material difference. |
-| 13 | Transitions | Frequent recognised connectors | Profile evidence and rewrite context. |
-
-An explicit profile avoid list creates red findings. The other evidence-only elements are calculated and shown. Future enforcement needs a written policy, counterexamples, and tests.
-
-Read the full [VoiceDNA reference](docs/VOICE-DNA.md) and [Wiki guide](https://github.com/shashank-sn/holdyourvoice/wiki/VoiceDNA).
-
-## AI Editor: inspectable rules
-
-AI Editor uses a local, deterministic ruleset. The current `3.2.0-reconciled.1` ruleset contains 148 stable catalog entries: the inherited catalog plus en-dash and performative-sincerity coverage. Applied profile policy determines whether a match blocks, advises, requires judgment, or is disabled. Duplicate legacy expressions remain cataloged for ID compatibility but emit one canonical finding. Most rules inspect sentences; selected inherited rules inspect one physical line to preserve multi-sentence and line-start behavior.
-
-Run this command to see the rules and ruleset version that actually execute in the published CLI:
-
-```bash
-npx @holdyourvoice/hyv patterns
-```
-
-From a built source checkout, run `node dist/cli.js patterns` instead.
-
-Red findings are release blockers. Yellow findings are a request to inspect a sentence in context. A match never proves who wrote the text, and a clean scan never proves the text is good.
-
-The repository also includes a public [220-pattern editorial catalog](docs/patterns/AI-WRITING-PATTERNS-1-220.md). It is broader editorial guidance, not a claim that all 220 entries execute. A catalog entry becomes executable only after the project has defined its counterexamples, reviewed public provenance, written tests, and decided the rule is narrow enough to help without creating noise. Neither the executable rules nor the editorial catalog can prove authorship.
-
-## Verification contract
-
-Verification analyzes the original and candidate with the same profile and ruleset. It passes only when:
-
-- VoiceDNA passes.
-- AI Editor passes.
-- The candidate introduces zero new red findings.
-- The lexical preservation score is at least 70.
-
-The preservation score is a guardrail based on retained original words longer than four characters. A human still needs to review facts, source links, intent, and reader value.
+| Command | Use it when |
+| --- | --- |
+| `hyv verify-spec` | A draft has facts that must stay verbatim (CopySpec). |
+| `hyv fact-lint` | Check a draft against local evidence sources. |
+| `hyv batch-analyze` | Catch exact repeated sentences across drafts. |
+| `hyv prepare-rewrite` / `apply-rewrite` | Fingerprint-bound sentence or range edits. |
+| `hyv prepare-rebuild` / `apply-rebuild` | Whole-document rebuild after an authorized recommendation. |
+| `hyv prepare-judgment` / `reduce-judgment` | Reduce findings to SHIP, EDIT, or REBUILD. |
+| `hyv lifecycle` | Semantic and human-review lifecycle steps. |
+| `hyv learning show` | Inspect local voice-memory preferences. |
 
 ## Commands
 
-| Command | Input | Output | Use it when |
-| --- | --- | --- | --- |
-| `hyv profile <profile.json> <sample...>` | Two or more text files | Profile JSON | You need a new local reference. |
-| `hyv analyze <draft> <profile.json>` | Draft and profile | Analysis JSON | You need both reports before editing. |
-| `hyv hygiene <draft> [--fix] [--output=path]` | Draft | Hygiene report or cleaned copy plus receipt | You need to inspect or conservatively clean hidden Unicode. |
-| `hyv final-check <path\|->` | Any final text | Exact accepted text on stdout or a withheld-output report on stderr | Text is about to cross a user-facing boundary. |
-| `hyv rewrite-prompt <draft> <profile.json>` | Draft and profile | Markdown editing brief | You need a constrained request for an editor or model. |
-| `hyv prepare-rewrite <draft> <profile.json> <task.json>` | Draft and profile | Versioned task file plus metadata | A host needs a fingerprint-bound sentence-edit or range-edit task. |
-| `hyv apply-rewrite <task.json> <response.json> <profile.json>` | Task, response, and profile | Candidate evaluation JSON | A host needs to apply and recheck eligible sentence replacements. |
-| `hyv prepare-judgment <pre-edit\|post-candidate> <kind> <draft> <profile.json> <task.json> [candidate.md]` | Draft, profile, and optional candidate | Versioned judgment task | Findings need a SHIP, EDIT, or REBUILD recommendation. |
-| `hyv reduce-judgment <envelope.json> <envelope.json> [envelope.json...]` | Signed judgment envelopes | Recommendation JSON | Multiple judgment envelopes must reduce to one decision. |
-| `hyv prepare-rebuild <draft> <profile.json> <reduction.json> <copy-spec.json> <task.json> [--recomposition-policy policy.json]` | Draft, recommendation, CopySpec, capability, and optional policy | Versioned rebuild task | An upstream REBUILD recommendation needs a whole-document candidate; an optional policy makes it meaning-first and adds lexical-residual evidence. |
-| `hyv apply-rebuild <task.json> <response.json> <profile.json>` | Task, response, profile, and capability | Candidate evaluation JSON | A host needs to apply and recheck an authorized rebuild. |
-| `hyv verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code | You need the candidate gate. |
-| `hyv verify-spec <original> <candidate> <profile.json> <copy-spec.json>` | Original, candidate, profile, CopySpec | Verification JSON with hard claim gate | A brief contains locked facts or prohibited claims. |
-| `hyv learning <show\|inspect\|add\|record\|ratify\|supersede\|migrate\|clear> ...` | Profile, operation value, and bounded metadata options | Preferences or a text-free mutation receipt | You need to inspect, migrate, or manage profile-scoped learning. |
-| `hyv lifecycle <prepare-semantic\|submit-verdict\|inspect\|validate-final-approval\|finalize> ...` | Versioned lifecycle artifacts | Canonical lifecycle artifact or metadata | A normal-policy semantic review or human decision must advance through the shared reducer. |
-| `hyv patterns` | None | Ruleset JSON | You need the exact enabled rules. |
+| Command | Input | Output |
+| --- | --- | --- |
+| `hyv profile <profile.json> <sample...>` | Two or more text files | Profile JSON |
+| `hyv analyze <draft> <profile.json>` | Draft and profile | Analysis JSON |
+| `hyv hygiene <draft> [--fix] [--output=path]` | Draft | Hygiene report or cleaned copy plus receipt |
+| `hyv final-check <path\|->` | Any final text | Accepted text on stdout or a withheld-output report |
+| `hyv rewrite-prompt <draft> <profile.json>` | Draft and profile | Markdown editing brief |
+| `hyv prepare-rewrite <draft> <profile.json> <task.json>` | Draft and profile | Versioned task file |
+| `hyv apply-rewrite <task.json> <response.json> <profile.json>` | Task, response, profile | Candidate evaluation JSON |
+| `hyv prepare-judgment <pre-edit\|post-candidate> <kind> <draft> <profile.json> <task.json> [candidate.md]` | Draft, profile, optional candidate | Versioned judgment task |
+| `hyv reduce-judgment <envelope.json> ...` | Signed judgment envelopes | Recommendation JSON |
+| `hyv prepare-rebuild <draft> <profile.json> <reduction.json> <copy-spec.json> <task.json> [--recomposition-policy policy.json]` | Draft, recommendation, CopySpec, capability, optional policy | Versioned rebuild task |
+| `hyv apply-rebuild <task.json> <response.json> <profile.json>` | Task, response, profile, capability | Candidate evaluation JSON |
+| `hyv verify <original> <candidate> <profile.json>` | Original, candidate, profile | Verification JSON and exit code |
+| `hyv verify-spec <original> <candidate> <profile.json> <copy-spec.json>` | Original, candidate, profile, CopySpec | Verification JSON with hard claim gate |
+| `hyv learning <show\|inspect\|add\|record\|ratify\|supersede\|migrate\|clear> ...` | Profile, operation, bounded metadata | Preferences or a text-free receipt |
+| `hyv lifecycle <prepare-semantic\|submit-verdict\|inspect\|validate-final-approval\|finalize> ...` | Versioned lifecycle artifacts | Lifecycle artifact or metadata |
+| `hyv patterns` | None | Ruleset JSON |
 
-Every file argument can be `-` when the command accepts text input from standard input. Profile output is always written to the path you give it. Use `npx @holdyourvoice/hyv <command>` in place of `hyv <command>` when you have not installed the CLI globally.
+Every file argument can be `-` when the command accepts input on standard input. Use `npx @holdyourvoice/hyv <command>` if you have not installed the CLI globally.
 
-Profile v3 learning is keyed by its stable local profile ID, so compatible history survives profile revisions. `record`, `ratify`, and `supersede` accept bounded `--mutation-id`, `--authority`, `--provenance`, `--weight`, and `--compatibility` options. `ratify` and `supersede` require Profile v3. `migrate` explicitly copies compatible legacy Profile v2 learning into one Profile v3 identity. Replaying an identical mutation is idempotent; reusing its ID for a different operation returns a conflict. Inspection and receipts expose event metadata only, never stored instructions or draft text.
+## Privacy
 
-The standalone CLI supports normal-policy semantic review. High-assurance review requires a trusted embedding and is rejected by the CLI. Approval and rebuild capabilities are accepted only through `--capability-stdin` or a permission-checked `--capability-file`; adapters validate capabilities but never mint them. Rejection needs no capability. Approval and `learning record-approved` require the matching signed final-approval capability. `apply-rewrite`, `apply-rebuild`, `lifecycle submit-verdict`, and `lifecycle finalize` exit `2` when the candidate or transition is not accepted, while usage and runtime failures exit `1`.
+Your samples, drafts, profiles, and candidates stay on your machine. Verification is read-only. Learning commands can write text-free local events under `~/.hyv/learning/` — profile fingerprint, finding IDs, counts, and an opaque digest. No writing text is uploaded, and the package makes no runtime network requests.
 
-## Project map
-
-| Path | Responsibility |
-| --- | --- |
-| `src/contracts.ts` | Profiles, findings, reports, analysis, and verification data shapes. |
-| `src/text.ts` | Sentence, paragraph, word, and basic statistics helpers. |
-| `src/hygiene.ts` | Profile-free hidden Unicode inspection and conservative cleaning. |
-| `src/voice-dna.ts` | Builds profiles and runs VoiceDNA checks. |
-| `src/ai-editor.ts` | Owns the versioned deterministic editorial rules. |
-| `src/editorial-packs.ts` | Parses WritingBrief context and runs format and batch checks. |
-| `src/learning.ts` | Stores text-free, profile-scoped verified repairs and composes bounded local preferences. |
-| `src/pipeline.ts` | Combines scored pass states, makes briefs, and verifies candidates. |
-| `src/rewrite-task.ts` | Prepares and evaluates fingerprint-bound sentence-replacement and range-edit tasks. |
-| `src/judgment-task.ts` | Reduces pre-edit SHIP/EDIT/REBUILD recommendations and post-candidate clearance. |
-| `src/rebuild-task.ts` | Prepares whole-document rebuild after a matching recommendation, CopySpec, and signed capability. |
-| `src/recomposition.ts` | Builds meaning-first rebuild briefs and measures declared lexical-residual evidence. |
-| `src/semantic-review.ts` | Defines and reduces semantic and human-review lifecycle artifacts. |
-| `src/approval-capability.ts` | Verifies canonical signed approval capabilities. |
-| `src/approval-context.ts` | Loads permission-checked trust roots and evaluator authorization. |
-| `src/lifecycle-adapter.ts` | Shares lifecycle operations across CLI and MCP adapters. |
-| `src/cli.ts` | Local file and standard-input command adapter. |
-| `src/mcp.ts` | Local stdio MCP registration and host-capability gating. |
-| `src/pipeline.test.ts` | Contract and regression tests. |
-| `CONTRIBUTING.md` | Public-safety rules and the contributor model. |
-| `scripts/release-audit.mjs` | Checks source files for credential and network markers. |
-
-`pipeline.ts` is the sole scored output-composition point. It combines pass states and preserves each engine’s separate score. Rewrite-task and lifecycle modules compose their own versioned, non-scoring artifacts.
-
-## Privacy and data rights
-
-The runtime uses files on your machine. Samples, drafts, profiles, candidates, and client data stay there. Verification is read-only. Explicit learning commands and approved lifecycle recording can write text-free local events under `~/.hyv/learning/`: profile fingerprint, finding IDs, severities, counts, timestamp, and an opaque one-way candidate digest for retry deduplication. An instruction added through `hyv learning add` is stored as entered.
-
-The package does not upload writing, use embeddings, or make runtime network requests. Keep writing samples, edit histories, client text, local learning files, and datasets out of public commits unless you hold explicit rights and a provenance record. A profile is aggregated JSON and can still reveal vocabulary and preferences. Store private profiles outside public repositories.
-
-See the [privacy guide](https://github.com/shashank-sn/holdyourvoice/wiki/Privacy-and-Data-Rights) for maintainer and contributor boundaries.
-
-## Benchmarks and claims
-
-The repository preserves historical product material in [docs/BENCHMARKS.md](docs/BENCHMARKS.md), with related public articles about the [Voice Memory Composer](https://holdyourvoice.com/blog/voice-memory-composer) and [Hold Your Voice vs GPT-5.6 writing](https://holdyourvoice.com/blog/hold-your-voice-vs-gpt-5-6-writing).
-
-Treat those as dated reference material. A reproducible benchmark needs rights-cleared data, frozen settings, a published rubric, separate dimensions, and visible limitations. The [benchmark guide](https://github.com/shashank-sn/holdyourvoice/wiki/Benchmarks-and-Research) explains the standard.
+Keep writing samples, edit histories, and client text out of public commits unless you hold the rights and a provenance record. A profile is aggregated JSON and can still reveal vocabulary, so store private profiles outside public repositories.
 
 ## Documentation
 
 | Read this | When you need |
 | --- | --- |
-| [The complete Wiki](https://github.com/shashank-sn/holdyourvoice/wiki) | Product, workflow, and contributor documentation. |
-| [Thesis](docs/THESIS.md) | The design argument for two independent engines. |
+| [The Wiki](https://github.com/shashank-sn/holdyourvoice/wiki) | Product and contributor docs. |
 | [Architecture](docs/ARCHITECTURE.md) | Source boundaries and extension rules. |
-| [Local voice memory](docs/wiki/Local-Voice-Memory.md) | What default local learning stores, uses, and never changes. |
 | [Prompt contract](docs/PROMPT-CONTRACT.md) | The tier order and editing constraints. |
-| [Pattern taxonomy](docs/PATTERN-TAXONOMY.md) | The catalog/executable-rule boundary. |
+| [VoiceDNA](docs/VOICE-DNA.md) | The 13 profile elements. |
+| [Fact linter](docs/wiki/Fact-Linter.md) | The source-consistency checker. |
 | [Support](SUPPORT.md) | Funding without a feature gate. |
 
 ## Contribute
@@ -445,16 +160,10 @@ npm test
 npm run check:release
 ```
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep changes narrow. Add tests when code behavior changes. Separate current executable behavior, editorial guidance, historical research, and proposals. Keep private, client, secret, and unlicensed material out of issues, fixtures, tests, and documentation.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep changes narrow, add tests when behavior changes, and keep private or unlicensed material out of the repo.
 
-## npm releases
-
-`@holdyourvoice/hyv` is published automatically after a change to the package source reaches `main`. The workflow publishes only when the version in `package.json` is not already on npm, so bump that version in the same pull request as a release-worthy change. It runs the tests and release audit before publishing, then verifies that npm reports the package as MIT licensed.
-
-## Support
-
-Hold Your Voice stays fully open source. Read the [funding policy](FUNDING.md) or [sponsor maintenance on GitHub](https://github.com/sponsors/shashank-sn) with a one-time or recurring sponsorship. Sponsorship funds maintenance while the feature set and local privacy contract remain the same for everyone.
+`@holdyourvoice/hyv` publishes automatically when a change reaches `main`. Bump the version in `package.json` in the same pull request as a release-worthy change; the workflow publishes only if that version is not already on npm.
 
 ## License
 
-[MIT](LICENSE). You can use, modify, and distribute the code under its terms. Third-party writing and data retain their own rights.
+[MIT](LICENSE). Third-party writing and data retain their own rights.

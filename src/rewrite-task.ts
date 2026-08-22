@@ -1,18 +1,13 @@
-import { createHash } from 'node:crypto';
 import type { CopySpec, DeterministicVerificationArtifactV1, HygieneRangeOperation, Profile, RewriteApplyResult, RewriteEvaluation, RewriteFailure, RewriteLifecycleBindingV1, RewriteRangeOperation, RewriteReceipt, RewriteReplacement, RewriteResponse, RewriteResponseV2, RewriteTask, WritingBrief } from './contracts.js';
-import { canonicalJson } from './canonical-json.js';
 import { parseWritingBrief } from './editorial-packs.js';
 import { finalOutputCheck, hygieneSourceFindings } from './hygiene.js';
 import { analyze, deriveEditScope, renderRewritePrompt, verifyDeterministically } from './pipeline.js';
 import { sentences } from './text.js';
+import { fingerprint } from './internal.js';
 
 const MAX_RESPONSE_BYTES = 100_000;
 const MAX_REPLACEMENTS = 100;
 const MAX_REPLACEMENT_CHARACTERS = 10_000;
-
-function fingerprint(value: unknown): string {
-  return createHash('sha256').update(typeof value === 'string' ? value : canonicalJson(value)).digest('hex');
-}
 
 function failure(code: RewriteFailure['code'], message: string, path?: string): RewriteFailure {
   return { code, message, ...(path ? { path } : {}) };
