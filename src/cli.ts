@@ -147,6 +147,9 @@ function json(value: unknown): void {
   console.log(JSON.stringify(value, null, 2));
 }
 function canonical(value: unknown): void { process.stdout.write(`${canonicalJson(value)}\n`); }
+function writeJson(path: string, value: unknown): void {
+  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+}
 
 function profileArguments(args: string[]): { output: string; samples: string[]; avoid: string[] } {
   const [output, ...rest] = args;
@@ -297,283 +300,373 @@ function runAgent(args: string[]): number {
   throw new Error('Usage: hyv agent <list|validate|describe|emit> ...');
 }
 
+type CommandHandler = (args: string[]) => number | Promise<number>;
+
+function runProfile(args: string[]): number {
+  const { output, samples, avoid } = profileArguments(args);
+  writeJson(output, buildProfile(samples.map(input), avoid));
+  return 0;
+}
+
+function runAnalyze(args: string[]): number {
+  const [draft, profilePath, briefPath] = args;
+  if (!draft || !profilePath) throw new Error('Usage: hyv analyze draft.md profile.json [writing-brief.json]');
+  json(analyze(input(draft), readProfile(profilePath), readBrief(briefPath)));
+  return 0;
+}
+
+function runHygiene(args: string[]): number {
+  const { path, fix, output } = hygieneArguments(args);
+  if (fix && path === '-') throw new Error('hyv hygiene --fix requires a file path so the original can be preserved.');
+  const text = input(path);
+  if (!fix) {
+    json(inspectHygiene(text));
+    return 0;
+  }
+  const outputPath = output ?? cleanedPath(path);
+  if (resolve(outputPath) === resolve(path)) throw new Error('Hygiene output must differ from the input path.');
+  const result = cleanHygiene(text);
+  writeNewFileAtomically(outputPath, result.cleaned);
+  json({ ...result.report, changed: result.changed, changes: result.changes, outputPath });
+  return 0;
+}
+
+function runInspectHiddenText(args: string[]): number {
+  const [path, policyPath, ...extra] = args;
+  if (!path || extra.length) throw new Error('Usage: hyv inspect-hidden-text draft.md [policy.json]');
+  json(inspectHiddenText(input(path), policyPath ? parseHiddenTextPolicy(readJson(policyPath)) : undefined));
+  return 0;
+}
+
+function runApplyHiddenTextPolicy(args: string[]): number {
+  const [path, policyPath, output, ...extra] = args;
+  if (!path || !policyPath || !output || extra.length) throw new Error('Usage: hyv apply-hidden-text-policy draft.md policy.json output.md');
+  if (path === '-' || resolve(path) === resolve(output)) throw new Error('Hidden-text output must differ from the input path.');
+  const result = applyHiddenTextPolicy(input(path), parseHiddenTextPolicy(readJson(policyPath)));
+  writeNewFileAtomically(output, result.output);
+  json({ ...result, outputPath: output });
+  return 0;
+}
+
+function runFinalCheck(args: string[]): number {
+  const [path, ...options] = args;
+  if (!path || options.length) throw new Error('Usage: hyv final-check <path|->');
+  const result = finalOutputCheck(input(path));
+  if (!result.accepted) {
+    console.error(JSON.stringify(result, null, 2));
+    return 2;
+  }
+  if (result.changed) console.error(JSON.stringify({ changed: true, changes: result.changes }, null, 2));
+  process.stdout.write(result.output);
+  return 0;
+}
+
+function runFactLint(args: string[]): number {
+  const [draftPath, ...options] = args;
+  const sources: FactSource[] = [];
+  let metadata: FactMetadata | undefined;
+  let strict = false;
+  let human = false;
+  if (!draftPath) throw new Error('Usage: hyv fact-lint <draft|-> --source=id:path [--source=id:path] [--metadata=metadata.json] [--strict] [--human]');
+  for (const option of options) {
+    if (option === '--strict') { strict = true; continue; }
+    if (option === '--human') { human = true; continue; }
+    if (option.startsWith('--source=')) {
+      const value = option.slice('--source='.length);
+      const separator = value.indexOf(':');
+      const id = value.slice(0, separator).trim();
+      const path = value.slice(separator + 1);
+      if (separator < 1 || !id || !path) throw new Error('Sources must use --source=id:path.');
+      sources.push({ id, text: input(path) });
+      continue;
+    }
+    if (option.startsWith('--metadata=')) {
+      metadata = JSON.parse(input(option.slice('--metadata='.length))) as FactMetadata;
+      continue;
+    }
+    throw new Error('Usage: hyv fact-lint <draft|-> --source=id:path [--source=id:path] [--metadata=metadata.json] [--strict] [--human]');
+  }
+  const report = lintFacts({ sources, draft: input(draftPath), metadata });
+  if (human) console.log(formatFactLintReport(report)); else json(report);
+  return strict && report.findings.some((item) => item.severity === 'error') ? 2 : 0;
+}
+
+function runLogicLint(args: string[]): number {
+  const [draftPath, briefPath, ...extra] = args;
+  if (!draftPath || extra.length) throw new Error('Usage: hyv logic-lint <draft|-> [writing-brief.json]');
+  const report = lintLogic(input(draftPath), readBrief(briefPath));
+  json(report);
+  return report.passed ? 0 : 2;
+}
+
+function runBatchAnalyze(args: string[]): number {
+  if (args.length < 2) throw new Error('Usage: hyv batch-analyze draft-a.md draft-b.md [draft-c.md]');
+  json(analyzeBatch(args.map(input)));
+  return 0;
+}
+
+function runRewritePrompt(args: string[]): number {
+  const [draft, profilePath, briefPath] = args;
+  if (!draft || !profilePath) throw new Error('Usage: hyv rewrite-prompt draft.md profile.json [writing-brief.json]');
+  const profile = readProfile(profilePath);
+  console.log(rewritePrompt(input(draft), profile, composeLearning(profile), readBrief(briefPath)));
+  return 0;
+}
+
+function runPrepareRewrite(args: string[]): number {
+  const [draft, profilePath, output, ...contextPaths] = args;
+  if (!draft || !profilePath || !output) throw new Error('Usage: hyv prepare-rewrite draft.md profile.json task.json [copy-spec.json] [writing-brief.json]');
+  const context = prepareContext(contextPaths);
+  const task = prepareRewriteTask(input(draft), readProfile(profilePath), context.copySpec, context.writingBrief);
+  writeJson(output, task);
+  json({ version: task.version, fingerprint: task.fingerprint, eligibleSentenceIds: task.eligibleSentenceIds });
+  return 0;
+}
+
+function runApplyRewrite(args: string[]): number {
+  const [taskPath, responsePath, profilePath] = args;
+  if (!taskPath || !responsePath || !profilePath) throw new Error('Usage: hyv apply-rewrite task.json response.json profile.json');
+  const result = evaluateRewriteResponse(parseRewriteTask(JSON.parse(input(taskPath))), input(responsePath), readProfile(profilePath));
+  json(result);
+  return result.status === 'accepted' ? 0 : 2;
+}
+
+function runPrepareJudgment(args: string[]): number {
+  const [stage, kind, draft, profilePath, output, candidatePath] = args;
+  if (!stage || !kind || !draft || !profilePath || !output) throw new Error('Usage: hyv prepare-judgment pre-edit|post-candidate kind draft.md profile.json task.json [candidate.md]');
+  if (stage === 'post-candidate' && !candidatePath) throw new Error('Usage: hyv prepare-judgment post-candidate kind draft.md profile.json task.json candidate.md');
+  const profile = readProfile(profilePath);
+  const task = stage === 'pre-edit'
+    ? preparePreEditJudgment(input(draft), profile, kind as 'triage' | 'argument' | 'form')
+    : preparePostCandidateJudgment(input(draft), input(candidatePath ?? ''), profile, kind as 'argument' | 'polarity' | 'form' | 'flatness' | 'semantic');
+  writeJson(output, task);
+  json({ version: task.version, stage: task.stage, judgmentType: task.judgmentType, taskFingerprint: task.taskFingerprint });
+  return 0;
+}
+
+function runReduceJudgment(args: string[]): number {
+  if (args.length < 3) throw new Error('Usage: hyv reduce-judgment envelope.json envelope.json [envelope.json...]');
+  const envelopes = args.map((path) => parseJudgmentEnvelope(JSON.parse(input(path))));
+  json(envelopes[0]?.stage === 'pre-edit' ? reducePreEdit(envelopes) : reducePostCandidate(envelopes));
+  return 0;
+}
+
+function runPrepareRebuild(args: string[]): number {
+  const { values, capability, recompositionPolicy } = rebuildArguments(args);
+  const [draft, profilePath, reductionPath, specPath, output, briefPath] = values;
+  if (!draft || !profilePath || !reductionPath || !specPath || !output || !capability) {
+    throw new Error('Usage: hyv prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json [writing-brief.json] [--recomposition-policy policy.json] (--capability-stdin|--capability-file path)');
+  }
+  const context = loadApprovalContext();
+  const task = prepareRebuildTask(
+    input(draft),
+    readProfile(profilePath),
+    readJson(reductionPath) as PreEditReduction,
+    parseCopySpec(JSON.parse(input(specPath))),
+    capability,
+    context.trustStore,
+    context.now,
+    briefPath ? parseWritingBrief(JSON.parse(input(briefPath))) : undefined,
+    recompositionPolicy,
+  );
+  writeJson(output, task);
+  json({ version: task.version, fingerprint: task.fingerprint, recommendationFingerprint: task.recommendationFingerprint, authorizationFingerprint: task.authorizationFingerprint, ...(task.recompositionPolicy ? { recompositionPolicy: task.recompositionPolicy } : {}) });
+  return 0;
+}
+
+function runApplyRebuild(args: string[]): number {
+  const { values, capability } = capabilityArguments(args);
+  const [taskPath, responsePath, profilePath, ...extra] = values;
+  if (!taskPath || !responsePath || !profilePath || extra.length || !capability) throw new Error('Usage: hyv apply-rebuild task.json response.json profile.json (--capability-stdin|--capability-file path)');
+  const context = loadApprovalContext();
+  const result = evaluateRebuildResponse(parseRebuildTask(JSON.parse(input(taskPath))), input(responsePath), readProfile(profilePath), capability, context.trustStore, context.now);
+  json(result);
+  return result.status === 'accepted' ? 0 : 2;
+}
+
+function runRebuildWriterRequest(args: string[]): number {
+  const [taskPath, output, ...extra] = args;
+  if (!taskPath || !output || extra.length) throw new Error('Usage: hyv rebuild-writer-request task.json writer-request.json');
+  const request = writerRequestForRebuild(parseRebuildTask(JSON.parse(input(taskPath))));
+  writeJson(output, request);
+  json({ version: request.version, taskFingerprint: request.taskFingerprint, copySpecFingerprint: request.copySpecFingerprint, ...(request.recompositionPolicyFingerprint ? { recompositionPolicyFingerprint: request.recompositionPolicyFingerprint } : {}) });
+  return 0;
+}
+
+function runVerify(args: string[]): number {
+  const [original, candidate, profilePath, briefPath] = args;
+  if (!original || !candidate || !profilePath) throw new Error('Usage: hyv verify original.md candidate.md profile.json [writing-brief.json]');
+  const profile = readProfile(profilePath);
+  const originalText = input(original);
+  const candidateText = input(candidate);
+  const result = verify(originalText, candidateText, profile, readBrief(briefPath));
+  json(result);
+  return result.passed ? 0 : 2;
+}
+
+function runVerifySpec(args: string[]): number {
+  const [original, candidate, profilePath, specPath, briefPath] = args;
+  if (!original || !candidate || !profilePath || !specPath) throw new Error('Usage: hyv verify-spec original.md candidate.md profile.json copy-spec.json [writing-brief.json]');
+  const profile = readProfile(profilePath);
+  const candidateText = input(candidate);
+  const result = verifyWithCopySpec(input(original), candidateText, profile, parseCopySpec(JSON.parse(input(specPath))), readBrief(briefPath));
+  json(result);
+  return result.passed ? 0 : 2;
+}
+
+function runLifecycle(args: string[]): number {
+  const [action, ...raw] = args;
+  if (action === 'prepare-semantic') return prepareSemanticLifecycle(raw);
+  if (action === 'submit-verdict') return submitLifecycleVerdict(raw);
+  if (action === 'inspect') return inspectLifecycleArtifact(raw);
+  if (action === 'validate-final-approval' || action === 'finalize') return finishLifecycle(action, raw);
+  throw new Error('Usage: hyv lifecycle <prepare-semantic|submit-verdict|inspect|validate-final-approval|finalize> ...');
+}
+
+function prepareSemanticLifecycle(args: string[]): number {
+  const [deterministicPath, bindingPath, receiptPath, policy, violationsPath, output, ...extra] = args;
+  if (!deterministicPath || !bindingPath || !receiptPath || !policy || !violationsPath || !output || extra.length || !['normal', 'high_assurance'].includes(policy)) throw new Error('Usage: hyv lifecycle prepare-semantic deterministic.json binding.json receipt.json <normal|high_assurance> violations.json output.json');
+  if (policy === 'high_assurance') throw new Error('High-assurance semantic review requires a trusted embedding.');
+  const result = prepareLifecycle(readJson(deterministicPath) as DeterministicVerificationArtifactV1, readJson(bindingPath) as RewriteLifecycleBindingV1, readJson(receiptPath) as RewriteReceipt, policy as SemanticPolicy, readJson(violationsPath) as SemanticViolation[]);
+  const serialized = canonicalJson(result);
+  writeFileSync(output, `${serialized}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+  process.stdout.write(`${serialized}\n`);
+  return 0;
+}
+
+function submitLifecycleVerdict(args: string[]): number {
+  const [artifactPath, taskPath, evaluatorId, verdictPath, ...extra] = args;
+  if (!artifactPath || !taskPath || !evaluatorId || !verdictPath || extra.length) throw new Error('Usage: hyv lifecycle submit-verdict artifact.json task.json evaluator-id verdict.json');
+  const artifact = readJson(artifactPath) as RewriteLifecycleArtifactV1;
+  const task = readJson(taskPath) as SemanticReviewTaskV1;
+  if (task.policy !== 'normal') throw new Error('High-assurance semantic review requires a trusted embedding.');
+  const result = submitSemanticVerdict(artifact, task, evaluatorId, readJson(verdictPath), loadApprovalContext());
+  canonical(result.ok ? result.artifact : { error: result.error });
+  return result.ok && result.artifact.status === 'ready_for_human_review' ? 0 : 2;
+}
+
+function inspectLifecycleArtifact(args: string[]): number {
+  const [artifactPath, ...extra] = args;
+  if (!artifactPath || extra.length) throw new Error('Usage: hyv lifecycle inspect artifact.json');
+  canonical(inspectLifecycle(readJson(artifactPath) as RewriteLifecycleArtifactV1));
+  return 0;
+}
+
+function finishLifecycle(action: 'validate-final-approval' | 'finalize', args: string[]): number {
+  const { values, capability } = capabilityArguments(args);
+  if (action === 'validate-final-approval') {
+    const [artifactPath, ...extra] = values;
+    if (!artifactPath || extra.length || !capability) throw new Error('Usage: hyv lifecycle validate-final-approval artifact.json (--capability-stdin|--capability-file path)');
+    const result = validateFinalApproval(readJson(artifactPath) as RewriteLifecycleArtifactV1, capability, loadApprovalContext());
+    canonical(result);
+    return result.ok ? 0 : 2;
+  }
+  const [artifactPath, decisionPath, ...extra] = values;
+  if (!artifactPath || !decisionPath || extra.length) throw new Error('Usage: hyv lifecycle finalize artifact.json decision.json [--capability-stdin|--capability-file path]');
+  const decision = readJson(decisionPath) as { evaluatorId: string; decision: 'approve' | 'reject' };
+  if (decision.decision === 'approve' && !capability) throw new Error('Approval requires a capability.');
+  if (decision.decision === 'reject' && capability) throw new Error('Rejection does not accept a capability.');
+  const result = finalizeLifecycle(readJson(artifactPath) as RewriteLifecycleArtifactV1, decision, loadApprovalContext(), capability);
+  canonical(result.ok ? result.artifact : { error: result.error });
+  return result.ok && result.artifact.status === 'approved' ? 0 : 2;
+}
+
+function runLearning(args: string[]): number {
+  const [action, ...raw] = args;
+  if (action === 'record-approved') return runRecordApprovedLearning(raw);
+  const { values, options } = learningArguments(raw);
+  const [profilePath, ...operands] = values;
+  if (!action || !profilePath) throw new Error('Usage: hyv learning <show|inspect|add|record|ratify|supersede|migrate|clear> profile.json [value] [options]');
+  const profile = readProfile(profilePath);
+  if (action === 'show') {
+    json({ profile: profileFingerprint(profile), preferences: composeLearning(profile, options) });
+    return 0;
+  }
+  if (action === 'inspect') {
+    if (Object.keys(options).length) throw new Error('Usage: hyv learning inspect profile.json');
+    json(inspectLearning(profile));
+    return 0;
+  }
+  if (action === 'add' || action === 'record') {
+    const text = operands.join(' ').trim();
+    if (!text) throw new Error('Usage: hyv learning record profile.json "instruction" [options]');
+    const result = recordLearningInstruction(profile, text, options);
+    json(action === 'add' ? { added: result.status === 'recorded' } : result);
+    return 0;
+  }
+  if (action === 'ratify' || action === 'supersede') {
+    const [eventId, ...extra] = operands;
+    if (!eventId || extra.length) throw new Error(`Usage: hyv learning ${action} profile.json event-id [options]`);
+    json(action === 'ratify' ? ratifyLearningEvent(requireProfileV3(profile), eventId, options) : supersedeLearningEvent(requireProfileV3(profile), eventId, options));
+    return 0;
+  }
+  if (action === 'migrate') {
+    const [targetPath, ...extra] = operands;
+    if (!targetPath || extra.length || profile.version !== '2') throw new Error('Usage: hyv learning migrate source-v2.json target-v3.json [options]');
+    json(migrateLearningV2ToV3(profile, requireProfileV3(readProfile(targetPath)), options));
+    return 0;
+  }
+  if (action === 'clear') {
+    if (operands.length || Object.keys(options).length) throw new Error('Usage: hyv learning clear profile.json');
+    json({ cleared: clearLearning(profile) });
+    return 0;
+  }
+  throw new Error('Usage: hyv learning <show|inspect|add|record|ratify|supersede|migrate|clear> profile.json [value] [options]');
+}
+
+function runRecordApprovedLearning(args: string[]): number {
+  const { values, capability } = capabilityArguments(args);
+  const [readyPath, approvedPath, originalPath, candidatePath, profilePath, decisionPath, ...contextPaths] = values;
+  if (!readyPath || !approvedPath || !originalPath || !candidatePath || !profilePath || !decisionPath || !capability) throw new Error('Usage: hyv learning record-approved ready.json approved.json original.md candidate.md profile.json decision.json [copy-spec.json] [writing-brief.json] (--capability-stdin|--capability-file path)');
+  const context = prepareContext(contextPaths);
+  const status = recordApprovedLearning({ ready: readJson(readyPath) as RewriteLifecycleArtifactV1, approved: readJson(approvedPath) as RewriteLifecycleArtifactV1, decision: readJson(decisionPath) as { evaluatorId: string; decision: 'approve' }, capability, source: input(originalPath), candidate: input(candidatePath), profile: readProfile(profilePath), context: loadApprovalContext(), copySpec: context.copySpec, writingBrief: context.writingBrief });
+  canonical({ status });
+  return status === 'write_failed' ? 2 : 0;
+}
+
+function runPatterns(): number {
+  json({ version: RULESET_VERSION, rules: serializedRules() });
+  return 0;
+}
+
+async function runMcp(args: string[]): Promise<number> {
+  if (args.length > 0) throw new Error('Usage: hyv mcp');
+  await import('./mcp.js');
+  return 0;
+}
+
+const commandHandlers: Record<string, CommandHandler> = {
+  agent: runAgent,
+  profile: runProfile,
+  analyze: runAnalyze,
+  hygiene: runHygiene,
+  'inspect-hidden-text': runInspectHiddenText,
+  'apply-hidden-text-policy': runApplyHiddenTextPolicy,
+  'final-check': runFinalCheck,
+  'fact-lint': runFactLint,
+  'logic-lint': runLogicLint,
+  'batch-analyze': runBatchAnalyze,
+  'rewrite-prompt': runRewritePrompt,
+  'prepare-rewrite': runPrepareRewrite,
+  'apply-rewrite': runApplyRewrite,
+  'prepare-judgment': runPrepareJudgment,
+  'reduce-judgment': runReduceJudgment,
+  'prepare-rebuild': runPrepareRebuild,
+  'apply-rebuild': runApplyRebuild,
+  'rebuild-writer-request': runRebuildWriterRequest,
+  verify: runVerify,
+  'verify-spec': runVerifySpec,
+  lifecycle: runLifecycle,
+  learning: runLearning,
+  patterns: runPatterns,
+  mcp: runMcp,
+};
+
 export async function runCli(args: string[]): Promise<number> {
   const [command, ...rest] = args;
-  if (command === 'agent') {
-    return runAgent(rest);
-  }
-  if (command === 'profile') {
-    const { output, samples, avoid } = profileArguments(rest);
-    writeFileSync(output, `${JSON.stringify(buildProfile(samples.map(input), avoid), null, 2)}\n`);
-    return 0;
-  }
-  if (command === 'analyze') {
-    const [draft, profilePath, briefPath] = rest;
-    if (!draft || !profilePath) throw new Error('Usage: hyv analyze draft.md profile.json [writing-brief.json]');
-    json(analyze(input(draft), readProfile(profilePath), readBrief(briefPath)));
-    return 0;
-  }
-  if (command === 'hygiene') {
-    const { path, fix, output } = hygieneArguments(rest);
-    if (fix && path === '-') throw new Error('hyv hygiene --fix requires a file path so the original can be preserved.');
-    const text = input(path);
-    if (!fix) {
-      json(inspectHygiene(text));
-      return 0;
-    }
-    const outputPath = output ?? cleanedPath(path);
-    if (resolve(outputPath) === resolve(path)) throw new Error('Hygiene output must differ from the input path.');
-    const result = cleanHygiene(text);
-    writeNewFileAtomically(outputPath, result.cleaned);
-    json({ ...result.report, changed: result.changed, changes: result.changes, outputPath });
-    return 0;
-  }
-  if (command === 'inspect-hidden-text') {
-    const [path, policyPath, ...extra] = rest;
-    if (!path || extra.length) throw new Error('Usage: hyv inspect-hidden-text draft.md [policy.json]');
-    json(inspectHiddenText(input(path), policyPath ? parseHiddenTextPolicy(readJson(policyPath)) : undefined));
-    return 0;
-  }
-  if (command === 'apply-hidden-text-policy') {
-    const [path, policyPath, output, ...extra] = rest;
-    if (!path || !policyPath || !output || extra.length) throw new Error('Usage: hyv apply-hidden-text-policy draft.md policy.json output.md');
-    if (path === '-' || resolve(path) === resolve(output)) throw new Error('Hidden-text output must differ from the input path.');
-    const result = applyHiddenTextPolicy(input(path), parseHiddenTextPolicy(readJson(policyPath)));
-    writeNewFileAtomically(output, result.output);
-    json({ ...result, outputPath: output });
-    return 0;
-  }
-  if (command === 'final-check') {
-    const [path, ...options] = rest;
-    if (!path || options.length) throw new Error('Usage: hyv final-check <path|->');
-    const result = finalOutputCheck(input(path));
-    if (!result.accepted) {
-      console.error(JSON.stringify(result, null, 2));
-      return 2;
-    }
-    if (result.changed) console.error(JSON.stringify({ changed: true, changes: result.changes }, null, 2));
-    process.stdout.write(result.output);
-    return 0;
-  }
-  if (command === 'fact-lint') {
-    const [draftPath, ...options] = rest;
-    const sources: FactSource[] = []; let metadata: FactMetadata | undefined; let strict = false; let human = false;
-    if (!draftPath) throw new Error('Usage: hyv fact-lint <draft|-> --source=id:path [--source=id:path] [--metadata=metadata.json] [--strict] [--human]');
-    for (const option of options) {
-      if (option === '--strict') { strict = true; continue; }
-      if (option === '--human') { human = true; continue; }
-      if (option.startsWith('--source=')) {
-        const value = option.slice('--source='.length); const separator = value.indexOf(':'); const id = value.slice(0, separator).trim(); const path = value.slice(separator + 1);
-        if (separator < 1 || !id || !path) throw new Error('Sources must use --source=id:path.');
-        sources.push({ id, text: input(path) }); continue;
-      }
-      if (option.startsWith('--metadata=')) { metadata = JSON.parse(input(option.slice('--metadata='.length))) as FactMetadata; continue; }
-      throw new Error('Usage: hyv fact-lint <draft|-> --source=id:path [--source=id:path] [--metadata=metadata.json] [--strict] [--human]');
-    }
-    const report = lintFacts({ sources, draft: input(draftPath), metadata });
-    if (human) console.log(formatFactLintReport(report)); else json(report);
-    return strict && report.findings.some((item) => item.severity === 'error') ? 2 : 0;
-  }
-  if (command === 'logic-lint') {
-    const [draftPath, briefPath, ...extra] = rest;
-    if (!draftPath || extra.length) throw new Error('Usage: hyv logic-lint <draft|-> [writing-brief.json]');
-    const report = lintLogic(input(draftPath), readBrief(briefPath));
-    json(report);
-    return report.passed ? 0 : 2;
-  }
-  if (command === 'batch-analyze') {
-    if (rest.length < 2) throw new Error('Usage: hyv batch-analyze draft-a.md draft-b.md [draft-c.md]');
-    json(analyzeBatch(rest.map(input)));
-    return 0;
-  }
-  if (command === 'rewrite-prompt') {
-    const [draft, profilePath, briefPath] = rest;
-    if (!draft || !profilePath) throw new Error('Usage: hyv rewrite-prompt draft.md profile.json [writing-brief.json]');
-    const profile = readProfile(profilePath);
-    console.log(rewritePrompt(input(draft), profile, composeLearning(profile), readBrief(briefPath)));
-    return 0;
-  }
-  if (command === 'prepare-rewrite') {
-    const [draft, profilePath, output, ...contextPaths] = rest;
-    if (!draft || !profilePath || !output) throw new Error('Usage: hyv prepare-rewrite draft.md profile.json task.json [copy-spec.json] [writing-brief.json]');
-    const context = prepareContext(contextPaths);
-    const task = prepareRewriteTask(input(draft), readProfile(profilePath), context.copySpec, context.writingBrief);
-    writeFileSync(output, `${JSON.stringify(task, null, 2)}\n`);
-    json({ version: task.version, fingerprint: task.fingerprint, eligibleSentenceIds: task.eligibleSentenceIds });
-    return 0;
-  }
-  if (command === 'apply-rewrite') {
-    const [taskPath, responsePath, profilePath] = rest;
-    if (!taskPath || !responsePath || !profilePath) throw new Error('Usage: hyv apply-rewrite task.json response.json profile.json');
-    const result = evaluateRewriteResponse(parseRewriteTask(JSON.parse(input(taskPath))), input(responsePath), readProfile(profilePath));
-    json(result);
-    return result.status === 'accepted' ? 0 : 2;
-  }
-  if (command === 'prepare-judgment') {
-    const [stage, kind, draft, profilePath, output, candidatePath] = rest;
-    if (!stage || !kind || !draft || !profilePath || !output) throw new Error('Usage: hyv prepare-judgment pre-edit|post-candidate kind draft.md profile.json task.json [candidate.md]');
-    if (stage === 'post-candidate' && !candidatePath) throw new Error('Usage: hyv prepare-judgment post-candidate kind draft.md profile.json task.json candidate.md');
-    const profile = readProfile(profilePath);
-    const task = stage === 'pre-edit'
-      ? preparePreEditJudgment(input(draft), profile, kind as 'triage' | 'argument' | 'form')
-      : preparePostCandidateJudgment(input(draft), input(candidatePath ?? ''), profile, kind as 'argument' | 'polarity' | 'form' | 'flatness' | 'semantic');
-    writeFileSync(output, `${JSON.stringify(task, null, 2)}\n`);
-    json({ version: task.version, stage: task.stage, judgmentType: task.judgmentType, taskFingerprint: task.taskFingerprint });
-    return 0;
-  }
-  if (command === 'reduce-judgment') {
-    if (rest.length < 3) throw new Error('Usage: hyv reduce-judgment envelope.json envelope.json [envelope.json...]');
-    const envelopes = rest.map((path) => parseJudgmentEnvelope(JSON.parse(input(path))));
-    const stage = envelopes[0]?.stage;
-    json(stage === 'pre-edit' ? reducePreEdit(envelopes) : reducePostCandidate(envelopes));
-    return 0;
-  }
-  if (command === 'prepare-rebuild') {
-    const { values, capability, recompositionPolicy } = rebuildArguments(rest);
-    const [draft, profilePath, reductionPath, specPath, output, briefPath] = values;
-    if (!draft || !profilePath || !reductionPath || !specPath || !output || !capability) {
-      throw new Error('Usage: hyv prepare-rebuild draft.md profile.json reduction.json copy-spec.json task.json [writing-brief.json] [--recomposition-policy policy.json] (--capability-stdin|--capability-file path)');
-    }
-    const context = loadApprovalContext();
-    const task = prepareRebuildTask(
-      input(draft),
-      readProfile(profilePath),
-      readJson(reductionPath) as PreEditReduction,
-      parseCopySpec(JSON.parse(input(specPath))),
-      capability,
-      context.trustStore,
-      context.now,
-      briefPath ? parseWritingBrief(JSON.parse(input(briefPath))) : undefined,
-      recompositionPolicy,
-    );
-    writeFileSync(output, `${JSON.stringify(task, null, 2)}\n`);
-    json({ version: task.version, fingerprint: task.fingerprint, recommendationFingerprint: task.recommendationFingerprint, authorizationFingerprint: task.authorizationFingerprint, ...(task.recompositionPolicy ? { recompositionPolicy: task.recompositionPolicy } : {}) });
-    return 0;
-  }
-  if (command === 'apply-rebuild') {
-    const { values, capability } = capabilityArguments(rest);
-    const [taskPath, responsePath, profilePath, ...extra] = values;
-    if (!taskPath || !responsePath || !profilePath || extra.length || !capability) throw new Error('Usage: hyv apply-rebuild task.json response.json profile.json (--capability-stdin|--capability-file path)');
-    const context = loadApprovalContext();
-    const result = evaluateRebuildResponse(parseRebuildTask(JSON.parse(input(taskPath))), input(responsePath), readProfile(profilePath), capability, context.trustStore, context.now);
-    json(result);
-    return result.status === 'accepted' ? 0 : 2;
-  }
-  if (command === 'rebuild-writer-request') {
-    const [taskPath, output, ...extra] = rest;
-    if (!taskPath || !output || extra.length) throw new Error('Usage: hyv rebuild-writer-request task.json writer-request.json');
-    const request = writerRequestForRebuild(parseRebuildTask(JSON.parse(input(taskPath))));
-    writeFileSync(output, `${JSON.stringify(request, null, 2)}\n`);
-    json({ version: request.version, taskFingerprint: request.taskFingerprint, copySpecFingerprint: request.copySpecFingerprint, ...(request.recompositionPolicyFingerprint ? { recompositionPolicyFingerprint: request.recompositionPolicyFingerprint } : {}) });
-    return 0;
-  }
-  if (command === 'verify') {
-    const [original, candidate, profilePath, briefPath] = rest;
-    if (!original || !candidate || !profilePath) throw new Error('Usage: hyv verify original.md candidate.md profile.json [writing-brief.json]');
-    const profile = readProfile(profilePath);
-    const originalText = input(original);
-    const candidateText = input(candidate);
-    const result = verify(originalText, candidateText, profile, readBrief(briefPath));
-    json(result);
-    return result.passed ? 0 : 2;
-  }
-  if (command === 'verify-spec') {
-    const [original, candidate, profilePath, specPath, briefPath] = rest;
-    if (!original || !candidate || !profilePath || !specPath) throw new Error('Usage: hyv verify-spec original.md candidate.md profile.json copy-spec.json [writing-brief.json]');
-    const profile = readProfile(profilePath);
-    const candidateText = input(candidate);
-    const result = verifyWithCopySpec(input(original), candidateText, profile, parseCopySpec(JSON.parse(input(specPath))), readBrief(briefPath));
-    json(result);
-    return result.passed ? 0 : 2;
-  }
-  if (command === 'lifecycle') {
-    const [action, ...raw] = rest;
-    if (action === 'prepare-semantic') {
-      const [deterministicPath, bindingPath, receiptPath, policy, violationsPath, output, ...extra] = raw;
-      if (!deterministicPath || !bindingPath || !receiptPath || !policy || !violationsPath || !output || extra.length || !['normal', 'high_assurance'].includes(policy)) throw new Error('Usage: hyv lifecycle prepare-semantic deterministic.json binding.json receipt.json <normal|high_assurance> violations.json output.json');
-      if (policy === 'high_assurance') throw new Error('High-assurance semantic review requires a trusted embedding.');
-      const result = prepareLifecycle(readJson(deterministicPath) as DeterministicVerificationArtifactV1, readJson(bindingPath) as RewriteLifecycleBindingV1, readJson(receiptPath) as RewriteReceipt, policy as SemanticPolicy, readJson(violationsPath) as SemanticViolation[]);
-      const serialized = canonicalJson(result); writeFileSync(output, `${serialized}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 }); process.stdout.write(`${serialized}\n`); return 0;
-    }
-    if (action === 'submit-verdict') {
-      const [artifactPath, taskPath, evaluatorId, verdictPath, ...extra] = raw;
-      if (!artifactPath || !taskPath || !evaluatorId || !verdictPath || extra.length) throw new Error('Usage: hyv lifecycle submit-verdict artifact.json task.json evaluator-id verdict.json');
-      const artifact = readJson(artifactPath) as RewriteLifecycleArtifactV1; const task = readJson(taskPath) as SemanticReviewTaskV1;
-      if (task.policy !== 'normal') throw new Error('High-assurance semantic review requires a trusted embedding.');
-      const result = submitSemanticVerdict(artifact, task, evaluatorId, readJson(verdictPath), loadApprovalContext()); canonical(result.ok ? result.artifact : { error: result.error }); return result.ok && result.artifact.status === 'ready_for_human_review' ? 0 : 2;
-    }
-    if (action === 'inspect') {
-      const [artifactPath, ...extra] = raw; if (!artifactPath || extra.length) throw new Error('Usage: hyv lifecycle inspect artifact.json'); canonical(inspectLifecycle(readJson(artifactPath) as RewriteLifecycleArtifactV1)); return 0;
-    }
-    if (action === 'validate-final-approval' || action === 'finalize') {
-      const { values, capability } = capabilityArguments(raw);
-      if (action === 'validate-final-approval') {
-        const [artifactPath, ...extra] = values; if (!artifactPath || extra.length || !capability) throw new Error('Usage: hyv lifecycle validate-final-approval artifact.json (--capability-stdin|--capability-file path)');
-        const result = validateFinalApproval(readJson(artifactPath) as RewriteLifecycleArtifactV1, capability, loadApprovalContext()); canonical(result); return result.ok ? 0 : 2;
-      }
-      const [artifactPath, decisionPath, ...extra] = values; if (!artifactPath || !decisionPath || extra.length) throw new Error('Usage: hyv lifecycle finalize artifact.json decision.json [--capability-stdin|--capability-file path]');
-      const decision = readJson(decisionPath) as { evaluatorId: string; decision: 'approve' | 'reject' }; if (decision.decision === 'approve' && !capability) throw new Error('Approval requires a capability.'); if (decision.decision === 'reject' && capability) throw new Error('Rejection does not accept a capability.');
-      const result = finalizeLifecycle(readJson(artifactPath) as RewriteLifecycleArtifactV1, decision, loadApprovalContext(), capability); canonical(result.ok ? result.artifact : { error: result.error }); return result.ok && result.artifact.status === 'approved' ? 0 : 2;
-    }
-    throw new Error('Usage: hyv lifecycle <prepare-semantic|submit-verdict|inspect|validate-final-approval|finalize> ...');
-  }
-  if (command === 'learning') {
-    const [action, ...raw] = rest;
-    if (action === 'record-approved') {
-      const { values, capability } = capabilityArguments(raw);
-      const [readyPath, approvedPath, originalPath, candidatePath, profilePath, decisionPath, ...contextPaths] = values;
-      if (!readyPath || !approvedPath || !originalPath || !candidatePath || !profilePath || !decisionPath || !capability) throw new Error('Usage: hyv learning record-approved ready.json approved.json original.md candidate.md profile.json decision.json [copy-spec.json] [writing-brief.json] (--capability-stdin|--capability-file path)');
-      const context = prepareContext(contextPaths); const status = recordApprovedLearning({ ready: readJson(readyPath) as RewriteLifecycleArtifactV1, approved: readJson(approvedPath) as RewriteLifecycleArtifactV1, decision: readJson(decisionPath) as { evaluatorId: string; decision: 'approve' }, capability, source: input(originalPath), candidate: input(candidatePath), profile: readProfile(profilePath), context: loadApprovalContext(), copySpec: context.copySpec, writingBrief: context.writingBrief });
-      canonical({ status }); return status === 'write_failed' ? 2 : 0;
-    }
-    const { values, options } = learningArguments(raw);
-    const [profilePath, ...operands] = values;
-    if (!action || !profilePath) throw new Error('Usage: hyv learning <show|inspect|add|record|ratify|supersede|migrate|clear> profile.json [value] [options]');
-    const profile = readProfile(profilePath);
-    if (action === 'show') {
-      json({ profile: profileFingerprint(profile), preferences: composeLearning(profile, options) });
-      return 0;
-    }
-    if (action === 'inspect') {
-      if (Object.keys(options).length) throw new Error('Usage: hyv learning inspect profile.json');
-      json(inspectLearning(profile)); return 0;
-    }
-    if (action === 'add' || action === 'record') {
-      const text = operands.join(' ').trim();
-      if (!text) throw new Error('Usage: hyv learning record profile.json "instruction" [options]');
-      const result = recordLearningInstruction(profile, text, options);
-      json(action === 'add' ? { added: result.status === 'recorded' } : result);
-      return 0;
-    }
-    if (action === 'ratify' || action === 'supersede') {
-      const [eventId, ...extra] = operands;
-      if (!eventId || extra.length) throw new Error(`Usage: hyv learning ${action} profile.json event-id [options]`);
-      json(action === 'ratify' ? ratifyLearningEvent(requireProfileV3(profile), eventId, options) : supersedeLearningEvent(requireProfileV3(profile), eventId, options));
-      return 0;
-    }
-    if (action === 'migrate') {
-      const [targetPath, ...extra] = operands;
-      if (!targetPath || extra.length || profile.version !== '2') throw new Error('Usage: hyv learning migrate source-v2.json target-v3.json [options]');
-      json(migrateLearningV2ToV3(profile, requireProfileV3(readProfile(targetPath)), options));
-      return 0;
-    }
-    if (action === 'clear') {
-      if (operands.length || Object.keys(options).length) throw new Error('Usage: hyv learning clear profile.json');
-      json({ cleared: clearLearning(profile) });
-      return 0;
-    }
-    throw new Error('Usage: hyv learning <show|inspect|add|record|ratify|supersede|migrate|clear> profile.json [value] [options]');
-  }
-  if (command === 'patterns') {
-    json({ version: RULESET_VERSION, rules: serializedRules() });
-    return 0;
-  }
-  if (command === 'mcp') {
-    if (rest.length > 0) throw new Error('Usage: hyv mcp');
-    await import('./mcp.js');
-    return 0;
-  }
-  throw new Error(`${usage}.`);
+  const handler = command ? commandHandlers[command] : undefined;
+  if (!handler) throw new Error(`${usage}.`);
+  return handler(rest);
 }
 
 void (async () => {

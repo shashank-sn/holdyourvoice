@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "commands": [
+    {
+      "id": "npm-test",
+      "category": "unit-test",
+      "executable": "npm",
+      "args": ["test"],
+      "timeout_seconds": 300,
+      "required": true
+    }
+  ]
+}

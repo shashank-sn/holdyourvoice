@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0.0",
+  "requirements": [
+    {
+      "id": "R1-preserve-features",
+      "acceptance_examples": [
+        "Every baseline CLI command, MCP tool, portable agent, and built JavaScript export remains available.",
+        "Existing valid and invalid inputs keep their output shapes, safety decisions, and exit behavior."
+      ]
+    },
+    {
+      "id": "R2-simplify-code",
+      "acceptance_examples": [
+        "The CLI dispatch, MCP error handling, fact checks, and Stage 1 evaluation use named bounded functions instead of long mixed-responsibility flows."
+      ]
+    },
+    {
+      "id": "R3-simple-readme",
+      "acceptance_examples": [
+        "A new user can install the package, run the basic workflow, and find every command from the README.",
+        "The README uses simple technical English and links to detailed contracts instead of repeating them."
+      ]
+    },
+    {
+      "id": "R4-merge-ready-package",
+      "acceptance_examples": [
+        "The source tests, release audit, Claude bundle, npm tarball, clean install smoke test, and pull request CI all pass on the same revision."
+      ]
+    }
+  ],
+  "tracks": [
+    {
+      "kind": "unit",
+      "requirement_ids": ["R1-preserve-features", "R2-simplify-code"],
+      "status": "PLANNED",
+      "owner": "Codex",
+      "evidence": "npm test and focused module tests",
+      "context_source": "mixed"
+    },
+    {
+      "kind": "unit",
+      "requirement_ids": ["R3-simple-readme", "R4-merge-ready-package"],
+      "status": "INAPPLICABLE",
+      "reason": "README quality and merge readiness are acceptance and integration concerns, not isolated code units.",
+      "context_source": "requirements"
+    },
+    {
+      "kind": "acceptance",
+      "requirement_ids": ["R1-preserve-features", "R2-simplify-code", "R3-simple-readme", "R4-merge-ready-package"],
+      "status": "PLANNED",
+      "owner": "Codex",
+      "evidence": "CLI, MCP, agent, export, and README command inventory comparisons",
+      "context_source": "requirements"
+    },
+    {
+      "kind": "integration",
+      "requirement_ids": ["R1-preserve-features", "R2-simplify-code", "R3-simple-readme", "R4-merge-ready-package"],
+      "status": "PLANNED",
+      "owner": "Codex",
+      "evidence": "release audit, Claude bundle, npm pack, clean install smoke test, and GitHub CI",
+      "context_source": "requirements"
+    },
+    {
+      "kind": "ui-qa",
+      "requirement_ids": ["R1-preserve-features", "R2-simplify-code", "R3-simple-readme", "R4-merge-ready-package"],
+      "status": "INAPPLICABLE",
+      "reason": "This package has no graphical user interface. README checks belong to the acceptance track.",
+      "context_source": "requirements"
+    }
+  ]
+}
