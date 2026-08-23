@@ -23,10 +23,10 @@
     "draftTemplate": "Stitchflow supports CSV exports and processes 42 records in 7 days."
   },
   "measurement": {
-    "analyzeNatural": { "warmups": 3, "samples": 7, "iterations": 4 },
-    "analyzeDotted": { "warmups": 1, "samples": 3, "iterations": 1 },
-    "finalCheck": { "warmups": 3, "samples": 7, "iterations": 64 },
-    "cliAnalyze": { "warmups": 1, "samples": 10, "iterations": 1 },
+    "analyzeNatural": { "warmups": 5, "samples": 15, "iterations": 4 },
+    "analyzeDotted": { "warmups": 4, "samples": 5, "iterations": 1 },
+    "finalCheck": { "warmups": 5, "samples": 15, "iterations": 64 },
+    "cliAnalyze": { "warmups": 2, "samples": 20, "iterations": 1 },
     "factLint": { "warmups": 2, "samples": 7, "iterations": 1 },
     "sentencesNatural": { "warmups": 3, "samples": 7, "iterations": 48 },
     "sentencesDotted": { "warmups": 1, "samples": 3, "iterations": 1 },

@@ -89,6 +89,11 @@ function elapsedMilliseconds(start) {
   return Number(process.hrtime.bigint() - start) / 1e6;
 }
 
+function cpuMilliseconds(start) {
+  const usage = process.cpuUsage(start);
+  return (usage.user + usage.system) / 1000;
+}
+
 function median(values) {
   const sorted = [...values].sort((left, right) => left - right);
   const middle = Math.floor(sorted.length / 2);
@@ -105,10 +110,10 @@ function round(value) {
 }
 
 function measureBatch(run, iterations) {
-  const start = process.hrtime.bigint();
+  const start = process.cpuUsage();
   let value;
   for (let index = 0; index < iterations; index += 1) value = run();
-  const milliseconds = elapsedMilliseconds(start) / iterations;
+  const milliseconds = cpuMilliseconds(start) / iterations;
   consume(value);
   return { milliseconds, value };
 }
@@ -331,6 +336,14 @@ function runBenchmark() {
     ].every((scenario) => scenario.behaviorPreserved);
     const requiredNoise = [analyzeNatural.relativeMad, analyzeDotted.relativeMad, finalCheck.relativeMad, cliAnalyze.relativeMad];
     const maxRelativeMad = Math.max(...requiredNoise);
+    if (process.argv.includes('--debug-samples')) {
+      process.stderr.write(`${JSON.stringify({
+        analyzeNatural,
+        analyzeDotted,
+        finalCheck,
+        cliAnalyze,
+      })}\n`);
+    }
 
     if (typeof global.gc === 'function') global.gc();
     const result = {
