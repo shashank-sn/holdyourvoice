@@ -325,45 +325,56 @@ export function sealRatings(packetInput: unknown, mappingInput: unknown, ratings
   return { ...base, sealDigest: sha256Canonical(base) };
 }
 
-export function reduceEvaluation(protocolInput: unknown, runsInput: unknown, packetInput: unknown, mappingInput: unknown, ratingsInput: unknown, sealInput: unknown, releaseAuditInput: unknown): RecordValue {
-  const protocol = assertCommittedProtocol(protocolInput); const summary = validateRuns(protocol, runsInput); const packet = parsePacket(packetInput);
+type RunSummary = ReturnType<typeof validateRuns>;
+
+interface ReleaseAudit extends RecordValue {
+  kind: 'hyv-release-audit';
+  version: '1';
+  candidateCommit: string;
+  protocolDigest: string;
+  contractDigest: string;
+  passed: true;
+  digest: string;
+}
+
+function validateEvaluationPacket(protocol: CommittedProtocol, runs: RunRecord[], summary: RunSummary, packet: BlindPacket): void {
   if (packet.protocolDigest !== protocol.protocolDigest || packet.candidateDigest !== candidateDigest(protocol) || packet.runsDigest !== summary.runsDigest) fail('packet_digest_chain_mismatch');
-  const runRows = runsInput as RunRecord[];
-  const expectedReviewableCount = protocol.cases.filter((entry) => runRows.filter((run) => run.caseId === entry.caseId && effectiveRunOutcome(run) === 'completed').length === 2).length;
-  if (packet.reviewableCount !== expectedReviewableCount || packet.nonReviewableCount !== protocol.cases.length - expectedReviewableCount) fail('blind_packet_count_mismatch');
-  const mapping = parseMapping(mappingInput); validateMappingOpening(protocol, mapping);
-  const ratings = validateReviewerLog(protocol, packet, ratingsInput, true);
-  const seal = sealRatings(packet, mapping, ratings); if (sha256Canonical(seal) !== sha256Canonical(sealInput)) fail('ratings_seal_mismatch');
-  const audit = record(releaseAuditInput); exactKeys(audit, ['kind', 'version', 'candidateCommit', 'protocolDigest', 'contractDigest', 'passed', 'digest']);
-  const { digest: auditDigest, ...auditCore } = audit; if (auditDigest !== sha256Canonical(auditCore)) fail('release_audit_digest_mismatch');
+  const reviewableCount = protocol.cases.filter((entry) => runs.filter((run) => run.caseId === entry.caseId && effectiveRunOutcome(run) === 'completed').length === 2).length;
+  if (packet.reviewableCount !== reviewableCount || packet.nonReviewableCount !== protocol.cases.length - reviewableCount) fail('blind_packet_count_mismatch');
+}
+
+function parseReleaseAudit(protocol: CommittedProtocol, input: unknown): ReleaseAudit {
+  const audit = record(input);
+  exactKeys(audit, ['kind', 'version', 'candidateCommit', 'protocolDigest', 'contractDigest', 'passed', 'digest']);
+  const { digest: auditDigest, ...auditCore } = audit;
+  if (auditDigest !== sha256Canonical(auditCore)) fail('release_audit_digest_mismatch');
   if (audit.kind !== 'hyv-release-audit' || audit.version !== '1' || audit.candidateCommit !== protocol.stage1.sourceCommit || audit.protocolDigest !== protocol.protocolDigest || audit.contractDigest !== protocol.releaseAuditContractDigest || audit.passed !== true) fail('release_audit_binding_mismatch');
-  const blockers: string[] = ['human_writer_evidence_deferred'];
-  if (protocol.benchmark.synthetic || ratings.some((r) => r.evidenceClass === 'synthetic-dry-run')) blockers.push('synthetic_fixture_evidence');
-  if (protocol.mode !== 'locked-human') blockers.push('locked_human_evidence_required');
-  if (protocol.mode === 'locked-human') {
-    blockers.push('reviewer_roster_verification_deferred');
-    const { attestation, ...openingCore } = mapping;
-    try {
-      validateAttestation(attestation, sha256Canonical(openingCore), protocol.protocolDigest, packet.packetDigest);
-      if ((attestation as RecordValue).purpose !== 'stage1-mapping-custody') throw new Error('purpose');
-    } catch { blockers.push('mapping_custody_attestation_required'); }
-  }
-  if (ratings.length !== protocol.intentToTreat.expectedReviewers * protocol.cases.length) blockers.push('reviewer_denominator_mismatch');
-  if (protocol.cases.length < protocol.analysis.minimumCases || ratings.length < protocol.analysis.minimumRatings) blockers.push('preregistered_minimum_not_met');
-  if ((runsInput as RunRecord[]).some((run) => run.hardGates && Object.values(run.hardGates).some((passed) => !passed))) blockers.push('hard_gate_regression');
+  return audit as ReleaseAudit;
+}
+
+function correctionCount(ratings: ReviewerRecord[], mapping: BlindMapping, arm: Arm, result: 'correction' | 'confirm'): number {
+  const label = mapping.labels.A === arm ? 'A' : 'B';
+  return ratings.filter((rating) => rating.correctionVersusConfirm![label] === result).length;
+}
+
+function workflowForArm(runs: RunRecord[], arm: Arm): { completed: number; denominator: number } {
+  const armRuns = runs.filter((run) => run.arm === arm);
+  return { completed: armRuns.filter((run) => effectiveRunOutcome(run) === 'completed').length, denominator: armRuns.length };
+}
+
+function calculateEvaluation(protocol: CommittedProtocol, runs: RunRecord[], ratings: ReviewerRecord[], mapping: BlindMapping, summary: RunSummary) {
   const completedRatings = ratings.filter((rating) => rating.workflow === 'completed');
-  const preferred = completedRatings.reduce((total, rating) => total + (rating.preferredLabel === 'tie' ? 0.5 : mapping.labels[rating.preferredLabel as 'A' | 'B'] === 'stage1' ? 1 : 0), 0);
   const preferenceDenominator = protocol.intentToTreat.expectedReviewers * protocol.cases.length;
+  const preferred = completedRatings.reduce((total, rating) => total + (rating.preferredLabel === 'tie' ? 0.5 : mapping.labels[rating.preferredLabel as 'A' | 'B'] === 'stage1' ? 1 : 0), 0);
   const preferenceRate = preferenceDenominator ? preferred / preferenceDenominator : 0;
-  const stage1Confirm = completedRatings.filter((rating) => rating.correctionVersusConfirm![mapping.labels.A === 'stage1' ? 'A' : 'B'] === 'confirm').length;
-  const baselineConfirm = completedRatings.filter((rating) => rating.correctionVersusConfirm![mapping.labels.A === 'baseline' ? 'A' : 'B'] === 'confirm').length;
+  const stage1Confirm = correctionCount(completedRatings, mapping, 'stage1', 'confirm');
+  const baselineConfirm = correctionCount(completedRatings, mapping, 'baseline', 'confirm');
+  const stage1Correction = correctionCount(completedRatings, mapping, 'stage1', 'correction');
+  const baselineCorrection = correctionCount(completedRatings, mapping, 'baseline', 'correction');
+  const baselineWorkflow = workflowForArm(runs, 'baseline');
+  const stage1Workflow = workflowForArm(runs, 'stage1');
   const correctionMarginMet = (stage1Confirm - baselineConfirm) / preferenceDenominator >= protocol.analysis.margin;
-  if (preferenceRate < 0.5 + protocol.analysis.margin && !correctionMarginMet) blockers.push('checkpoint_threshold_not_met');
-  const workflowByArm = (arm: Arm) => ({ completed: runRows.filter((run) => run.arm === arm && effectiveRunOutcome(run) === 'completed').length, denominator: runRows.filter((run) => run.arm === arm).length });
-  const baselineWorkflow = workflowByArm('baseline'); const stage1Workflow = workflowByArm('stage1');
-  if (stage1Workflow.denominator === 0 || baselineWorkflow.denominator === 0 || stage1Workflow.completed / stage1Workflow.denominator < baselineWorkflow.completed / baselineWorkflow.denominator) blockers.push('workflow_regression');
-  const stage1Correction = completedRatings.filter((rating) => rating.correctionVersusConfirm![mapping.labels.A === 'stage1' ? 'A' : 'B'] === 'correction').length;
-  const baselineCorrection = completedRatings.filter((rating) => rating.correctionVersusConfirm![mapping.labels.A === 'baseline' ? 'A' : 'B'] === 'correction').length;
+  const workflowRegressed = stage1Workflow.denominator === 0 || baselineWorkflow.denominator === 0 || stage1Workflow.completed / stage1Workflow.denominator < baselineWorkflow.completed / baselineWorkflow.denominator;
   const metrics = {
     preference: { numerator: preferred, denominator: preferenceDenominator, rate: preferenceRate, uncertainty95: wilson95(preferred, preferenceDenominator) },
     correctionVersusConfirm: { stage1: { corrections: stage1Correction, confirms: stage1Confirm, denominator: preferenceDenominator, correctionRate: stage1Correction / preferenceDenominator, uncertainty95: wilson95(stage1Correction, preferenceDenominator) }, baseline: { corrections: baselineCorrection, confirms: baselineConfirm, denominator: preferenceDenominator, correctionRate: baselineCorrection / preferenceDenominator, uncertainty95: wilson95(baselineCorrection, preferenceDenominator) } },
@@ -371,8 +382,51 @@ export function reduceEvaluation(protocolInput: unknown, runsInput: unknown, pac
     abandonment: { numerator: ratings.length - completedRatings.length, denominator: preferenceDenominator, rate: (ratings.length - completedRatings.length) / preferenceDenominator, uncertainty95: wilson95(ratings.length - completedRatings.length, preferenceDenominator) },
     providerRuns: { completed: summary.completed, abandoned: summary.abandonments, hardFailures: summary.hardFailures, timeouts: summary.timeouts, denominator: summary.denominator },
   };
-  const intentToTreat = { ...summary, expectedRatings: preferenceDenominator, observedRatings: ratings.length, missingRatings: Math.max(0, preferenceDenominator - ratings.length), reconciled: summary.denominator === protocol.intentToTreat.expectedAssignments && ratings.length === preferenceDenominator };
-  const base = { kind: 'hyv-stage1-evaluation-report', version: '1', protocolDigest: protocol.protocolDigest, candidateDigest: candidateDigest(protocol), runsDigest: summary.runsDigest, packetDigest: packet.packetDigest, mappingDigest: packet.mappingDigest, sealDigest: seal.sealDigest, releaseAuditDigest: audit.digest, intentToTreat, metrics, decision: blockers.length ? 'BLOCKED' : 'PASS', promotable: blockers.length === 0, blockers };
+  return { correctionMarginMet, metrics, preferenceDenominator, preferenceRate, workflowRegressed };
+}
+
+function mappingCustodyIsValid(protocol: CommittedProtocol, packet: BlindPacket, mapping: BlindMapping): boolean {
+  const { attestation, ...openingCore } = mapping;
+  try {
+    validateAttestation(attestation, sha256Canonical(openingCore), protocol.protocolDigest, packet.packetDigest);
+    return (attestation as RecordValue).purpose === 'stage1-mapping-custody';
+  } catch {
+    return false;
+  }
+}
+
+function evaluationBlockers(protocol: CommittedProtocol, runs: RunRecord[], packet: BlindPacket, ratings: ReviewerRecord[], mapping: BlindMapping, calculation: ReturnType<typeof calculateEvaluation>): string[] {
+  const blockers: string[] = ['human_writer_evidence_deferred'];
+  if (protocol.benchmark.synthetic || ratings.some((rating) => rating.evidenceClass === 'synthetic-dry-run')) blockers.push('synthetic_fixture_evidence');
+  if (protocol.mode !== 'locked-human') blockers.push('locked_human_evidence_required');
+  if (protocol.mode === 'locked-human') {
+    blockers.push('reviewer_roster_verification_deferred');
+    if (!mappingCustodyIsValid(protocol, packet, mapping)) blockers.push('mapping_custody_attestation_required');
+  }
+  if (ratings.length !== calculation.preferenceDenominator) blockers.push('reviewer_denominator_mismatch');
+  if (protocol.cases.length < protocol.analysis.minimumCases || ratings.length < protocol.analysis.minimumRatings) blockers.push('preregistered_minimum_not_met');
+  if (runs.some((run) => run.hardGates && Object.values(run.hardGates).some((passed) => !passed))) blockers.push('hard_gate_regression');
+  if (calculation.preferenceRate < 0.5 + protocol.analysis.margin && !calculation.correctionMarginMet) blockers.push('checkpoint_threshold_not_met');
+  if (calculation.workflowRegressed) blockers.push('workflow_regression');
+  return blockers;
+}
+
+export function reduceEvaluation(protocolInput: unknown, runsInput: unknown, packetInput: unknown, mappingInput: unknown, ratingsInput: unknown, sealInput: unknown, releaseAuditInput: unknown): RecordValue {
+  const protocol = assertCommittedProtocol(protocolInput);
+  const summary = validateRuns(protocol, runsInput);
+  const runs = runsInput as RunRecord[];
+  const packet = parsePacket(packetInput);
+  validateEvaluationPacket(protocol, runs, summary, packet);
+  const mapping = parseMapping(mappingInput);
+  validateMappingOpening(protocol, mapping);
+  const ratings = validateReviewerLog(protocol, packet, ratingsInput, true);
+  const seal = sealRatings(packet, mapping, ratings);
+  if (sha256Canonical(seal) !== sha256Canonical(sealInput)) fail('ratings_seal_mismatch');
+  const audit = parseReleaseAudit(protocol, releaseAuditInput);
+  const calculation = calculateEvaluation(protocol, runs, ratings, mapping, summary);
+  const blockers = evaluationBlockers(protocol, runs, packet, ratings, mapping, calculation);
+  const intentToTreat = { ...summary, expectedRatings: calculation.preferenceDenominator, observedRatings: ratings.length, missingRatings: Math.max(0, calculation.preferenceDenominator - ratings.length), reconciled: summary.denominator === protocol.intentToTreat.expectedAssignments && ratings.length === calculation.preferenceDenominator };
+  const base = { kind: 'hyv-stage1-evaluation-report', version: '1', protocolDigest: protocol.protocolDigest, candidateDigest: candidateDigest(protocol), runsDigest: summary.runsDigest, packetDigest: packet.packetDigest, mappingDigest: packet.mappingDigest, sealDigest: seal.sealDigest, releaseAuditDigest: audit.digest, intentToTreat, metrics: calculation.metrics, decision: blockers.length ? 'BLOCKED' : 'PASS', promotable: blockers.length === 0, blockers };
   return { ...base, reportDigest: sha256Canonical(base) };
 }
 

@@ -74,91 +74,130 @@ export function extractFactClaims(draft: string): FactClaim[] {
   return output;
 }
 
-export function lintFacts(input: FactLintInput): FactLintReport {
-  if (!input.sources.length) throw new Error('Fact lint requires at least one source document.');
-  if (!input.sources.every((source) => source.id.trim() && source.text.trim())) throw new Error('Every fact-lint source needs a non-empty id and text.');
-  const claims = extractFactClaims(input.draft); const sourceLines = sourceSentences(input.sources); const findings: FactFinding[] = [];
-  const semanticAdapter = input.semanticAdapter && (!input.semanticAdapter.external || input.allowExternalSemantic) ? input.semanticAdapter : undefined;
-  const approved = new Set(input.metadata?.approvedHypotheses?.map(normal) ?? []);
-  const allowed = new Set(input.metadata?.allowedAssumptions?.map(normal) ?? []);
-  for (const claim of claims) {
-    if (claim.kinds.includes('opinion') || allowed.has(normal(claim.text)) || (claim.kinds.includes('hypothesis') && approved.has(normal(claim.text)))) continue;
-    const relevant = findRelevant(claim.text, sourceLines);
-    const same = sourceLines.find(({ text }) => hasOverlap(claim.text, text));
-    const evidenceItems = relevant.length ? relevant.slice(0, 2).map(({ source, text }) => evidence(source, text)) : fallbackEvidence(sourceLines);
-    const quote = claim.text.match(QUOTE)?.[1];
+type SourceSentence = ReturnType<typeof sourceSentences>[number];
+
+function capabilityFinding(claim: FactClaim, relevant: SourceSentence[], evidenceItems: FactEvidence[]): FactFinding | undefined {
+  const claimCapabilities = capabilityObjects(claim.text);
+  if (!claimCapabilities.length || !relevant.length) return undefined;
+  const sourceCapabilities = relevant.flatMap(({ text }) => capabilityObjects(text));
+  const supported = claimCapabilities.every((capability) => sourceCapabilities.some((sourceCapability) => capability.every((token) => sourceCapability.includes(token))));
+  if (supported && relevant.some(({ text }) => negated(text) !== negated(claim.text))) {
+    return finding(claim, 'capability_drift', 'error', 'The draft reverses the source capability.', evidenceItems, 'high', 'Match the source capability polarity or cite contrary evidence.');
+  }
+  if (supported) return undefined;
+  const formatMismatch = claimCapabilities.some((capability) => {
+    const claimFormats = capability.filter((token) => CAPABILITY_FORMATS.has(token));
+    return claimFormats.length > 0 && sourceCapabilities.some((sourceCapability) => {
+      const sourceFormats = sourceCapability.filter((token) => CAPABILITY_FORMATS.has(token));
+      return sourceFormats.length > 0 && claimFormats.some((format) => !sourceFormats.includes(format));
+    });
+  });
+  if (formatMismatch) {
+    return finding(claim, 'capability_drift', 'error', 'The product capability differs from the supplied source.', evidenceItems, 'high', 'Match the source capability or cite contrary evidence.');
+  }
+  return finding(claim, 'missing_evidence', 'needs_human_review', 'The product capability is not established by the relevant source wording.', evidenceItems, 'medium', 'Confirm the capability with a reviewer or add evidence.');
+}
+
+function findingsForClaim(claim: FactClaim, input: FactLintInput, sourceLines: SourceSentence[], semanticAdapter: SemanticAdapter | undefined): FactFinding[] {
+  const relevant = findRelevant(claim.text, sourceLines);
+  const same = sourceLines.find(({ text }) => hasOverlap(claim.text, text));
+  const evidenceItems = relevant.length ? relevant.slice(0, 2).map(({ source, text }) => evidence(source, text)) : fallbackEvidence(sourceLines);
+  const quote = claim.text.match(QUOTE)?.[1];
+  const sourceHasAttribution = input.sources.some((source) => /\b(said|according to|reported)\b/i.test(source.text));
+  if (quote && sourceHasAttribution && !input.sources.some((source) => source.text.includes(quote))) {
     const quoteRelevant = sourceLines.filter(({ text }) => /\b(said|according to|reported)\b/i.test(text));
-    if (quote && input.sources.some((source) => /\b(said|according to|reported)\b/i.test(source.text)) && !input.sources.some((source) => source.text.includes(quote))) {
-      const quoteEvidence = quoteRelevant.length ? quoteRelevant.slice(0, 2).map(({ source, text }) => evidence(source, text)) : input.sources.slice(0, 1).map((source) => evidence(source, source.text));
-      findings.push(finding(claim, 'quote_drift', 'error', 'The quoted wording differs from the supplied source.', quoteEvidence, 'high', 'Use the source wording or label the text as a paraphrase.')); continue;
-    }
-    const claimDates = dates(claim.text); const sourceDates = relevant.flatMap(({ text }) => dates(text));
-    const claimNumbers = numbers(claim.text); const sourceNumbers = relevant.flatMap(({ text }) => numbers(text));
-    if (!claimDates.length && !claim.kinds.includes('attribution_quote') && claimNumbers.length && sourceNumbers.length && claimNumbers.some((number) => !sourceNumbers.some((sourceNumber) => normal(sourceNumber) === normal(number)))) {
-      findings.push(finding(claim, 'number_drift', 'error', 'A number or unit differs from relevant source evidence.', evidenceItems, 'high', 'Correct the number or unit, or cite a newer source.')); continue;
-    }
-    if (claimDates.length && sourceDates.length && claimDates.some((date) => !sourceDates.includes(date))) {
-      findings.push(finding(claim, 'date_drift', 'error', 'The draft date differs from relevant source evidence.', evidenceItems, 'high', 'Correct the date or cite a newer source.')); continue;
-    }
-    const claimEntities = entities(claim.text); const sourceEntities = relevant.flatMap(({ text }) => entities(text));
-    if (claimEntities.length && sourceEntities.length && claimEntities.some((entity) => !sourceEntities.some((sourceEntity) => normal(sourceEntity) === normal(entity)))) {
-      findings.push(finding(claim, 'entity_drift', 'error', 'A named entity differs from relevant source evidence.', evidenceItems, 'high', 'Correct the name or cite the source that supports it.')); continue;
-    }
-    const claimCapabilities = capabilityObjects(claim.text);
-    if (claimCapabilities.length && relevant.length) {
-      const sourceCapabilities = relevant.flatMap(({ text }) => capabilityObjects(text));
-      const supportedCapability = claimCapabilities.every((capability) => sourceCapabilities.some((sourceCapability) => capability.every((token) => sourceCapability.includes(token))));
-      if (supportedCapability && relevant.some(({ text }) => negated(text) !== negated(claim.text))) {
-        findings.push(finding(claim, 'capability_drift', 'error', 'The draft reverses the source capability.', evidenceItems, 'high', 'Match the source capability polarity or cite contrary evidence.')); continue;
-      }
-      if (supportedCapability) continue;
-      const knownFormatMismatch = claimCapabilities.some((capability) => {
-        const claimFormats = capability.filter((token) => CAPABILITY_FORMATS.has(token));
-        return claimFormats.length > 0 && sourceCapabilities.some((sourceCapability) => {
-          const sourceFormats = sourceCapability.filter((token) => CAPABILITY_FORMATS.has(token));
-          return sourceFormats.length > 0 && claimFormats.some((format) => !sourceFormats.includes(format));
-        });
-      });
-      if (knownFormatMismatch) {
-        findings.push(finding(claim, 'capability_drift', 'error', 'The product capability differs from the supplied source.', evidenceItems, 'high', 'Match the source capability or cite contrary evidence.')); continue;
-      }
-      findings.push(finding(claim, 'missing_evidence', 'needs_human_review', 'The product capability is not established by the relevant source wording.', evidenceItems, 'medium', 'Confirm the capability with a reviewer or add evidence.')); continue;
-    }
-    const causalOverreach = claim.kinds.includes('causal') && relevant.length && !relevant.some(({ text }) => /\b(caused?|because|led to|resulted in)\b/i.test(text));
-    const comparativeOverreach = claim.kinds.includes('comparative') && relevant.length && !relevant.some(({ text }) => /\b(better|more|less|than|best|largest|fastest)\b/i.test(text));
-    if (causalOverreach) findings.push(finding(claim, 'causal_overreach', 'warning', 'The sources describe an outcome but do not establish causation.', evidenceItems, 'medium', 'Use an association claim or add causal evidence.'));
-    if (comparativeOverreach) findings.push(finding(claim, 'comparative_overreach', 'warning', 'The sources do not establish the comparison.', evidenceItems, 'medium', 'Narrow the comparison or add comparative evidence.'));
-    if (causalOverreach || comparativeOverreach) continue;
-    if (claimDates.length && claimDates.some((date) => sourceDates.includes(date))) continue;
-    if (same) continue;
-    if (!relevant.length && claim.kinds.includes('fact') && tokens(claim.text).length <= 4) {
-      findings.push(finding(claim, 'missing_evidence', 'needs_human_review', 'No close source evidence was found; the wording is too sparse for a reliable deterministic verdict.', evidenceItems, 'low', 'Confirm with a reviewer or provide a source.')); continue;
-    }
-    if ((!relevant.length || (claim.kinds.includes('number') && !relevant.some(({ text }) => /\b\d+(?:\.\d+)?%?\b/.test(text))))) {
-      findings.push(finding(claim, 'unsupported_claim', 'error', 'No supplied source supports this checkable claim.', evidenceItems, 'medium', 'Add a source, remove the claim, or mark it as an approved hypothesis.')); continue;
-    }
-    const semantic = semanticAdapter?.compare({ claim: claim.text, sources: input.sources });
-    if (semantic === 'supported') continue;
-    if (semantic === 'contradicted') {
-      findings.push(finding(claim, 'semantic_contradiction', 'error', 'The configured semantic adapter found contradictory source evidence.', evidenceItems, 'medium', 'Review the cited sources and correct or qualify the claim.')); continue;
-    }
-    findings.push(finding(claim, 'missing_evidence', 'needs_human_review', 'Relevant source material exists, but deterministic matching could not establish support.', evidenceItems, 'low', 'Review the source context or enable an approved semantic adapter.'));
+    const quoteEvidence = quoteRelevant.length ? quoteRelevant.slice(0, 2).map(({ source, text }) => evidence(source, text)) : input.sources.slice(0, 1).map((source) => evidence(source, source.text));
+    return [finding(claim, 'quote_drift', 'error', 'The quoted wording differs from the supplied source.', quoteEvidence, 'high', 'Use the source wording or label the text as a paraphrase.')];
   }
-  const normalizedClaims = claims.map((claim) => ({ claim, text: normal(claim.text) }));
-  for (let index = 0; index < normalizedClaims.length; index += 1) for (let other = index + 1; other < normalizedClaims.length; other += 1) {
-    const left = normalizedClaims[index]; const right = normalizedClaims[other];
-    const leftCore = normal(left.text.replace(/\bnot\b/g, '')); const rightCore = normal(right.text.replace(/\bnot\b/g, ''));
-    if (leftCore === rightCore && /\bnot\b/.test(left.text) !== /\bnot\b/.test(right.text)) {
-      findings.push(finding(right.claim, 'draft_contradiction', 'error', 'This draft claim contradicts an earlier draft claim.', fallbackEvidence(sourceLines), 'high', 'Resolve the two claims before publishing.'));
+
+  const claimDates = dates(claim.text);
+  const sourceDates = relevant.flatMap(({ text }) => dates(text));
+  const claimNumbers = numbers(claim.text);
+  const sourceNumbers = relevant.flatMap(({ text }) => numbers(text));
+  if (!claimDates.length && !claim.kinds.includes('attribution_quote') && claimNumbers.length && sourceNumbers.length && claimNumbers.some((number) => !sourceNumbers.some((sourceNumber) => normal(sourceNumber) === normal(number)))) {
+    return [finding(claim, 'number_drift', 'error', 'A number or unit differs from relevant source evidence.', evidenceItems, 'high', 'Correct the number or unit, or cite a newer source.')];
+  }
+  if (claimDates.length && sourceDates.length && claimDates.some((date) => !sourceDates.includes(date))) {
+    return [finding(claim, 'date_drift', 'error', 'The draft date differs from relevant source evidence.', evidenceItems, 'high', 'Correct the date or cite a newer source.')];
+  }
+
+  const claimEntities = entities(claim.text);
+  const sourceEntities = relevant.flatMap(({ text }) => entities(text));
+  if (claimEntities.length && sourceEntities.length && claimEntities.some((entity) => !sourceEntities.some((sourceEntity) => normal(sourceEntity) === normal(entity)))) {
+    return [finding(claim, 'entity_drift', 'error', 'A named entity differs from relevant source evidence.', evidenceItems, 'high', 'Correct the name or cite the source that supports it.')];
+  }
+
+  const capability = capabilityFinding(claim, relevant, evidenceItems);
+  if (capability) return [capability];
+  if (capabilityObjects(claim.text).length && relevant.length) return [];
+
+  const overreach: FactFinding[] = [];
+  if (claim.kinds.includes('causal') && relevant.length && !relevant.some(({ text }) => /\b(caused?|because|led to|resulted in)\b/i.test(text))) {
+    overreach.push(finding(claim, 'causal_overreach', 'warning', 'The sources describe an outcome but do not establish causation.', evidenceItems, 'medium', 'Use an association claim or add causal evidence.'));
+  }
+  if (claim.kinds.includes('comparative') && relevant.length && !relevant.some(({ text }) => /\b(better|more|less|than|best|largest|fastest)\b/i.test(text))) {
+    overreach.push(finding(claim, 'comparative_overreach', 'warning', 'The sources do not establish the comparison.', evidenceItems, 'medium', 'Narrow the comparison or add comparative evidence.'));
+  }
+  if (overreach.length) return overreach;
+  if (claimDates.some((date) => sourceDates.includes(date)) || same) return [];
+
+  if (!relevant.length && claim.kinds.includes('fact') && tokens(claim.text).length <= 4) {
+    return [finding(claim, 'missing_evidence', 'needs_human_review', 'No close source evidence was found; the wording is too sparse for a reliable deterministic verdict.', evidenceItems, 'low', 'Confirm with a reviewer or provide a source.')];
+  }
+  if (!relevant.length || (claim.kinds.includes('number') && !relevant.some(({ text }) => /\b\d+(?:\.\d+)?%?\b/.test(text)))) {
+    return [finding(claim, 'unsupported_claim', 'error', 'No supplied source supports this checkable claim.', evidenceItems, 'medium', 'Add a source, remove the claim, or mark it as an approved hypothesis.')];
+  }
+
+  const semantic = semanticAdapter?.compare({ claim: claim.text, sources: input.sources });
+  if (semantic === 'supported') return [];
+  if (semantic === 'contradicted') {
+    return [finding(claim, 'semantic_contradiction', 'error', 'The configured semantic adapter found contradictory source evidence.', evidenceItems, 'medium', 'Review the cited sources and correct or qualify the claim.')];
+  }
+  return [finding(claim, 'missing_evidence', 'needs_human_review', 'Relevant source material exists, but deterministic matching could not establish support.', evidenceItems, 'low', 'Review the source context or enable an approved semantic adapter.')];
+}
+
+function draftContradictions(claims: FactClaim[], sourceLines: SourceSentence[]): FactFinding[] {
+  const normalized = claims.map((claim) => ({ claim, text: normal(claim.text) }));
+  const findings: FactFinding[] = [];
+  for (let index = 0; index < normalized.length; index += 1) {
+    for (let other = index + 1; other < normalized.length; other += 1) {
+      const left = normalized[index];
+      const right = normalized[other];
+      const leftCore = normal(left.text.replace(/\bnot\b/g, ''));
+      const rightCore = normal(right.text.replace(/\bnot\b/g, ''));
+      if (leftCore === rightCore && /\bnot\b/.test(left.text) !== /\bnot\b/.test(right.text)) {
+        findings.push(finding(right.claim, 'draft_contradiction', 'error', 'This draft claim contradicts an earlier draft claim.', fallbackEvidence(sourceLines), 'high', 'Resolve the two claims before publishing.'));
+      }
     }
   }
+  return findings;
+}
+
+function summarizeFindings(claims: FactClaim[], findings: FactFinding[]): FactLintReport['summary'] {
   const claimKey = (item: FactFinding) => `${item.draftLocation.start}:${item.draftLocation.end}`;
   const unsupported = new Set(findings.filter((item) => item.kind === 'unsupported_claim').map(claimKey)).size;
   const contradicted = new Set(findings.filter((item) => ['draft_contradiction', 'number_drift', 'date_drift', 'entity_drift', 'quote_drift', 'capability_drift', 'semantic_contradiction'].includes(item.kind)).map(claimKey)).size;
   const humanReview = new Set(findings.filter((item) => item.severity === 'needs_human_review' || item.severity === 'warning').map(claimKey)).size;
   const checked = claims.filter((claim) => !claim.kinds.includes('opinion')).length;
   const affected = new Set(findings.map(claimKey)).size;
-  return { version: '1', summary: { checked, supported: Math.max(0, checked - affected), unsupported, contradicted, humanReview }, claims, findings, skippedChecks: semanticAdapter ? [] : ['semantic_matching'] };
+  return { checked, supported: Math.max(0, checked - affected), unsupported, contradicted, humanReview };
+}
+
+export function lintFacts(input: FactLintInput): FactLintReport {
+  if (!input.sources.length) throw new Error('Fact lint requires at least one source document.');
+  if (!input.sources.every((source) => source.id.trim() && source.text.trim())) throw new Error('Every fact-lint source needs a non-empty id and text.');
+  const claims = extractFactClaims(input.draft);
+  const sourceLines = sourceSentences(input.sources);
+  const findings: FactFinding[] = [];
+  const semanticAdapter = input.semanticAdapter && (!input.semanticAdapter.external || input.allowExternalSemantic) ? input.semanticAdapter : undefined;
+  const approved = new Set(input.metadata?.approvedHypotheses?.map(normal) ?? []);
+  const allowed = new Set(input.metadata?.allowedAssumptions?.map(normal) ?? []);
+  for (const claim of claims) {
+    if (claim.kinds.includes('opinion') || allowed.has(normal(claim.text)) || (claim.kinds.includes('hypothesis') && approved.has(normal(claim.text)))) continue;
+    findings.push(...findingsForClaim(claim, input, sourceLines, semanticAdapter));
+  }
+  findings.push(...draftContradictions(claims, sourceLines));
+  return { version: '1', summary: summarizeFindings(claims, findings), claims, findings, skippedChecks: semanticAdapter ? [] : ['semantic_matching'] };
 }
 
 export function formatFactLintReport(report: FactLintReport): string {
