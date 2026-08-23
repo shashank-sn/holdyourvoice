@@ -1,0 +1,37 @@
+{
+  "version": "1",
+  "natural": {
+    "targetCharacters": 100000,
+    "template": "we shipped a small parser change after the tests caught a boundary case. the source stays local and the output stays stable. each run uses the same fixture, records the timing, and checks the result.\n\n"
+  },
+  "dotted": {
+    "targetCharacters": 100000,
+    "template": "release v1.2.3 maps api.example.com to node.js 26.7.0 and records 99.9 percent uptime; "
+  },
+  "short": {
+    "targetCharacters": 2048
+  },
+  "profileSamples": [
+    "i ship small changes after the tests catch a boundary case. the source stays local and the output stays stable.",
+    "i use the same fixture for every run. i record the timing, check the result, and keep the mechanism visible."
+  ],
+  "factLint": {
+    "sourceCount": 20,
+    "sourceCharacters": 1980,
+    "sourceTemplate": "Stitchflow supports CSV exports and processes 42 records in 7 days. The local worker keeps every source attached to its result. ",
+    "draftCount": 40,
+    "draftTemplate": "Stitchflow supports CSV exports and processes 42 records in 7 days."
+  },
+  "measurement": {
+    "analyzeNatural": { "warmups": 3, "samples": 7, "iterations": 4 },
+    "analyzeDotted": { "warmups": 1, "samples": 3, "iterations": 1 },
+    "finalCheck": { "warmups": 3, "samples": 7, "iterations": 64 },
+    "cliAnalyze": { "warmups": 1, "samples": 10, "iterations": 1 },
+    "factLint": { "warmups": 2, "samples": 7, "iterations": 1 },
+    "sentencesNatural": { "warmups": 3, "samples": 7, "iterations": 48 },
+    "sentencesDotted": { "warmups": 1, "samples": 3, "iterations": 1 },
+    "aiEditor": { "warmups": 3, "samples": 7, "iterations": 10 },
+    "voiceDna": { "warmups": 3, "samples": 7, "iterations": 5 },
+    "hygiene": { "warmups": 3, "samples": 7, "iterations": 100 }
+  }
+}
