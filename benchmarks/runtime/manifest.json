@@ -1,0 +1,28 @@
+{
+  "version": "1",
+  "fixturesSha256": "31b1ea6edf3c0cd4289e15a539a9696ffd0bc9370a87fe305ae119fc4e6bbade",
+  "expandedFixtures": {
+    "natural": "d81c8d33ca576d325e90f210045da9a3316acac010d3c5c00b932fafde9cf037",
+    "dotted": "80eadae34338ecc7a5da8793ec3e5dc95c010715fbfc017e68de8a2f7dca395b",
+    "short": "8e60f57ed0a776ea2c9114820e67812f5f8a62cb808e020f0cf178990688587c",
+    "profile": "afd04e1648229eda23924e236c9ced1d8da29a022b45475aa813c8d6e070f634",
+    "fact_sources": "31d8c36da297508b19ffbbc55e9dd1619bbc0dd04d455f0286cf5b76be67e552",
+    "fact_draft": "34c670a1272e82cb10001064c019e33abf3afa1a959354a6c1662480f01b1c0a"
+  },
+  "outputs": {
+    "analyze_v3_natural_max": "81544ae1910a9ff6332ebd8e6f01265849af5030556ea01296f9477bc744fa7f",
+    "analyze_v3_dotted_max": "7e75068720a95273483a2c0bb840a97a561a166a0b787711098b3bf5e707f509",
+    "final_check_clean_max": "3b22194ae4c8b7a1a38c2d7ad7e2e43f6b5cde84f83cccf4cf5eae2d4ca8af82",
+    "cli_analyze_cold_short": "ec8480b707029f3dbcd9f782c86d7e22529a84487a91276227dfbd4107902612",
+    "fact_lint_sources_40k": "890ed511b018b1f69416b87c5c99c9df604dcccd2a5a33f5eaa00d1babd185df",
+    "sentences_natural_max": "196f862e0fa57eda3ca2ebd553653cea270a80a7541540608727865e65b11136",
+    "sentences_dotted_max": "915955431ae2cabc7185b6b6a30650c4a29f54be21177caa4b29799c380d7b06",
+    "ai_editor_max": "4a480ec6be78b8684a79159f1eaf6302d14b14b936ee263a4b2bc4de60c7abd0",
+    "voice_dna_max": "1a6b011c2e81f7f29e0464e9d9ffbf7c0831891097cd4d202283106f1cf325b1",
+    "hygiene_max": "fff18ad58ab4e6561c123bbf8f26e7fed8ca1bf8059af17cf06af30e1009be74"
+  },
+  "cli": {
+    "status": 0,
+    "stderr": ""
+  }
+}

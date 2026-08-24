@@ -2,6 +2,10 @@
 
 historical articles sit beside a frozen Hyv 3.2.0 baseline at `4e6269121d551c008a34db73077e1e4fea41b3f9`. they are dated product writing. a reproducible comparison still needs a rights-cleared corpus, frozen tasks, exact model and editor settings, a published rubric, separate evaluation dimensions, failure cases, and limitations.
 
+## deterministic runtime benchmark
+
+the local synthetic runtime lane is separate from the rewrite-quality protocol below. on its 100,000-character dotted v3 fixture, seven-run median process CPU time fell from 8,823.134 ms to 17.245 ms. that is 99.8045% lower for this stress case, not a whole-app speedup. the natural-analysis median was 7.15% lower but paired-inconclusive; cold CLI startup was 0.36% higher and stayed inside its 5% guardrail. see the [runtime benchmark contract and full results](https://github.com/shashank-sn/holdyourvoice/blob/main/benchmarks/runtime/README.md).
+
 keep four reports distinct: unchanged 3.2.0, Stage 1, advanced edit, and rebuild. do not fold edit and rebuild into one preservation number.
 
 | arm | identity | what it is |
