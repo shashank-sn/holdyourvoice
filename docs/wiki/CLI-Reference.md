@@ -2,11 +2,16 @@
 
 ```bash
 node dist/cli.js profile profile.json sample-a.md sample-b.md [--avoid=phrase]
+node dist/cli.js profile assess sample-a.md sample-b.md [sample-c.md]
+node dist/cli.js team-profile validate bundle.json
+node dist/cli.js team-profile compose bundle.json author-profile.json [brand-profile.json...]
 node dist/cli.js analyze draft.md profile.json [writing-brief.json]
 node dist/cli.js hygiene draft.md [--fix] [--output=cleaned.md]
 node dist/cli.js inspect-hidden-text draft.md [policy.json]
 node dist/cli.js apply-hidden-text-policy draft.md policy.json output.md
 node dist/cli.js final-check <path|->
+node dist/cli.js delivery-check <path|-> [policy.json]
+node dist/cli.js dispositions draft.md profile.json [writing-brief.json] [surface-policy.json]
 node dist/cli.js fact-lint <draft|-> --source=id:path [--source=id:path] [--metadata=metadata.json] [--strict] [--human]
 node dist/cli.js logic-lint <draft|-> [writing-brief.json]
 node dist/cli.js batch-analyze draft-a.md draft-b.md [draft-c.md]
@@ -36,6 +41,8 @@ node dist/cli.js agent emit <id> --mode prompt|json [--host HOST] [--output FILE
 ```
 
 `profile` needs two or more samples and writes only the profile path you name. `analyze` returns independent VoiceDNA and AI Editor reports plus a separate non-scoring Unicode hygiene report. An optional WritingBrief adds local audience, intent, and format context without changing the VoiceDNA profile. `hygiene` needs no profile; inspection is read-only, while `--fix` writes a new cleaned path, reports every changed offset, and refuses to overwrite either input or an existing output. It removes only ASCII controls and byte-order marks; bidirectional controls, tag characters, and zero-width joiners/non-joiners are reported but preserved. `inspect-hidden-text` and `apply-hidden-text-policy` provide a stricter receipt-backed policy workflow. `batch-analyze` returns advisory exact duplicate opening and closing findings across a local set. `rewrite-prompt` prints markdown and never calls a model. `verify` is read-only; learning changes require an explicit learning command or separately approved lifecycle transition. `verify-spec` adds the CopySpec claim gate.
+
+`profile assess` returns advisory readiness evidence only: aggregate coverage, normalized sample digests, and duplicate or format-spread warnings. `team-profile validate` verifies a signed, consent-bound bundle that contains fingerprints rather than samples; `team-profile compose` applies authorized v3 brand policy to the supplied author profile locally. `delivery-check` is an opt-in offline integrity report; `dispositions` exposes `block`, `review`, and `signal` with an optional local surface-policy override and never alters legacy analysis output.
 
 `learning show` composes active preferences. `learning inspect` returns bounded text-free event metadata. `learning add` remains the compatibility form of `learning record`; the latter returns the full mutation receipt and accepts `--mutation-id`, `--authority`, `--provenance`, `--weight`, and `--compatibility`. `learning ratify` and `learning supersede` require Profile v3 plus an event ID. `learning migrate <source-v2.json> <target-v3.json>` explicitly moves compatible legacy history into the stable v3 identity. `learning clear` removes that identity's local state. Exact mutation replay is idempotent; conflicting mutation-ID reuse fails closed.
 
