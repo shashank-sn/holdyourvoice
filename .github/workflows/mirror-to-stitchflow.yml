@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   mirror:
+    if: github.repository == 'shashank-sn/holdyourvoice'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
