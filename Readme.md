@@ -24,41 +24,52 @@ flowchart TD
         analyze --> voice["VoiceDNA check"]
         analyze --> patterns["AI pattern lint"]
         analyze --> hidden["Hidden-text / Unicode check"]
-        voice --> route{"Blocking finding?"}
-        patterns --> route
-        hidden -.-> route
+        voice --> local{"Local result"}
+        patterns --> local
+        hidden -.-> local
     end
 
-    route -->|No| candidate["Candidate text"]
-    route -->|Yes| task["Fingerprint-bound edit or rebuild task"]
-    task --> editor["Human editor or model you choose"]
-    editor --> candidate
+    local -->|No blocking change| candidate["Candidate text"]
+    local -->|Blocking edit scope| editTask["Prepare fingerprint-bound edit task"]
+    local -->|Judgment required| judgment["Prepare and reduce judgments"]
+    judgment --> route{"SHIP, EDIT, or REBUILD?"}
+    route -->|SHIP| candidate
+    route -->|EDIT| editTask
+    route -->|REBUILD| authorization["REBUILD recommendation + CopySpec + signed authorization"]
+    authorization --> rebuildTask["Prepare fingerprint-bound rebuild task"]
+    editTask --> editor["Human editor or model you choose"]
+    rebuildTask --> editor
+    editor --> response["Bound response"]
 
-    brief -.-> verify
-    sources["Optional sources in WritingBrief"] -.-> verify
-    spec["CopySpec for rebuilds"] -.-> verify
+    brief -.-> logic
+    sources["Optional fact sources in WritingBrief"] -.-> facts
+    spec["Optional for verify-spec; required for rebuild"] -.-> authorization
+    spec -.-> standard
 
     subgraph verification["2 · verification gate"]
-        candidate --> verify["hyv verify / verify-spec"]
-        verify --> regressions["VoiceDNA + AI pattern regressions"]
-        verify --> preservation["Preservation + CopySpec claims"]
-        verify --> logic["Logic lint"]
-        verify --> facts["Fact lint when sources are supplied"]
-        verify --> outputGate["Hidden-text + final-output gate"]
-        regressions --> passed{"All required checks pass?"}
-        preservation --> passed
-        logic --> passed
-        facts --> passed
-        outputGate --> passed
+        candidate --> standard["hyv verify / verify-spec"]
+        response --> mode{"Bound task mode"}
+        mode -->|EDIT| editApply["apply-rewrite + standard verification"]
+        mode -->|REBUILD| rebuildApply["apply-rebuild + rebuild verification"]
+        standard --> standardRules["Preservation gate + CopySpec claims when supplied"]
+        editApply --> standardRules
+        rebuildApply --> rebuildRules["CopySpec claims; preservation reported"]
+        standardRules --> engines["VoiceDNA + AI Editor checks and blocking regressions"]
+        rebuildRules --> engines
+        engines --> logic["Logic lint"]
+        logic --> facts["Fact lint when sources are supplied"]
+        facts --> outputGate["Hidden-text + final-output gate"]
+        outputGate --> passed{"All required checks pass?"}
     end
 
-    passed -->|No| task
+    passed -->|No| repair["Repair externally or prepare a new task"]
+    repair --> analyze
     passed -->|Yes| review["Semantic review and human approval, when required"]
     review --> final["Run final-check after the last change"]
     final --> output["Exact accepted text"]
 ```
 
-HYV keeps draft inspection, candidate verification, and final delivery separate. `verify` reruns VoiceDNA and AI Editor, rejects blocking regressions, checks preservation, runs logic lint, applies fact lint when a WritingBrief supplies sources, and withholds hidden-text failures. `verify-spec` adds CopySpec claim checks. Run `final-check` again after the last human, model, formatter, or template change. HYV never calls a model; a human editor or model you choose supplies edits and judgments.
+HYV keeps draft inspection, candidate verification, and final delivery separate. Standard verification reruns VoiceDNA and AI Editor, rejects blocking regressions, enforces preservation, runs logic lint, applies fact lint when a WritingBrief supplies sources, and withholds hidden-text failures. `verify-spec` adds CopySpec claim checks. Authorized rebuilds require an upstream REBUILD recommendation, a CopySpec, and signed authorization; their verification reports preservation without using the standard preservation threshold. Run `final-check` again after the last human, model, formatter, or template change. HYV never calls a model; a human editor or model you choose supplies edits and judgments.
 
 ## install
 
