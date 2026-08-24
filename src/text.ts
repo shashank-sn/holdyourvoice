@@ -33,7 +33,13 @@ export function sentences(text: string): Sentence[] {
     if (character === '.') {
       const previous = text[index - 1] ?? '';
       const next = text[index + 1] ?? '';
-      const previousWord = text.slice(start, index).match(/(\p{L}+)$/u)?.[1]?.toLowerCase();
+      let previousWordStart = index;
+      while (previousWordStart > start) {
+        const previousLetter = text.slice(Math.max(start, previousWordStart - 2), previousWordStart).match(/\p{L}$/u)?.[0];
+        if (!previousLetter) break;
+        previousWordStart -= previousLetter.length;
+      }
+      const previousWord = text.slice(previousWordStart, index).toLowerCase() || undefined;
       if ((/\d/.test(previous) && /\d/.test(next)) || /\p{L}/u.test(next) || (previousWord && abbreviations.has(previousWord))) continue;
     }
     let end = index + 1;
