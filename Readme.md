@@ -15,63 +15,61 @@ The package also checks hidden Unicode, source-backed facts, document logic, and
 
 ```mermaid
 flowchart TD
-    samples["Writing samples"] --> profile["Build a local VoiceDNA profile"]
-    draft["Draft"] --> analyze["Analyze locally"]
+    samples["Writing samples"] --> profile["Local VoiceDNA profile"]
+    draft["Draft"] --> analyze["hyv analyze"]
     profile --> analyze
-    brief["Optional WritingBrief"] --> analyze
+    brief["Optional WritingBrief"] -.-> analyze
 
-    analyze --> voice["VoiceDNA fit"]
-    analyze --> patterns["AI Editor rules"]
-    analyze --> editorial["Optional editorial report"]
-    analyze --> hygiene["Separate, non-scoring hidden Unicode report"]
+    subgraph inspect["1 · inspect the draft"]
+        analyze --> voice["VoiceDNA check"]
+        analyze --> patterns["AI pattern lint"]
+        analyze --> hidden["Hidden-text / Unicode check"]
+        voice --> local{"Local result"}
+        patterns --> local
+        hidden -.-> local
+    end
 
-    voice --> route{"Local result"}
-    patterns --> route
-    editorial --> route
-
-    route -->|No blocking change| final["Run final-check"]
-    route -->|Blocking sentences| edit["Prepare a fingerprint-bound edit task"]
-    route -->|Judgment required| judgments["Prepare triage, argument, and form tasks"]
-    judgments --> reduce["Reduce the returned judgments"]
-    reduce --> decision{"SHIP, EDIT, or REBUILD?"}
-    decision -->|SHIP| final
-    decision -->|EDIT| edit
-    decision -->|REBUILD| authorization["Bind a CopySpec and signed authorization"]
-    authorization --> rebuild["Prepare a fingerprint-bound rebuild task"]
-
-    edit --> editor["Human editor or model you choose"]
-    rebuild --> editor
+    local -->|No blocking change| candidate["Candidate text"]
+    local -->|Blocking edit scope| editTask["Prepare fingerprint-bound edit task"]
+    local -->|Judgment required| judgment["Prepare and reduce judgments"]
+    judgment --> route{"SHIP, EDIT, or REBUILD?"}
+    route -->|SHIP| candidate
+    route -->|EDIT| editTask
+    route -->|REBUILD| authorization["REBUILD recommendation + CopySpec + signed authorization"]
+    authorization --> rebuildTask["Prepare fingerprint-bound rebuild task"]
+    editTask --> editor["Human editor or model you choose"]
+    rebuildTask --> editor
     editor --> response["Bound response"]
-    response --> candidate["Apply response and produce a candidate"]
 
-    candidate --> mode{"Bound task mode"}
-    draft --> context["Bound original, profile, brief, and supplied evidence"]
-    profile --> context
-    brief --> context
-    evidence["Local sources when supplied; CopySpec for rebuild"] --> context
-    context --> editVerify
-    context --> rebuildVerify
-    mode -->|EDIT| editVerify["Enforce voice, pattern, preservation, logic, Unicode, and supplied evidence gates"]
-    mode -->|REBUILD| rebuildVerify["Enforce voice, pattern, logic, Unicode, CopySpec, and supplied fact gates; report preservation"]
-    editVerify --> passed{"All required gates pass?"}
-    rebuildVerify --> passed
-    passed -->|No| repair["Repair or escalate"]
-    repair --> editor
-    passed -->|Yes| prepareSemantic["Prepare the semantic task and initial lifecycle artifact"]
-    prepareSemantic --> review["Submit authorized, fingerprint-bound semantic verdict(s)"]
-    review --> clearance{"Ready for human review?"}
-    clearance -->|No| escalation["Terminal: needs escalation"]
-    clearance -->|Yes| human{"Human final decision"}
-    human -->|Reject| escalation
-    escalation --> restart["Repair externally and prepare a new fingerprinted task"]
-    restart --> analyze
-    human -->|Approve| approval["Finalize with signed human approval"]
-    approval --> final
-    hygiene -.->|Checked again| final
+    brief -.-> logic
+    sources["Optional fact sources in WritingBrief"] -.-> facts
+    spec["Optional for verify-spec; required for rebuild"] -.-> authorization
+    spec -.-> standard
+
+    subgraph verification["2 · verification gate"]
+        candidate --> standard["hyv verify / verify-spec"]
+        response --> mode{"Bound task mode"}
+        mode -->|EDIT| editApply["apply-rewrite + standard verification"]
+        mode -->|REBUILD| rebuildApply["apply-rebuild + rebuild verification"]
+        standard --> standardRules["Preservation gate + CopySpec claims when supplied"]
+        editApply --> standardRules
+        rebuildApply --> rebuildRules["CopySpec claims; preservation reported"]
+        standardRules --> engines["VoiceDNA + AI Editor checks and blocking regressions"]
+        rebuildRules --> engines
+        engines --> logic["Logic lint"]
+        logic --> facts["Fact lint when sources are supplied"]
+        facts --> outputGate["Hidden-text + final-output gate"]
+        outputGate --> passed{"All required checks pass?"}
+    end
+
+    passed -->|No| repair["Repair externally or prepare a new task"]
+    repair --> analyze
+    passed -->|Yes| review["Semantic review and human approval, when required"]
+    review --> final["Run final-check after the last change"]
     final --> output["Exact accepted text"]
 ```
 
-This combines the basic no-change path with the full fingerprint-bound edit and rebuild paths. HYV prepares tasks, validates returned artifacts, and runs deterministic checks locally. It never calls a model: a human editor or model you choose supplies edits and judgments. The basic CLI path below uses `analyze`, `verify`, and `final-check`.
+HYV keeps draft inspection, candidate verification, and final delivery separate. Standard verification reruns VoiceDNA and AI Editor, rejects blocking regressions, enforces preservation, runs logic lint, applies fact lint when a WritingBrief supplies sources, and withholds hidden-text failures. `verify-spec` adds CopySpec claim checks. Authorized rebuilds require an upstream REBUILD recommendation, a CopySpec, and signed authorization; their verification reports preservation without using the standard preservation threshold. Run `final-check` again after the last human, model, formatter, or template change. HYV never calls a model; a human editor or model you choose supplies edits and judgments.
 
 ## install
 
