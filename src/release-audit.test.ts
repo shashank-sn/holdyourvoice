@@ -6,6 +6,37 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 const audit = new URL('../scripts/release-audit.mjs', import.meta.url).pathname;
+const mirrorWorkflow = `on:
+  push:
+  delete:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+
+concurrency:
+  group: mirror-to-stitchflow
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    if: github.repository == 'shashank-sn/holdyourvoice'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          if [ -z "\${MIRROR_DEPLOY_KEY:-}" ]; then
+            exit 1
+          fi
+          node scripts/mirror-refs.mjs
+`;
+const mirrorReconciler = `
+const headsRefspec = '+refs/remotes/origin/*:refs/heads/*';
+const tagsRefspec = '+refs/tags/*:refs/tags/*';
+execFileSync('git', ['update-ref', '--no-deref', '-d', 'refs/remotes/origin/HEAD']);
+spawnSync('git', ['push', '--prune', 'mirror', headsRefspec, tagsRefspec]);
+execFileSync('git', ['ls-remote', '--refs', 'mirror', 'refs/heads/*', 'refs/tags/*']);
+`;
 const stage1Files = [
   'scripts/evaluate-rewrite-benchmark.mjs',
   'scripts/run-stage1-dry-run.mjs',
@@ -38,7 +69,8 @@ function fixture(files: Record<string, string>) {
     ].join('\n'),
     'src/version.ts': "export const HYV_VERSION = '1.0.0';",
     'src/stage1-evaluation.ts': "const baseline = '4e6269121d551c008a34db73077e1e4fea41b3f9'; const stage1 = '550ea24f652291dca13757fdbd2f0fa0b5e3f621';",
-    '.github/workflows/mirror-to-stitchflow.yml': "jobs:\n  mirror:\n    if: github.repository == 'shashank-sn/holdyourvoice'\n",
+    '.github/workflows/mirror-to-stitchflow.yml': mirrorWorkflow,
+    'scripts/mirror-refs.mjs': mirrorReconciler,
     'skills/hyv-test/agent.json': '{}',
     'skills/hyv-test/SKILL.md': '# test',
     'skills/hyv-test/agents/openai.yaml': 'name: test',
@@ -67,16 +99,62 @@ test('accepts the complete public package contract', () => {
 test('requires the mirror workflow to run only in the public source repository', () => {
   const directory = fixture({
     'README.md': '# public',
-    '.github/workflows/mirror-to-stitchflow.yml': 'jobs:\n  mirror:\n    runs-on: ubuntu-latest\n',
+    '.github/workflows/mirror-to-stitchflow.yml': mirrorWorkflow.replace("    if: github.repository == 'shashank-sn/holdyourvoice'\n", ''),
   });
   try {
     const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /mirror workflow must run only in the public source repository/);
+    assert.match(result.stderr, /mirror workflow must run only in the public source repository with a bounded timeout/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+for (const requirement of [
+  { name: 'deleted refs', fragment: '  delete:\n', error: /mirror workflow must reconcile deleted refs/ },
+  { name: 'manual recovery', fragment: '  workflow_dispatch:\n', error: /mirror workflow must support manual recovery/ },
+  { name: 'scheduled reconciliation', fragment: "  schedule:\n    - cron: '17 3 \* \* \*'\n", error: /mirror workflow must reconcile refs on a schedule/ },
+  { name: 'serialized updates', fragment: '  group: mirror-to-stitchflow\n', error: /mirror workflow must serialize full-ref updates and finish the active update/ },
+  { name: 'non-cancelled active updates', fragment: '  cancel-in-progress: false\n', error: /mirror workflow must serialize full-ref updates and finish the active update/ },
+  { name: 'bounded execution', fragment: '    timeout-minutes: 10\n', error: /mirror workflow must run only in the public source repository with a bounded timeout/ },
+  { name: 'current checkout action', fragment: '      - uses: actions/checkout@v7\n', error: /mirror workflow must use the current checkout action/ },
+  { name: 'deploy-key validation', fragment: '          if [ -z "${MIRROR_DEPLOY_KEY:-}" ]; then\n', error: /mirror workflow must validate the source deploy key/ },
+  { name: 'tested reconciliation', fragment: '          node scripts/mirror-refs.mjs\n', error: /mirror workflow must run the tested ref reconciler/ },
+]) {
+  test(`requires mirror ${requirement.name}`, () => {
+    const directory = fixture({
+      'README.md': '# public',
+      '.github/workflows/mirror-to-stitchflow.yml': mirrorWorkflow.replace(requirement.fragment, ''),
+    });
+    try {
+      const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, requirement.error);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+}
+
+for (const requirement of [
+  { name: 'safe remote HEAD exclusion', fragment: "execFileSync('git', ['update-ref', '--no-deref', '-d', 'refs/remotes/origin/HEAD']);\n", error: /mirror reconciler must exclude the remote HEAD pseudo-ref without deleting the default branch/ },
+  { name: 'destination pruning', fragment: "spawnSync('git', ['push', '--prune', 'mirror', headsRefspec, tagsRefspec]);\n", error: /mirror reconciler must prune destination refs/ },
+  { name: 'post-push ref verification', fragment: "execFileSync('git', ['ls-remote', '--refs', 'mirror', 'refs/heads/*', 'refs/tags/*']);\n", error: /mirror reconciler must verify source and mirror ref parity/ },
+]) {
+  test(`requires mirror reconciler ${requirement.name}`, () => {
+    const directory = fixture({
+      'README.md': '# public',
+      'scripts/mirror-refs.mjs': mirrorReconciler.replace(requirement.fragment, ''),
+    });
+    try {
+      const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, requirement.error);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+}
 
 test('requires exact Stage 1 scripts even when the checkpoint files remain', () => {
   const directory = fixture({

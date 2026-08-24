@@ -65,6 +65,7 @@ const marketplaceManifest = JSON.parse(readFileSync('.claude-plugin/marketplace.
 const claudeMcpManifest = JSON.parse(readFileSync('claude-plugin/.mcp.json', 'utf8'));
 const runtimeVersionSource = readFileSync('src/version.ts', 'utf8');
 const mirrorWorkflow = readFileSync('.github/workflows/mirror-to-stitchflow.yml', 'utf8');
+const mirrorReconciler = readFileSync('scripts/mirror-refs.mjs', 'utf8');
 const mitLicense = readFileSync('LICENSE', 'utf8');
 const mitRequiredClauses = [
   'Permission is hereby granted, free of charge, to any person obtaining a copy',
@@ -74,8 +75,21 @@ const mitRequiredClauses = [
 
 const files = candidateFiles();
 const failures = [];
-if (!mirrorWorkflow.includes("if: github.repository == 'shashank-sn/holdyourvoice'")) {
-  failures.push('mirror workflow must run only in the public source repository');
+const mirrorRequirements = [
+  [mirrorWorkflow, /^  delete:\s*$/m, 'mirror workflow must reconcile deleted refs'],
+  [mirrorWorkflow, /^  workflow_dispatch:\s*$/m, 'mirror workflow must support manual recovery'],
+  [mirrorWorkflow, /^  schedule:\n    - cron: ["']17 3 \* \* \*["']$/m, 'mirror workflow must reconcile refs on a schedule'],
+  [mirrorWorkflow, /^concurrency:\n  group: mirror-to-stitchflow\n  cancel-in-progress: false$/m, 'mirror workflow must serialize full-ref updates and finish the active update'],
+  [mirrorWorkflow, /^  mirror:\n    if: github\.repository == 'shashank-sn\/holdyourvoice'\n    runs-on: ubuntu-latest\n    timeout-minutes: 10$/m, 'mirror workflow must run only in the public source repository with a bounded timeout'],
+  [mirrorWorkflow, /^      - uses: actions\/checkout@v7$/m, 'mirror workflow must use the current checkout action'],
+  [mirrorWorkflow, /^ {10}if \[ -z "\$\{MIRROR_DEPLOY_KEY:-\}" \]; then$/m, 'mirror workflow must validate the source deploy key'],
+  [mirrorWorkflow, /^ {10}node scripts\/mirror-refs\.mjs$/m, 'mirror workflow must run the tested ref reconciler'],
+  [mirrorReconciler, /\['update-ref', '--no-deref', '-d', 'refs\/remotes\/origin\/HEAD'\]/, 'mirror reconciler must exclude the remote HEAD pseudo-ref without deleting the default branch'],
+  [mirrorReconciler, /\['push', '--prune', 'mirror', headsRefspec, tagsRefspec\]/, 'mirror reconciler must prune destination refs'],
+  [mirrorReconciler, /\['ls-remote', '--refs', 'mirror', 'refs\/heads\/\*', 'refs\/tags\/\*'\]/, 'mirror reconciler must verify source and mirror ref parity'],
+];
+for (const [text, pattern, failure] of mirrorRequirements) {
+  if (!pattern.test(text)) failures.push(failure);
 }
 for (const [name, command] of Object.entries(stage1Scripts)) {
   if (packageManifest.scripts?.[name] !== command) failures.push(`Stage 1 script contract has drifted: ${name}`);

@@ -6,6 +6,14 @@ on:
       - "**"
     tags:
       - "**"
+  delete:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+
+concurrency:
+  group: mirror-to-stitchflow
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -14,8 +22,9 @@ jobs:
   mirror:
     if: github.repository == 'shashank-sn/holdyourvoice'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -23,11 +32,14 @@ jobs:
         env:
           MIRROR_DEPLOY_KEY: ${{ secrets.MIRROR_DEPLOY_KEY }}
         run: |
+          if [ -z "${MIRROR_DEPLOY_KEY:-}" ]; then
+            echo "::error::MIRROR_DEPLOY_KEY is not configured in the source repository."
+            exit 1
+          fi
+
           install -m 700 -d ~/.ssh
           printf '%s\n' "$MIRROR_DEPLOY_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan github.com >> ~/.ssh/known_hosts
-          git fetch origin '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*'
-          git remote set-head origin -d
           git remote add mirror git@github.com:stitchflow-builders/holdyourvoice.git
-          git push --prune mirror '+refs/remotes/origin/*:refs/heads/*' '+refs/tags/*:refs/tags/*'
+          node scripts/mirror-refs.mjs
