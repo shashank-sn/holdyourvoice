@@ -110,6 +110,7 @@ function round(value) {
 }
 
 function measureBatch(run, iterations) {
+  if (typeof global.gc === 'function') global.gc();
   const start = process.cpuUsage();
   let value;
   for (let index = 0; index < iterations; index += 1) value = run();

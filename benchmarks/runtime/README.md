@@ -23,7 +23,7 @@ the runner emits one flat JSON object. `behavior_preserved`, `fixture_integrity`
 
 the manifest freezes the descriptor, expanded inputs, raw output shape, finding order, CLI stdout, stderr, and exit status. every fixture is synthetic.
 
-the optimization run takes seven independent harness samples and uses their median. the runner batches fast in-process cases long enough to reduce timer noise. dotted analysis uses four fixed warmups and five fixed samples; its sentence diagnostic uses one warmup and three samples. one harness invocation stays below the five-minute timeout.
+the optimization run takes seven independent harness samples and uses their median. the runner normalizes heap state before each timed in-process batch, outside the timer, and batches fast cases long enough to reduce timer noise. dotted analysis uses four fixed warmups and five fixed samples; its sentence diagnostic uses one warmup and three samples. one harness invocation stays below the five-minute timeout.
 
 ## profile
 
