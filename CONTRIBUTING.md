@@ -6,7 +6,7 @@ the useful contribution is a smaller, more inspectable rule or measurement. broa
 
 1. keep the local-first boundary intact. no hosted APIs, accounts, telemetry, payment collection, or runtime network calls.
 2. exclude client writing, profiles, prompts, feedback, embeddings, secrets, and unlicensed examples. use synthetic or rights-cleared fixtures with a short provenance note.
-3. for an AI Editor rule, include a stable ID, severity, reason, repair direction, positive test, and counterexample test.
+3. for an AI Editor rule, include a stable ID, severity, reason, repair direction, positive test, counterexample test, and the metadata in [docs/RULE-AUTHORING.md](docs/RULE-AUTHORING.md). Experimental proposals never change the default catalog until explicitly promoted.
 4. a VoiceDNA enforcement change needs a documented policy, counterexamples, and regression tests.
 5. run `npm test`, `npm run check:release`, and `git diff --check`.
 

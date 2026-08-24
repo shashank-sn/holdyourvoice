@@ -2,6 +2,10 @@
 
 HYV ships 23 portable agent packages for its writing and runtime commands. A host can load one operation without loading the full CLI or MCP server.
 
+## MCP core
+
+For a small stable MCP surface, start with `hyv_analyze`, `hyv_verify`, `hyv_fact_lint`, and `hyv_final_check`. Call `hyv_mcp_capabilities` after setup to discover the core and advanced tools. These tools are local and read-only; fact-lint only uses evidence explicitly supplied by the host.
+
 Each package lives at `skills/hyv-*/` and contains:
 
 - `agent.json`: the versioned contract for the role, workflow phase, inputs, outputs, evidence, permissions, stop conditions, tool-free mode, and handoff.

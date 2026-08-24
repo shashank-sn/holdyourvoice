@@ -1,0 +1,25 @@
+name: HYV content gate
+
+on:
+  pull_request:
+    paths: ["**.md", "**.mdx", ".hyv/content-gate.json", "scripts/check-changed-content.mjs"]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-changed-content:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - id: changed
+        run: git diff --name-only HEAD^ HEAD > "$RUNNER_TEMP/changed-files.txt"
+      - name: Build local content inspector
+        run: npm ci && npm run build
+      - name: Inspect changed Markdown locally
+        run: node scripts/check-changed-content.mjs .hyv/content-gate.json "$RUNNER_TEMP/changed-files.txt" | tee "$RUNNER_TEMP/hyv-content-gate.json" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hyv-content-gate
+          path: ${{ runner.temp }}/hyv-content-gate.json

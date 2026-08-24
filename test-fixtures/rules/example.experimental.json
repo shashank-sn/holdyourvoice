@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "id": "example.experimental-pattern",
+  "channel": "experimental",
+  "severity": "yellow",
+  "provenance": "Synthetic example for validator coverage.",
+  "positive": ["This clearly matches the experimental pattern."],
+  "counterexamples": ["This is an ordinary sentence."],
+  "impact": "Hypothesis: review signals may increase; no measured claim."
+}

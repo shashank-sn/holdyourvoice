@@ -7,3 +7,5 @@ the public package is [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@hold
 start with [getting started](Getting-Started). read [core concepts](Core-Concepts) before adding a rule. the [cli reference](CLI-Reference) lists the structured rewrite commands. [portable agents](Portable-Agents) packages the 23 writing and runtime commands as host-aware contracts.
 
 the [fact linter](Fact-Linter) compares a final draft with the sources you provide. it stays local and does not claim that those sources are true.
+
+HYV is a local writing gate, not an AI detector or authorship detector. See the [roadmap](https://github.com/shashank-sn/holdyourvoice/blob/main/docs/ROADMAP.md) for the public fixture scorecard, contributor route, MCP core, and current constraints.

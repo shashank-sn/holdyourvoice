@@ -18,6 +18,8 @@ to work from source:
 hyv profile profile.json sample-a.md sample-b.md --avoid=overused-phrase
 ```
 
+run `hyv profile assess sample-a.md sample-b.md [sample-c.md]` first when you need an aggregate readiness report. It does not change the profile or claim the samples have one author.
+
 4. inspect a draft with `hyv analyze draft.md profile.json`.
 5. create a brief with `hyv rewrite-prompt draft.md profile.json > rewrite-brief.md`, apply only the replacements you accept, then run `verify`.
 6. for the founder-aware path, reduce a pre-edit judgment to SHIP, EDIT, or REBUILD, then use `prepare-rewrite` / `apply-rewrite` or `prepare-rebuild` / `apply-rebuild` as the recommendation requires.

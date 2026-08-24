@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HYV contributed rule metadata",
+  "type": "object",
+  "required": ["version", "id", "channel", "severity", "provenance", "positive", "counterexamples", "impact"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"const": "1"},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9.-]+$"},
+    "channel": {"enum": ["stable", "experimental"]},
+    "severity": {"enum": ["red", "yellow"]},
+    "provenance": {"type": "string", "minLength": 8},
+    "positive": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "counterexamples": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "impact": {"type": "string", "minLength": 8}
+  }
+}

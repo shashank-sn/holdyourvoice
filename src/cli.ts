@@ -22,8 +22,12 @@ import { loadApprovalContext } from './approval-context.js';
 import { formatFactLintReport, lintFacts, type FactMetadata, type FactSource } from './fact-linter.js';
 import { formatLogicLintReport, lintLogic } from './logic-linter.js';
 import { loadAll, validateAll, validateId, sortedIds, describe, emitJson, emitPrompt } from './agents/index.js';
+import { inspectDeliveryIntegrity, parseDeliveryIntegrityPolicy } from './delivery-integrity.js';
+import { assessProfileReadiness } from './profile-quality.js';
+import { normalizeFinding, parseSurfacePolicy } from './disposition.js';
+import { composeTeamProfile, parseTeamProfileBundle } from './team-profile.js';
 
-const usage = 'Commands: agent, profile, analyze, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, mcp';
+const usage = 'Commands: agent, profile, team-profile, analyze, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, delivery-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, dispositions, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -303,9 +307,34 @@ function runAgent(args: string[]): number {
 type CommandHandler = (args: string[]) => number | Promise<number>;
 
 function runProfile(args: string[]): number {
+  if (args[0] === 'assess') {
+    if (args.length < 3) throw new Error('Usage: hyv profile assess sample-a.md sample-b.md [sample-c.md]');
+    json(assessProfileReadiness(args.slice(1).map(input)));
+    return 0;
+  }
   const { output, samples, avoid } = profileArguments(args);
   writeJson(output, buildProfile(samples.map(input), avoid));
   return 0;
+}
+
+function runTeamProfile(args: string[]): number {
+  const [action, bundlePath, authorPath, ...brandPaths] = args;
+  if (action === 'validate' && bundlePath && !authorPath) { json(parseTeamProfileBundle(readJson(bundlePath))); return 0; }
+  if (action === 'compose' && bundlePath && authorPath) {
+    const brands = brandPaths.map(readProfile).filter((profile): profile is ProfileV3 => profile.version === '3');
+    if (brands.length !== brandPaths.length) throw new Error('Team brand profiles must use Profile v3.');
+    json(composeTeamProfile(readProfile(authorPath), brands, parseTeamProfileBundle(readJson(bundlePath))));
+    return 0;
+  }
+  throw new Error('Usage: hyv team-profile <validate bundle.json|compose bundle.json author-profile.json [brand-profile.json...]>');
+}
+
+function runDeliveryCheck(args: string[]): number {
+  const [path, policyPath, ...extra] = args;
+  if (!path || extra.length) throw new Error('Usage: hyv delivery-check <path|-> [policy.json]');
+  const report = inspectDeliveryIntegrity(input(path), policyPath ? parseDeliveryIntegrityPolicy(readJson(policyPath)) : undefined, process.cwd());
+  json(report);
+  return report.passed ? 0 : 2;
 }
 
 function runAnalyze(args: string[]): number {
@@ -629,6 +658,15 @@ function runPatterns(): number {
   return 0;
 }
 
+function runDispositions(args: string[]): number {
+  const [draft, profilePath, briefPath, surfacePolicyPath] = args;
+  if (!draft || !profilePath) throw new Error('Usage: hyv dispositions draft.md profile.json [writing-brief.json]');
+  const report = analyze(input(draft), readProfile(profilePath), readBrief(briefPath));
+  const policy = surfacePolicyPath ? parseSurfacePolicy(readJson(surfacePolicyPath)) : undefined;
+  json({ version: '1', findings: [report.voiceDna, report.aiEditor, report.editorial].flatMap((engine) => engine?.findings.map((finding) => normalizeFinding(finding, policy)) ?? []) });
+  return 0;
+}
+
 async function runMcp(args: string[]): Promise<number> {
   if (args.length > 0) throw new Error('Usage: hyv mcp');
   await import('./mcp.js');
@@ -638,11 +676,13 @@ async function runMcp(args: string[]): Promise<number> {
 const commandHandlers: Record<string, CommandHandler> = {
   agent: runAgent,
   profile: runProfile,
+  'team-profile': runTeamProfile,
   analyze: runAnalyze,
   hygiene: runHygiene,
   'inspect-hidden-text': runInspectHiddenText,
   'apply-hidden-text-policy': runApplyHiddenTextPolicy,
   'final-check': runFinalCheck,
+  'delivery-check': runDeliveryCheck,
   'fact-lint': runFactLint,
   'logic-lint': runLogicLint,
   'batch-analyze': runBatchAnalyze,
@@ -659,6 +699,7 @@ const commandHandlers: Record<string, CommandHandler> = {
   lifecycle: runLifecycle,
   learning: runLearning,
   patterns: runPatterns,
+  dispositions: runDispositions,
   mcp: runMcp,
 };
 
