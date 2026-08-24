@@ -38,6 +38,7 @@ function fixture(files: Record<string, string>) {
     ].join('\n'),
     'src/version.ts': "export const HYV_VERSION = '1.0.0';",
     'src/stage1-evaluation.ts': "const baseline = '4e6269121d551c008a34db73077e1e4fea41b3f9'; const stage1 = '550ea24f652291dca13757fdbd2f0fa0b5e3f621';",
+    '.github/workflows/mirror-to-stitchflow.yml': "jobs:\n  mirror:\n    if: github.repository == 'shashank-sn/holdyourvoice'\n",
     'skills/hyv-test/agent.json': '{}',
     'skills/hyv-test/SKILL.md': '# test',
     'skills/hyv-test/agents/openai.yaml': 'name: test',
@@ -58,6 +59,20 @@ test('accepts the complete public package contract', () => {
     const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /release audit passed/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('requires the mirror workflow to run only in the public source repository', () => {
+  const directory = fixture({
+    'README.md': '# public',
+    '.github/workflows/mirror-to-stitchflow.yml': 'jobs:\n  mirror:\n    runs-on: ubuntu-latest\n',
+  });
+  try {
+    const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /mirror workflow must run only in the public source repository/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

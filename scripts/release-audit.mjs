@@ -64,6 +64,7 @@ const claudePluginManifest = JSON.parse(readFileSync('claude-plugin/.claude-plug
 const marketplaceManifest = JSON.parse(readFileSync('.claude-plugin/marketplace.json', 'utf8'));
 const claudeMcpManifest = JSON.parse(readFileSync('claude-plugin/.mcp.json', 'utf8'));
 const runtimeVersionSource = readFileSync('src/version.ts', 'utf8');
+const mirrorWorkflow = readFileSync('.github/workflows/mirror-to-stitchflow.yml', 'utf8');
 const mitLicense = readFileSync('LICENSE', 'utf8');
 const mitRequiredClauses = [
   'Permission is hereby granted, free of charge, to any person obtaining a copy',
@@ -73,6 +74,9 @@ const mitRequiredClauses = [
 
 const files = candidateFiles();
 const failures = [];
+if (!mirrorWorkflow.includes("if: github.repository == 'shashank-sn/holdyourvoice'")) {
+  failures.push('mirror workflow must run only in the public source repository');
+}
 for (const [name, command] of Object.entries(stage1Scripts)) {
   if (packageManifest.scripts?.[name] !== command) failures.push(`Stage 1 script contract has drifted: ${name}`);
 }
