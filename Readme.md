@@ -104,6 +104,10 @@ Learning commands can write text-free events under `~/.hyv/learning/`. A manuall
 
 VoiceDNA fit, AI-pattern findings, fact consistency, and human approval are separate results. A clean report only states that its configured checks passed. Authorship, factual truth, and publication quality still need separate evidence or review.
 
+## performance
+
+The frozen synthetic runtime benchmark covers natural text, punctuation-heavy text, final checking, cold CLI startup, and fact linting. On its 100,000-character dotted v3 fixture, seven-run median process CPU time fell from 8,823.134 ms to 17.245 ms. That is 99.8045% lower for this stress case, not a whole-application speedup. Read the [runtime benchmark contract and full results](https://github.com/shashank-sn/holdyourvoice/blob/main/benchmarks/runtime/README.md).
+
 ## development
 
 ```bash

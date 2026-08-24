@@ -4,6 +4,10 @@ Historical articles sit beside a frozen Hyv 3.2.0 baseline at `4e6269121d551c008
 
 Versioned schemas under `benchmarks/schema/` cover the immutable protocol, status-discriminated run events, encrypted blind packet, sealed A/B mapping, append-only reviewer records, ratings seal, aggregate report, and checkpoint disposition. Every locked assignment stays in the intent-to-treat denominator. Timeouts, abandonment, and hard-gate failures are failures. Reports bind every artifact through canonical SHA-256 digests.
 
+## Deterministic runtime benchmark
+
+The local synthetic runtime lane is separate from the rewrite-quality and human-review protocol below. Its frozen fixtures, method, profiler command, reference results, and limitations live in the [runtime benchmark](../benchmarks/runtime/README.md).
+
 ## Separate comparison reports
 
 Keep four reports distinct. Do not fold them into one preservation number.
