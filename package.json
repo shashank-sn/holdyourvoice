@@ -1,18 +1,63 @@
 {
   "name": "@holdyourvoice/hyv",
-  "version": "3.4.4",
+  "version": "3.4.5",
   "description": "A local-first dual-engine writing gate that protects voice and catches generic AI patterns.",
   "type": "module",
-  "bin": { "hyv": "dist/cli.js" },
-  "files": ["dist", "skills", "Readme.md", "LICENSE"],
-  "scripts": { "build": "tsc -p tsconfig.json", "bundle:claude": "esbuild src/mcp.ts --bundle --platform=node --format=esm --target=node20 --outfile=mcpb/server/index.js", "build:claude": "npm run build && npm run bundle:claude", "pack:claude": "npm run build:claude && node scripts/pack-claude.mjs", "scorecard": "node scripts/public-scorecard.mjs benchmarks", "validate:rule-contributions": "node scripts/validate-rule-contributions.mjs", "stage1:evaluate": "node scripts/evaluate-rewrite-benchmark.mjs", "stage1:dry-run": "npm run build && node scripts/run-stage1-dry-run.mjs", "stage1:human-packet": "npm run build && node scripts/run-stage1-human-packet.mjs", "stage2:human-packet": "npm run build && node scripts/run-stage2-human-packet.mjs", "test": "npm run build && node --test \"dist/**/*.test.js\"", "check:release": "node scripts/release-audit.mjs", "prepack": "npm run check:release && npm test" },
-  "engines": { "node": ">=20" },
+  "bin": {
+    "hyv": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "Readme.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "bundle:claude": "esbuild src/mcp.ts --bundle --platform=node --format=esm --target=node20 --outfile=mcpb/server/index.js",
+    "build:claude": "npm run build && npm run bundle:claude",
+    "pack:claude": "npm run build:claude && node scripts/pack-claude.mjs",
+    "scorecard": "node scripts/public-scorecard.mjs benchmarks",
+    "validate:rule-contributions": "node scripts/validate-rule-contributions.mjs",
+    "stage1:evaluate": "node scripts/evaluate-rewrite-benchmark.mjs",
+    "stage1:dry-run": "npm run build && node scripts/run-stage1-dry-run.mjs",
+    "stage1:human-packet": "npm run build && node scripts/run-stage1-human-packet.mjs",
+    "stage2:human-packet": "npm run build && node scripts/run-stage2-human-packet.mjs",
+    "test": "npm run build && node --test \"dist/**/*.test.js\"",
+    "check:release": "node scripts/release-audit.mjs",
+    "prepack": "npm run check:release && npm test && npm run pack:claude"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "license": "MIT",
-  "keywords": ["ai-writing", "cli", "editing", "voice", "writing"],
-  "repository": { "type": "git", "url": "git+https://github.com/shashank-sn/holdyourvoice.git" },
-  "bugs": { "url": "https://github.com/shashank-sn/holdyourvoice/issues" },
+  "keywords": [
+    "ai-writing",
+    "cli",
+    "editing",
+    "voice",
+    "writing"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shashank-sn/holdyourvoice.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shashank-sn/holdyourvoice/issues"
+  },
   "homepage": "https://github.com/shashank-sn/holdyourvoice#readme",
-  "publishConfig": { "access": "public" },
-  "devDependencies": { "@types/node": "^22.0.0", "@types/yazl": "^3.3.1", "esbuild": "^0.28.1", "typescript": "^5.7.0", "yazl": "^3.3.1" },
-  "dependencies": { "@modelcontextprotocol/sdk": "^1.30.0", "zod": "^4.4.3" }
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/yazl": "^3.3.1",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.7.0",
+    "yazl": "^3.3.1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.4.3"
+  }
 }
