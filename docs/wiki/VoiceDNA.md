@@ -30,3 +30,5 @@ Structural measurements accept Unicode writing. The current point-of-view and tr
 Yellow findings ask for editorial judgment. They do not prove a line is wrong. Any new automatic rule needs a written policy, positive tests, and counterexamples.
 
 Profile v3 adds a stable local identity and per-rule policy. Catalog matches can block, advise, require judgment, or stay disabled without changing rule IDs. Revision compatibility decides which local learning events stay active.
+
+Run `hyv profile assess sample-a.md sample-b.md [sample-c.md]` before building a profile. It reports aggregate coverage, duplicate normalized sample digests, and format-spread signals. This is readiness evidence, not a VoiceDNA score or an authorship claim. A team can validate a separate consent-bound, signed profile bundle with `hyv team-profile validate bundle.json`; the bundle contains profile fingerprints, source types, and expiry metadata, not raw samples.

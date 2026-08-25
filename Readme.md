@@ -2,7 +2,7 @@
 
 [![npm downloads](https://img.shields.io/npm/dt/%40holdyourvoice%2Fhyv?label=npm%20downloads&color=2f81f7)](https://www.npmjs.com/package/@holdyourvoice/hyv)
 
-Hold Your Voice (`hyv`) is a local writing checker. It helps you edit AI-assisted writing without losing your own writing patterns.
+Hold Your Voice (`hyv`) is a local writing checker. It helps you edit AI-assisted writing without losing your own writing patterns. It is not an AI-authorship detector: it provides local, inspectable writing evidence while a human still decides what to publish.
 
 It runs two independent checks:
 
@@ -117,6 +117,8 @@ producer | hyv final-check -
 
 `final-check` writes accepted text to stdout. It withholds output and exits with code `2` when unresolved hidden Unicode remains.
 
+`delivery-check` is a separate opt-in offline check for placeholders, likely credential patterns, local Markdown links, and citation IDs in a local policy. It never fetches a URL or proves a fact.
+
 ## commands
 
 | Command | Purpose |
@@ -127,6 +129,10 @@ producer | hyv final-check -
 | `hyv inspect-hidden-text <draft> [policy.json]` | Inspect hidden text with an optional policy. |
 | `hyv apply-hidden-text-policy <draft> <policy.json> <output>` | Apply approved hidden-text removals. |
 | `hyv final-check <path\|->` | Gate the exact text before delivery. |
+| `hyv delivery-check <path\|-> [policy.json]` | Run optional local delivery-integrity checks. |
+| `hyv profile assess <sample...>` | Inspect sample readiness before building a profile. |
+| `hyv team-profile validate\|compose ...` | Validate or locally compose consent-bound team profile metadata. |
+| `hyv dispositions <draft> <profile>` | Return normalized `block`, `review`, and `signal` findings. |
 | `hyv fact-lint <draft\|-> --source=id:path` | Check claims against local source files. |
 | `hyv logic-lint <draft\|-> [brief.json]` | Check deterministic document logic. |
 | `hyv batch-analyze <draft...>` | Find repeated openings and endings across drafts. |
@@ -177,6 +183,8 @@ npm run check:release
 ```
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. The main design boundaries are in [Architecture](docs/ARCHITECTURE.md) and the full user guides are in the [wiki](https://github.com/shashank-sn/holdyourvoice/wiki).
+
+See the [roadmap](docs/ROADMAP.md), [rule authoring guide](docs/RULE-AUTHORING.md), and synthetic [benchmark scorecard command](scripts/public-scorecard.mjs). The public fixture scorecard does not measure human preference or model quality.
 
 ## license
 

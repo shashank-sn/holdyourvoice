@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, logicLintForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, rebuildWriterRequestForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, assessProfileForMcp, buildProfileForMcp, clearLearningForMcp, deliveryCheckForMcp, factLintForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, logicLintForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, rebuildWriterRequestForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { HYV_VERSION } from './version.js';
 import { loadApprovalContext } from './approval-context.js';
 
@@ -16,6 +16,7 @@ const lifecycleJson = z.string().min(1).max(1_048_576);
 const approvedLearningText = z.string().min(1).max(1_048_576);
 const evaluatorId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/);
 const semanticViolation = z.enum(['action_change', 'dropped_object', 'unsupported_claim', 'constraint_weakened', 'clarity_regression']);
+const factSourcesJson = z.string().min(2).max(250_000);
 const redactsSensitiveInputs = process.env.HYV_MCP_SENSITIVE_INPUT_REDACTION === '1';
 const learningOptions = {
   mutation_id: z.string().min(1).max(200).optional(),
@@ -64,6 +65,11 @@ server.registerTool('hyv_build_profile', {
   annotations: { readOnlyHint: true },
 }, async ({ samples: writingSamples, avoid: phrases }) => guardedJson(() => buildProfileForMcp(writingSamples, phrases)));
 
+server.registerTool('hyv_profile_assess', {
+  description: 'Assess local sample readiness before building a VoiceDNA profile. It returns aggregate counts and one-way sample digests, never stored sample text or an authorship verdict.',
+  inputSchema: { samples }, annotations: { readOnlyHint: true },
+}, async ({ samples: writingSamples }) => json(assessProfileForMcp(writingSamples)));
+
 server.registerTool('hyv_analyze', {
   description: 'Run separate VoiceDNA and AI Editor checks plus a non-scoring Unicode hygiene inspection against a draft using a portable profile JSON string.',
   inputSchema: { draft: writing, profile_json: profileJson, writing_brief_json: writingBriefJson.optional() },
@@ -91,6 +97,20 @@ server.registerTool('hyv_final_check', {
   inputSchema: { text: hygieneText },
   annotations: { readOnlyHint: true },
 }, async ({ text }) => json(finalOutputCheckForMcp(text)));
+
+server.registerTool('hyv_delivery_check', {
+  description: 'Run an opt-in local delivery-integrity check for placeholders, likely secrets, local links, and supplied citation IDs. It never fetches URLs and is separate from final-check.',
+  inputSchema: { text: hygieneText, policy_json: lifecycleJson.optional() }, annotations: { readOnlyHint: true },
+}, async ({ text, policy_json }) => guardedJson(() => deliveryCheckForMcp(text, policy_json)));
+
+server.registerTool('hyv_fact_lint', {
+  description: 'Compare a draft against explicitly supplied local evidence text. It is a source-consistency check, not a truth service, and does not make network requests.',
+  inputSchema: { draft: writing, sources_json: factSourcesJson, metadata_json: lifecycleJson.optional() }, annotations: { readOnlyHint: true },
+}, async ({ draft, sources_json, metadata_json }) => guardedJson(() => factLintForMcp(draft, sources_json, metadata_json)));
+
+server.registerTool('hyv_mcp_capabilities', {
+  description: 'Return the stable core MCP tool names and the compatibility-preserved advanced surface.', inputSchema: {}, annotations: { readOnlyHint: true },
+}, async () => json({ version: '1', serverVersion: HYV_VERSION, core: ['hyv_analyze', 'hyv_verify', 'hyv_fact_lint', 'hyv_final_check'], advanced: ['hyv_logic_lint', 'hyv_delivery_check', 'hyv_profile_assess'], sensitiveInputRedaction: redactsSensitiveInputs }));
 
 server.registerTool('hyv_logic_lint', {
   description: 'Run the deterministic document-coherence gate. It detects configured topic drift, unanchored inference, and direct internal contradictions; it does not verify facts or approve publication.',

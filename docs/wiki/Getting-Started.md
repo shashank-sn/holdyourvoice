@@ -1,6 +1,6 @@
 # getting started
 
-the public CLI is [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv) 3.4.2.
+the public CLI is [`@holdyourvoice/hyv`](https://www.npmjs.com/package/@holdyourvoice/hyv) 3.4.3.
 
 ```bash
 npx @holdyourvoice/hyv patterns
@@ -17,6 +17,8 @@ to work from source:
 ```bash
 hyv profile profile.json sample-a.md sample-b.md --avoid=overused-phrase
 ```
+
+run `hyv profile assess sample-a.md sample-b.md [sample-c.md]` first when you need an aggregate readiness report. It does not change the profile or claim the samples have one author.
 
 4. inspect a draft with `hyv analyze draft.md profile.json`.
 5. create a brief with `hyv rewrite-prompt draft.md profile.json > rewrite-brief.md`, apply only the replacements you accept, then run `verify`.

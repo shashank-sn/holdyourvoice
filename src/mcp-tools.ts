@@ -14,6 +14,9 @@ import { buildProfile } from './voice-dna.js';
 import { finalOutputCheck, inspectHygiene } from './hygiene.js';
 import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
 import { MAX_JSON_BYTES } from './internal.js';
+import { lintFacts, type FactMetadata, type FactSource } from './fact-linter.js';
+import { inspectDeliveryIntegrity, parseDeliveryIntegrityPolicy } from './delivery-integrity.js';
+import { assessProfileReadiness } from './profile-quality.js';
 
 function profileFromJson(profileJson: string) {
   try {
@@ -146,6 +149,18 @@ export function verifyCopySpecForMcp(original: string, candidate: string, profil
 export function logicLintForMcp(draft: string, writingBriefJson?: string) {
   return lintLogic(draft, writingBriefFromJson(writingBriefJson));
 }
+
+export function factLintForMcp(draft: string, sourcesJson: string, metadataJson?: string) {
+  const sources = parsed<unknown>(sourcesJson, 'Fact sources');
+  if (!Array.isArray(sources) || !sources.every((source) => source && typeof source === 'object' && typeof (source as FactSource).id === 'string' && typeof (source as FactSource).text === 'string')) throw new Error('Fact sources are not valid.');
+  return lintFacts({ draft, sources: sources as FactSource[], metadata: metadataJson ? parsed<FactMetadata>(metadataJson, 'Fact metadata') : undefined });
+}
+
+export function deliveryCheckForMcp(text: string, policyJson?: string) {
+  return inspectDeliveryIntegrity(text, policyJson ? parseDeliveryIntegrityPolicy(parsed<unknown>(policyJson, 'Delivery policy')) : undefined);
+}
+
+export function assessProfileForMcp(samples: string[]) { return assessProfileReadiness(samples); }
 
 function parsed<T>(json: string, label: string): T {
   if (Buffer.byteLength(json, 'utf8') > MAX_JSON_BYTES) throw new Error(`${label} exceeds the byte limit.`);
