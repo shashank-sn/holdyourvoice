@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-strict-check",
+  "title": "hyv-strict-check",
+  "description": "Run the local strict AI-pattern and calibrated voice-match gate.",
+  "instruction_file": "SKILL.md",
+  "role": "Strict quality gate",
+  "workflow_phase": "verify",
+  "input": {
+    "required": ["draft path", "Profile v3 path", "at least five local writing-sample paths"],
+    "optional": []
+  },
+  "output": {
+    "required": ["strict-ready, needs-human-review, or blocked report"],
+    "optional": []
+  },
+  "evidence_requirements": [
+    "Report the exact local result, including readiness and every blocking or review finding.",
+    "Never call strict-ready a fact, authorship, or publication verdict.",
+    "Treat a mixed-format baseline or a profile built from fewer than five samples as blocked evidence."
+  ],
+  "permissions": ["execute_commands", "read_repository"],
+  "stop_conditions": [
+    "Stop when a Profile v3, enough samples, or calibrated metric tolerances are missing.",
+    "Stop when the result is blocked or needs human review; do not change the draft or learning state."
+  ],
+  "tool_free_mode": {
+    "available": true,
+    "behavior": "Provide the required inputs and explain that no strict result was run.",
+    "unavailable_statuses": ["NOT_AVAILABLE", "NOT_CONFIGURED", "NOT_RUN", "STALE", "ERROR"]
+  },
+  "handoff_to": ["hyv-final-check"]
+}

@@ -6,6 +6,7 @@ node dist/cli.js profile assess sample-a.md sample-b.md [sample-c.md]
 node dist/cli.js team-profile validate bundle.json
 node dist/cli.js team-profile compose bundle.json author-profile.json [brand-profile.json...]
 node dist/cli.js analyze draft.md profile.json [writing-brief.json]
+node dist/cli.js strict-check draft.md profile-v3.json sample-a.md sample-b.md [sample-c.md ...]
 node dist/cli.js hygiene draft.md [--fix] [--output=cleaned.md]
 node dist/cli.js inspect-hidden-text draft.md [policy.json]
 node dist/cli.js apply-hidden-text-policy draft.md policy.json output.md
@@ -40,7 +41,7 @@ node dist/cli.js agent describe <id> [--host HOST]
 node dist/cli.js agent emit <id> --mode prompt|json [--host HOST] [--output FILE]
 ```
 
-`profile` needs two or more samples and writes only the profile path you name. `analyze` returns independent VoiceDNA and AI Editor reports plus a separate non-scoring Unicode hygiene report. An optional WritingBrief adds local audience, intent, and format context without changing the VoiceDNA profile. `hygiene` needs no profile; inspection is read-only, while `--fix` writes a new cleaned path, reports every changed offset, and refuses to overwrite either input or an existing output. It removes only ASCII controls and byte-order marks; bidirectional controls, tag characters, and zero-width joiners/non-joiners are reported but preserved. `inspect-hidden-text` and `apply-hidden-text-policy` provide a stricter receipt-backed policy workflow. `batch-analyze` returns advisory exact duplicate opening and closing findings across a local set. `rewrite-prompt` prints markdown and never calls a model. `verify` is read-only; learning changes require an explicit learning command or separately approved lifecycle transition. `verify-spec` adds the CopySpec claim gate.
+`profile` needs two or more samples and writes only the profile path you name. `analyze` returns independent VoiceDNA and AI Editor reports plus a separate non-scoring Unicode hygiene report. `strict-check` is the opt-in strict decision: it needs a calibrated Profile v3 built from at least five samples plus five or more distinct local validation samples with 1,500 words total. It blocks a thin, visibly mixed-format, duplicate, uncalibrated, or hard-failing baseline and returns `needs-human-review` for judgment-required findings. An optional WritingBrief adds local audience, intent, and format context without changing the VoiceDNA profile. `hygiene` needs no profile; inspection is read-only, while `--fix` writes a new cleaned path, reports every changed offset, and refuses to overwrite either input or an existing output. It removes only ASCII controls and byte-order marks; bidirectional controls, tag characters, and zero-width joiners/non-joiners are reported but preserved. `inspect-hidden-text` and `apply-hidden-text-policy` provide a stricter receipt-backed policy workflow. `batch-analyze` returns advisory exact duplicate opening and closing findings across a local set. `rewrite-prompt` prints markdown and never calls a model. `verify` is read-only; learning changes require an explicit learning command or separately approved lifecycle transition. `verify-spec` adds the CopySpec claim gate.
 
 `profile assess` returns advisory readiness evidence only: aggregate coverage, normalized sample digests, and duplicate or format-spread warnings. `team-profile validate` verifies a signed, consent-bound bundle that contains fingerprints rather than samples; `team-profile compose` applies authorized v3 brand policy to the supplied author profile locally. `delivery-check` is an opt-in offline integrity report; `dispositions` exposes `block`, `review`, and `signal` with an optional local surface-policy override and never alters legacy analysis output.
 
@@ -60,7 +61,7 @@ HYV does not intercept unrelated applications in the background. Each host must 
 
 ## Portable agents
 
-The 23 writing and runtime commands are also exposed as model-neutral portable agent packages under `skills/hyv-*/`, each containing an `agent.json` (contract: role, phase, inputs, outputs, evidence, permissions, stop conditions, tool-free mode, handoff), a `SKILL.md` (instructions), and an `agents/openai.yaml` (interface metadata). This mirrors the clean-code portable-agent pattern and lets any host load a single operation without invoking the whole CLI or MCP server.
+The 24 writing and runtime commands are also exposed as model-neutral portable agent packages under `skills/hyv-*/`, each containing an `agent.json` (contract: role, phase, inputs, outputs, evidence, permissions, stop conditions, tool-free mode, handoff), a `SKILL.md` (instructions), and an `agents/openai.yaml` (interface metadata). This mirrors the clean-code portable-agent pattern and lets any host load a single operation without invoking the whole CLI or MCP server.
 
 - `agent list` prints every package with its role and workflow phase.
 - `agent validate [id]` validates all packages (or one) against the contract schema and prints `PASS`; an unknown id or a schema violation exits `1`.

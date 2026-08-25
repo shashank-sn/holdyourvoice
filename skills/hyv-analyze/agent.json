@@ -44,6 +44,7 @@
   },
   "handoff_to": [
     "hyv-rewrite-prompt",
-    "hyv-prepare-rewrite"
+    "hyv-prepare-rewrite",
+    "hyv-strict-check"
   ]
 }
