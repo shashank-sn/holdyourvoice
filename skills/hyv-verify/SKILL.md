@@ -21,4 +21,4 @@ hyv verify original.md candidate.md profile.json [writing-brief.json]
 
 ## Handoff
 
-Run `hyv verify` directly to execute the operation. Follow-on agents: hyv-lifecycle.
+Run `hyv verify` directly to execute the operation. If the candidate must satisfy the strict AI-pattern and voice-match policy, run hyv-strict-check before any lifecycle handoff. A passing verify report does not substitute for strict-ready. Follow-on agents: hyv-strict-check, hyv-lifecycle.

@@ -42,6 +42,16 @@ test('blocks an underpowered or uncalibrated voice profile before trusting voice
   uncalibrated.tolerances.bulletRate.calibrated = false;
   const report = evaluateStrictQuality('The launch starts Tuesday.', uncalibrated, samples());
   assert.ok(report.findings.some((item) => item.id === 'strict.profile.uncalibrated.bulletRate'));
+
+  const thinProfile = profile();
+  thinProfile.sampleCount = 2;
+  const thinProfileReport = evaluateStrictQuality('The launch starts Tuesday.', thinProfile, samples());
+  assert.ok(thinProfileReport.findings.some((item) => item.id === 'strict.profile.profile-sample-count'));
+
+  const mixedFormats = samples();
+  mixedFormats[0] = Array.from({ length: 100 }, () => 'subject: a concise update for the release list.').join(' ');
+  const mixedFormatReport = evaluateStrictQuality('The launch starts Tuesday.', profile(), mixedFormats);
+  assert.ok(mixedFormatReport.findings.some((item) => item.id === 'strict.profile.format-spread'));
 });
 
 test('requires human review for a judgment-required AI pattern and blocks a configured one', () => {

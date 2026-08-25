@@ -555,6 +555,12 @@ test('agent list enumerates every command as one portable package', () => {
   for (const id of ['hyv-profile', 'hyv-analyze', 'hyv-verify', 'hyv-mcp', 'hyv-patterns', 'hyv-strict-check']) {
     assert.ok(ids.includes(id), `missing ${id}`);
   }
+  const strict = JSON.parse(run(['agent', 'describe', 'hyv-strict-check']).stdout).agent;
+  const analyze = JSON.parse(run(['agent', 'describe', 'hyv-analyze']).stdout).agent;
+  const verify = JSON.parse(run(['agent', 'describe', 'hyv-verify']).stdout).agent;
+  assert.deepEqual(strict.handoff_to, ['hyv-final-check']);
+  assert.ok(analyze.handoff_to.includes('hyv-strict-check'));
+  assert.ok(verify.handoff_to.includes('hyv-strict-check'));
   for (const entry of entries) {
     assert.ok(entry.role);
     assert.ok(entry.workflow_phase);

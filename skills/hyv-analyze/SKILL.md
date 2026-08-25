@@ -21,4 +21,4 @@ hyv analyze draft.md profile.json [writing-brief.json]
 
 ## Handoff
 
-Run `hyv analyze` directly to execute the operation. Follow-on agents: hyv-rewrite-prompt, hyv-prepare-rewrite.
+Run `hyv analyze` directly to execute the operation. For ordinary editing, follow on with hyv-rewrite-prompt or hyv-prepare-rewrite. When the caller asks for a strict AI-pattern and voice-match decision, hand off to hyv-strict-check with a calibrated Profile v3 and the required local samples; analysis alone is not a strict-ready result.

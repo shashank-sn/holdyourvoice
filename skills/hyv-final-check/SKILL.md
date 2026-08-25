@@ -7,6 +7,8 @@ description: Gate exact user-facing text from any model, tool, or interface.
 
 Gate exact final text from every producer. Returns output only when clean or after removing a leading byte-order mark; unresolved hidden characters withhold output. It does not require or select a VoiceDNA profile. Run it immediately before display, copy, export, posting, or returning an API response.
 
+This is a hidden-text boundary only. It does not prove AI-pattern quality or voice matching. When the caller needs that stricter decision, run hyv-strict-check first, then run final-check again on the exact text that will be delivered.
+
 ## Usage
 
 ```text

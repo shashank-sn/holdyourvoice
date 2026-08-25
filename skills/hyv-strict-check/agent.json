@@ -16,7 +16,8 @@
   },
   "evidence_requirements": [
     "Report the exact local result, including readiness and every blocking or review finding.",
-    "Never call strict-ready a fact, authorship, or publication verdict."
+    "Never call strict-ready a fact, authorship, or publication verdict.",
+    "Treat a mixed-format baseline or a profile built from fewer than five samples as blocked evidence."
   ],
   "permissions": ["execute_commands", "read_repository"],
   "stop_conditions": [
@@ -28,5 +29,5 @@
     "behavior": "Provide the required inputs and explain that no strict result was run.",
     "unavailable_statuses": ["NOT_AVAILABLE", "NOT_CONFIGURED", "NOT_RUN", "STALE", "ERROR"]
   },
-  "handoff_to": []
+  "handoff_to": ["hyv-final-check"]
 }

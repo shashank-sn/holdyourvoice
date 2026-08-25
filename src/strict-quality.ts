@@ -59,10 +59,12 @@ export function evaluateStrictQuality(draft: string, profile: Profile, samples: 
   if (profile.version !== '3') {
     findings.push(finding('strict.profile.version', 'block', 'Strict quality requires a fixture-backed Profile v3.', 'Build and validate a Profile v3 before enabling strict quality.'));
   } else {
+    if (profile.sampleCount < MINIMUM_SAMPLES) findings.push(finding('strict.profile.profile-sample-count', 'block', `Strict quality requires a Profile v3 built from at least ${MINIMUM_SAMPLES} samples; the profile declares ${profile.sampleCount}.`, 'Rebuild and calibrate the profile from at least five distinct, rights-cleared samples.'));
     if (samples.length < MINIMUM_SAMPLES) findings.push(finding('strict.profile.sample-count', 'block', `Strict quality requires at least ${MINIMUM_SAMPLES} local samples; received ${samples.length}.`, 'Add channel-matched, rights-cleared samples from the same writer.'));
     if (readiness.totalWords < MINIMUM_WORDS) findings.push(finding('strict.profile.sample-words', 'block', `Strict quality requires at least ${MINIMUM_WORDS} sample words; received ${readiness.totalWords}.`, 'Add channel-matched, rights-cleared samples before treating voice drift as strict evidence.'));
     if (readiness.findings.some((item) => item.id === 'sample_length')) findings.push(finding('strict.profile.sample-coverage', 'block', 'Strict quality requires enough sentence-level sample coverage to calibrate voice drift.', 'Add longer samples with distinct sentences before treating voice drift as strict evidence.'));
     if (readiness.findings.some((item) => item.id === 'duplicate_sample')) findings.push(finding('strict.profile.duplicate-sample', 'block', 'Strict quality cannot calibrate from duplicate samples.', 'Replace duplicate samples with distinct writing occasions.'));
+    if (readiness.findings.some((item) => item.id === 'format_spread')) findings.push(finding('strict.profile.format-spread', 'block', 'Strict quality cannot use a mixed-format sample set as one voice baseline.', 'Use samples from the same intended format and audience, or maintain separate calibrated profiles.'));
     for (const [metric, tolerance] of Object.entries(profile.tolerances)) {
       if (!tolerance.calibrated) findings.push(finding(`strict.profile.uncalibrated.${metric}`, 'block', `Strict quality requires a calibrated ${metric} tolerance.`, 'Calibrate this metric against held-out writing before treating its drift as a strict result.'));
     }

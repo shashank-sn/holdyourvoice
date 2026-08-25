@@ -125,7 +125,7 @@ producer | hyv final-check -
 | --- | --- |
 | `hyv profile <profile.json> <sample...>` | Build a local profile from two or more samples. |
 | `hyv analyze <draft> <profile.json>` | Run VoiceDNA, AI Editor, and hygiene checks. |
-| `hyv strict-check <draft> <profile-v3.json> <sample...>` | Run the opt-in strict local quality gate. It requires a calibrated V3 profile, five non-duplicate samples with 1,500 words total, and returns `strict-ready`, `needs-human-review`, or `blocked`. |
+| `hyv strict-check <draft> <profile-v3.json> <sample...>` | Run the opt-in strict local quality gate. It requires a calibrated V3 profile built from five or more samples, five non-duplicate samples with a consistent visible format and 1,500 words total, and returns `strict-ready`, `needs-human-review`, or `blocked`. |
 | `hyv hygiene <draft> [--fix]` | Inspect hidden Unicode or write a conservative cleaned copy. |
 | `hyv inspect-hidden-text <draft> [policy.json]` | Inspect hidden text with an optional policy. |
 | `hyv apply-hidden-text-policy <draft> <policy.json> <output>` | Apply approved hidden-text removals. |
