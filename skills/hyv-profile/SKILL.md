@@ -16,6 +16,7 @@ hyv profile profile.json sample-a.md sample-b.md [sample-c.md] [--avoid=phrase]
 ## Behavior
 
 - Deterministic and local-first: this command never calls a provider and never sends drafts, samples, profiles, or telemetry to a service.
+- This command writes the stable Profile v2 shape. Profile v3 policy and signed sample allowances are an explicit advanced-profile workflow; they never retain raw sample prose.
 - Commands that write use an explicit output path. Confirm that path before running the command.
 - This agent describes how to invoke the command and what it returns. It does not change command behavior or exit codes.
 

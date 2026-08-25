@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { analyzeAiEditor, RULESET_VERSION, rules, serializedRules } from './ai-editor.js';
+import { analyzeAiEditor, maskNonProse, RULESET_VERSION, rules, serializedRules } from './ai-editor.js';
 import type { ProfileV3, RulePolicyState } from './contracts.js';
 import { createHash } from 'node:crypto';
 
 test('publishes executable rules with stable IDs and repair directions', () => {
-  assert.equal(RULESET_VERSION, '3.2.0-reconciled.1');
-  assert.equal(rules.length, 148);
-  assert.equal(createHash('sha256').update(JSON.stringify(rules.map((rule) => rule.id))).digest('hex'), '8d3cdde1922686076cb3baa79c55db95f37c9088d246f47c24405417fe58f979');
-  assert.equal(createHash('sha256').update(JSON.stringify(serializedRules())).digest('hex'), 'a758d7cd8e53e42d1a3ada81aff3e61f2994555d286f8915a9fc52767f145094');
+  assert.equal(RULESET_VERSION, '3.5.0-local.1');
+  assert.equal(rules.length, 171);
+  assert.equal(createHash('sha256').update(JSON.stringify(rules.map((rule) => rule.id))).digest('hex'), 'bd060b3b20a92986c9ad65bda830c77504cbbcbaeaa7efdefab848796947a150');
+  assert.equal(createHash('sha256').update(JSON.stringify(serializedRules())).digest('hex'), '507f9cac764fddb37e71a16ed323be1e868d4822458f07de4a4b3b955444dada');
   assert.equal(new Set(rules.map((rule) => rule.id)).size, rules.length);
   for (const rule of rules) {
-    assert.match(rule.id, /^(ai|formula|hedge|struct|punct|bait|cringe|insider|ogilvy)\./);
+    assert.match(rule.id, /^(ai|formula|hedge|struct|punct|bait|cringe|insider|ogilvy|format)\./);
     assert.ok(rule.reason.length > 0);
     assert.ok(rule.suggestion.length > 0);
     assert.equal(rule.expression.global, false, rule.id);
@@ -50,6 +50,42 @@ test('applies all four v3 policy states after matching and preserves catalog ord
 
 test('fails closed when a v3 policy names a rule outside the catalog', () => {
   assert.throws(() => analyzeAiEditor('Plain text.', profileWithPolicies({ 'ai.missing': 'blocking' })), /unknown rule ID/);
+});
+
+test('allows a sample-derived punctuation exception only when no explicit policy exists', () => {
+  const profile = profileWithPolicies({});
+  profile.ruleAllowances = { 'punct.em-dash': { sampleCount: 2, evidenceDigest: 'a'.repeat(64) } };
+  assert.equal(analyzeAiEditor('The scheduler failed — retry later.', profile).findings.some((finding) => finding.id === 'punct.em-dash'), false);
+  profile.rulePolicy['punct.em-dash'] = 'blocking';
+  assert.equal(analyzeAiEditor('The scheduler failed — retry later.', profile).findings.find((finding) => finding.id === 'punct.em-dash')?.appliedPolicy, 'blocking');
+});
+
+test('keeps non-prose regions out of AI Editor while scanning adjacent prose', () => {
+  const tick = String.fromCharCode(96);
+  const fence = tick.repeat(3);
+  const draft = [
+    '---',
+    'title: We leverage the launch',
+    '---',
+    'We leverage the launch.',
+    fence + 'ts',
+    'const message = "We leverage logs";',
+    fence,
+    'Use ' + tick + 'we leverage logs' + tick + ' only as an example.',
+    '[A link](https://example.com/we-leverage) stays useful.',
+  ].join('\n');
+  const report = analyzeAiEditor(draft);
+  assert.deepEqual(report.findings.filter((finding) => finding.id === 'ai.leverage').map((finding) => finding.sentence), [1]);
+  assert.equal(maskNonProse(draft).includes('https://example.com/we-leverage'), false);
+});
+
+test('preserves protected-region offsets after a supplementary Unicode character', () => {
+  const tick = String.fromCharCode(96);
+  const draft = '🚀 We leverage the launch. Use ' + tick + 'we leverage logs' + tick + ' as an example.';
+  const report = analyzeAiEditor(draft);
+  assert.deepEqual(report.findings.filter((finding) => finding.id === 'ai.leverage').map((finding) => [finding.sentence, finding.excerpt]), [
+    [1, '🚀 We leverage the launch.'],
+  ]);
 });
 
 test('uses reconciled defaults for v2 profiles and suppresses inherited duplicate emissions', () => {
@@ -104,6 +140,35 @@ test('detects representative rules from every inherited rule family', () => {
     const report = analyzeAiEditor(example);
     assert.ok(report.findings.some((finding) => finding.id === id && finding.sentence === 1), id);
   }
+});
+
+test('covers the narrow 3.5 pattern additions with an editorial example for each rule', () => {
+  const examples = [
+    ['ai.inflated-significance', 'This marks a pivotal moment for the project.'],
+    ['ai.notability-name-drop', 'The renowned Ada Lovelace writer changed the field.'],
+    ['ai.shallow-participle-analysis', 'The result matters, highlighting its importance.'],
+    ['ai.promotional-scene-setting', 'In today’s changing technology landscape, the work starts.'],
+    ['ai.vague-attribution', 'Experts say the change will help.'],
+    ['ai.challenges-outlook', 'Despite these challenges, the future remains open.'],
+    ['ai.copula-avoidance', 'The launch is serving as a testament to patience.'],
+    ['ai.false-range', 'The course runs from the Big Bang to dark matter.'],
+    ['ai.actorless-claim', 'It is important that we check the source.'],
+    ['ai.chatbot-offer', 'Let me know if you would like another draft.'],
+    ['ai.knowledge-limit-disclaimer', 'As an AI, I cannot verify that.'],
+    ['ai.agreement-preamble', 'Absolutely, the invoice is overdue.'],
+    ['ai.qualifier-stack', 'This is very important for the launch.'],
+    ['ai.generic-positive-ending', 'The possibilities are endless.'],
+    ['ai.at-its-core', 'At its core, the work is a queue.'],
+    ['ai.section-announcement', 'Let us now explore the next step.'],
+    ['ai.historical-implementation-aside', 'The tool was once known as Alpha and now has a new name.'],
+    ['ai.unraised-objection', 'Some might argue that the queue is unnecessary.'],
+    ['ai.fake-alternative', 'Whether you choose email or chat, start today.'],
+    ['format.bold-bullet-label', '- **Decision:** Ship Tuesday.'],
+    ['format.title-case-heading', '# Generic Title Case Heading'],
+    ['format.emoji-heading', '# 🚀 Launch plan'],
+    ['format.hyphenated-modifier-stack', 'Use a high-trust-low-friction process.'],
+  ] as const;
+  for (const [id, example] of examples) assert.ok(analyzeAiEditor(example).findings.some((finding) => finding.id === id), id);
 });
 
 test('keeps counterexamples for representative inherited rules', () => {
@@ -190,7 +255,7 @@ test('retains the current question-hook and abstract-cluster detectors', () => {
 
 test('serializes reconstructable regular expressions and explicit scopes', () => {
   const catalog = serializedRules();
-  assert.equal(catalog.length, 148);
+  assert.equal(catalog.length, 171);
   assert.ok(catalog.every((rule) => rule.scope === 'sentence' || rule.scope === 'line'));
   const meaningful = catalog.find((rule) => rule.id === 'ai.meaningful');
   assert.ok(meaningful);

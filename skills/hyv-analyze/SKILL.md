@@ -16,6 +16,8 @@ hyv analyze draft.md profile.json [writing-brief.json]
 ## Behavior
 
 - Deterministic and local-first: this command never calls a provider and never sends drafts, samples, profiles, or telemetry to a service.
+- AI Editor scans author prose only. Frontmatter, fenced code, inline code, URLs, and Markdown link targets are excluded; a match remains an editorial signal, not proof of AI authorship.
+- A Profile v3 can carry a signed, non-verbatim allowance for a narrow stylistic default. An explicit profile policy always takes precedence, and no allowance weakens hygiene, fact, logic, or avoid-list checks.
 - Commands that write use an explicit output path. Confirm that path before running the command.
 - This agent describes how to invoke the command and what it returns. It does not change command behavior or exit codes.
 
