@@ -5,10 +5,10 @@ import type { ProfileV3, RulePolicyState } from './contracts.js';
 import { createHash } from 'node:crypto';
 
 test('publishes executable rules with stable IDs and repair directions', () => {
-  assert.equal(RULESET_VERSION, '3.5.0-local.1');
-  assert.equal(rules.length, 171);
-  assert.equal(createHash('sha256').update(JSON.stringify(rules.map((rule) => rule.id))).digest('hex'), 'bd060b3b20a92986c9ad65bda830c77504cbbcbaeaa7efdefab848796947a150');
-  assert.equal(createHash('sha256').update(JSON.stringify(serializedRules())).digest('hex'), '507f9cac764fddb37e71a16ed323be1e868d4822458f07de4a4b3b955444dada');
+  assert.equal(RULESET_VERSION, '3.5.0-local.2');
+  assert.equal(rules.length, 181);
+  assert.equal(createHash('sha256').update(JSON.stringify(rules.map((rule) => rule.id))).digest('hex'), '7dd994d46ad74a8c166a3c53e725a8edf958e95d25d93b19f376026f37f34895');
+  assert.equal(createHash('sha256').update(JSON.stringify(serializedRules())).digest('hex'), '1c4be22bb0a44dbd383954c77fb891e448b7322fd83a392487af8b5c06d60694');
   assert.equal(new Set(rules.map((rule) => rule.id)).size, rules.length);
   for (const rule of rules) {
     assert.match(rule.id, /^(ai|formula|hedge|struct|punct|bait|cringe|insider|ogilvy|format)\./);
@@ -171,6 +171,28 @@ test('covers the narrow 3.5 pattern additions with an editorial example for each
   for (const [id, example] of examples) assert.ok(analyzeAiEditor(example).findings.some((finding) => finding.id === id), id);
 });
 
+test('keeps bounded Humanizer and Ghostwriter document cues advisory', () => {
+  const examples = [
+    ['ai.forced-triplet', 'The template promises speed, scale, and alignment.'],
+    ['ai.repeated-sentence-opening', 'We checked the logs. We checked the queue. We checked the retry.'],
+    ['format.bold-density', '**Plan** stays visible. **Owner** checks it. **Proof** ships. **Next** is Tuesday.'],
+    ['format.repeated-heading-body', '# Release plan\n\nRelease plan explains the verified rollback.'],
+    ['ai.clipped-fragment-run', 'No demos. No decks. No distractions. The owner checked the logs.'],
+    ['ai.formulaic-aphorism', 'Quality over quantity is the whole lesson.'],
+    ['ai.fake-candid-opener', "I'm going to be honest: the queue failed."],
+    ['ai.metric-theater', 'At 3:47 AM, the slide promised a 23.6x ROI.'],
+    ['ai.jargon-stack', 'The scalable ecosystem needs alignment, leverage, and a holistic framework.'],
+    ['ai.sentence-length-cluster', 'The release owner carefully checks each visible rollback instruction before the scheduled production deployment window opens this morning. The release operator carefully records each visible rollback instruction before the scheduled production deployment window opens this morning. The release reviewer carefully reviews each visible rollback instruction before the scheduled production deployment window opens this morning. The release manager carefully confirms each visible rollback instruction before the scheduled production deployment window opens this morning.'],
+  ] as const;
+  for (const [id, example] of examples) {
+    const finding = analyzeAiEditor(example).findings.find((item) => item.id === id);
+    assert.ok(finding, id);
+    assert.equal(finding.appliedPolicy, 'advisory', id);
+  }
+  assert.equal(analyzeAiEditor('Three source IDs appear in the manifest.').findings.some((finding) => finding.id === 'ai.forced-triplet'), false);
+  assert.equal(analyzeAiEditor('Owners checked the queue. Operators checked the log. Reviewers checked the proof.').findings.some((finding) => finding.id === 'ai.repeated-sentence-opening'), false);
+});
+
 test('keeps counterexamples for representative inherited rules', () => {
   const counterexamples = [
     ['ai.delve', 'we inspect the logs.'],
@@ -255,8 +277,8 @@ test('retains the current question-hook and abstract-cluster detectors', () => {
 
 test('serializes reconstructable regular expressions and explicit scopes', () => {
   const catalog = serializedRules();
-  assert.equal(catalog.length, 171);
-  assert.ok(catalog.every((rule) => rule.scope === 'sentence' || rule.scope === 'line'));
+  assert.equal(catalog.length, 181);
+  assert.ok(catalog.every((rule) => rule.scope === 'sentence' || rule.scope === 'line' || rule.scope === 'document'));
   const meaningful = catalog.find((rule) => rule.id === 'ai.meaningful');
   assert.ok(meaningful);
   assert.equal(new RegExp(meaningful.expression.source, meaningful.expression.flags).test('Meaningful work.'), true);

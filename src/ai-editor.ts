@@ -1,13 +1,15 @@
 import type { EngineReport, Finding, Profile, RulePolicyState } from './contracts.js';
 import { rules } from './ai-editor-rules.js';
+import type { Rule } from './ai-editor-rules.js';
 import { sentences } from './text.js';
 
 export type { Rule } from './ai-editor-rules.js';
 export { rules } from './ai-editor-rules.js';
 
-export const RULESET_VERSION = '3.5.0-local.1';
-const sentenceRules = rules.filter((rule) => rule.scope !== 'line');
+export const RULESET_VERSION = '3.5.0-local.2';
+const sentenceRules = rules.filter((rule) => rule.scope === undefined || rule.scope === 'sentence');
 const lineRules = rules.filter((rule) => rule.scope === 'line');
+const documentRules = rules.filter((rule) => rule.scope === 'document');
 const ruleOrder = new Map(rules.map((rule, index) => [rule.id, index]));
 const ruleIds = new Set(rules.map((rule) => rule.id));
 const policyStates = new Set<RulePolicyState>(['blocking', 'advisory', 'judgment-required', 'disabled']);
@@ -100,6 +102,51 @@ export function serializedRules() {
   }));
 }
 
+function documentFinding(rule: Rule, sentence: { index: number; text: string }): Finding {
+  return { engine: 'ai_editor', id: rule.id, severity: rule.severity, sentence: sentence.index, excerpt: sentence.text, reason: rule.reason, suggestion: rule.suggestion };
+}
+
+function documentMatches(rule: Rule, prose: string, mapped: Array<{ index: number; start: number; end: number; text: string }>): Finding[] {
+  const at = (index: number) => mapped[index] ? [documentFinding(rule, mapped[index]!)] : [];
+  if (rule.id === 'ai.repeated-sentence-opening') {
+    for (let index = 0; index + 2 < mapped.length; index += 1) {
+      const opening = mapped[index]!.text.match(/^\s*(\p{L}+)/u)?.[1]?.toLocaleLowerCase();
+      if (opening && [1, 2].every((offset) => mapped[index + offset]!.text.match(/^\s*(\p{L}+)/u)?.[1]?.toLocaleLowerCase() === opening)) return at(index);
+    }
+    return [];
+  }
+  if (rule.id === 'format.bold-density') {
+    const line = prose.split('\n').findIndex((value) => (value.match(/\*\*[^*\n]+\*\*/gu) ?? []).length >= 2);
+    if (line >= 0) return at(mapped.findIndex((sentence) => sentence.start >= prose.split('\n').slice(0, line).join('\n').length));
+    const total = (prose.match(/\*\*[^*\n]+\*\*/gu) ?? []).length;
+    return total >= 4 ? at(0) : [];
+  }
+  if (rule.id === 'format.repeated-heading-body') {
+    for (const heading of prose.matchAll(/^#{1,6}\s+(.+)$/gmu)) {
+      const title = heading[1]!.trim().replace(/[.*_`]/g, '');
+      if (title.length >= 4 && prose.indexOf(title, heading.index! + heading[0].length) >= 0) return at(mapped.findIndex((sentence) => sentence.start >= heading.index!));
+    }
+    return [];
+  }
+  if (rule.id === 'ai.clipped-fragment-run') {
+    for (let index = 0; index + 2 < mapped.length; index += 1) if ([0, 1, 2].every((offset) => (mapped[index + offset]!.text.match(/\p{L}+/gu) ?? []).length <= 4)) return at(index);
+    return [];
+  }
+  if (rule.id === 'ai.jargon-stack') {
+    const jargon = /\b(?:synergy|leverage|alignment|ecosystem|framework|paradigm|stakeholder|scalable|holistic)\b/giu;
+    const index = mapped.findIndex((sentence) => (sentence.text.match(jargon) ?? []).length >= 3);
+    return index >= 0 ? at(index) : [];
+  }
+  if (rule.id === 'ai.sentence-length-cluster') {
+    for (let index = 0; index + 3 < mapped.length; index += 1) if ([0, 1, 2, 3].every((offset) => {
+      const count = (mapped[index + offset]!.text.match(/\p{L}+/gu) ?? []).length;
+      return count >= 15 && count <= 20;
+    })) return at(index);
+    return [];
+  }
+  return [];
+}
+
 export function analyzeAiEditor(text: string, profile?: Profile): EngineReport {
   const matched: Finding[] = [];
   const prose = maskNonProse(text);
@@ -141,6 +188,7 @@ export function analyzeAiEditor(text: string, profile?: Profile): EngineReport {
     }
     lineStart += line.length + 1;
   }
+  for (const rule of documentRules) matched.push(...documentMatches(rule, prose, mapped));
 
   matched.sort((left, right) => left.sentence - right.sentence || (ruleOrder.get(left.id) ?? 0) - (ruleOrder.get(right.id) ?? 0));
 

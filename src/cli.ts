@@ -30,8 +30,9 @@ import { composeTeamProfile, parseTeamProfileBundle } from './team-profile.js';
 import { composeProfiles, parseProfileRatio } from './profile-compose.js';
 import { scoreHeldoutProfile } from './profile-score.js';
 import { ingestGmailSentMbox, ingestTelegramDesktopJson } from './sample-ingest.js';
+import { evaluateIsolatedBacktest } from './backtest.js';
 
-const usage = 'Commands: agent, profile, team-profile, analyze, score, ingest, strict-check, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, delivery-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, dispositions, mcp';
+const usage = 'Commands: agent, profile, team-profile, analyze, score, backtest, ingest, strict-check, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, delivery-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, dispositions, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -362,6 +363,13 @@ function runScore(args: string[]): number {
   }
   if (samplePaths.length < 3) throw new Error('Usage: hyv score draft.md profile.json heldout-a.md heldout-b.md heldout-c.md [--channel=channel]');
   json(scoreHeldoutProfile(input(draftPath), readProfile(profilePath), samplePaths.map(input), channel));
+  return 0;
+}
+
+function runBacktest(args: string[]): number {
+  const [contextPath, targetPath, candidatePath, profilePath, ...heldoutPaths] = args;
+  if (!contextPath || !targetPath || !candidatePath || !profilePath || heldoutPaths.length < 3) throw new Error('Usage: hyv backtest context.md heldout-target.md candidate.md profile.json heldout-a.md heldout-b.md heldout-c.md');
+  json(evaluateIsolatedBacktest(input(contextPath), input(targetPath), input(candidatePath), readProfile(profilePath), heldoutPaths.map(input)));
   return 0;
 }
 
@@ -789,6 +797,7 @@ const commandHandlers: Record<string, CommandHandler> = {
   'team-profile': runTeamProfile,
   analyze: runAnalyze,
   score: runScore,
+  backtest: runBacktest,
   ingest: runIngest,
   'strict-check': runStrictCheck,
   hygiene: runHygiene,

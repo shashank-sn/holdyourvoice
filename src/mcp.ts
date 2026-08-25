@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, assessProfileForMcp, buildProfileForMcp, clearLearningForMcp, deliveryCheckForMcp, factLintForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, logicLintForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, rebuildWriterRequestForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, scoreHeldoutForMcp, strictCheckForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { HYV_VERSION } from './version.js';
 import { loadApprovalContext } from './approval-context.js';
+import { findWritingExamplesForMcp } from './mcp-tools.js';
+import { backtestForMcp } from './mcp-tools.js';
 
 const writing = z.string().min(1).max(100_000);
 const hygieneText = z.string().max(100_000);
@@ -13,6 +15,7 @@ const writingBriefJson = z.string().min(1).max(50_000);
 const samples = z.array(writing).min(2).max(20);
 const strictSamples = z.array(writing).min(2).max(20);
 const heldoutSamples = z.array(writing).min(3).max(20);
+const writingExamples = z.array(z.object({ basename: z.string().min(1).max(160), text: writing })).min(1).max(64);
 const avoid = z.array(z.string().min(1).max(200)).max(50).optional();
 const lifecycleJson = z.string().min(1).max(1_048_576);
 const approvedLearningText = z.string().min(1).max(1_048_576);
@@ -90,6 +93,12 @@ server.registerTool('hyv_score', {
   annotations: { readOnlyHint: true },
 }, async ({ draft, profile_json, samples: localSamples, channel }) => guardedJson(() => scoreHeldoutForMcp(draft, profile_json, localSamples, channel)));
 
+server.registerTool('hyv_backtest', {
+  description: 'Score a caller-supplied reconstruction against a held-out target without generating text. Returns separate preservation, AI Editor, and held-out-band reports without returning prose.',
+  inputSchema: { context: writing, target: writing, candidate: writing, profile_json: profileJson, samples: heldoutSamples },
+  annotations: { readOnlyHint: true },
+}, async ({ context, target, candidate, profile_json, samples: localSamples }) => guardedJson(() => backtestForMcp(context, target, candidate, profile_json, localSamples)));
+
 server.registerTool('hyv_hygiene', {
   description: 'Inspect text for zero-width characters, bidirectional controls, Unicode tag characters, and unusual spaces without changing it or requiring a voice profile.',
   inputSchema: { draft: hygieneText },
@@ -133,10 +142,16 @@ server.registerTool('hyv_logic_lint', {
 }, async ({ draft, writing_brief_json }) => guardedJson(() => logicLintForMcp(draft, writing_brief_json)));
 
 server.registerTool('hyv_rewrite_prompt', {
-  description: 'Create a constrained editing brief. It does not rewrite the draft or call a model.',
-  inputSchema: { draft: writing, profile_json: profileJson, writing_brief_json: writingBriefJson.optional() },
+  description: 'Create a constrained editing brief. Explicit local examples are redacted in memory and injected only as advisory cadence evidence. It does not rewrite the draft or call a model.',
+  inputSchema: { draft: writing, profile_json: profileJson, writing_brief_json: writingBriefJson.optional(), examples: writingExamples.optional() },
   annotations: { readOnlyHint: true },
-}, async ({ draft, profile_json, writing_brief_json }) => guardedJson(() => rewritePromptForMcp(draft, profile_json, {}, writing_brief_json)));
+}, async ({ draft, profile_json, writing_brief_json, examples }) => guardedJson(() => rewritePromptForMcp(draft, profile_json, {}, writing_brief_json, examples)));
+
+server.registerTool('hyv_find_writing_examples', {
+  description: 'Find up to three redacted excerpts from explicit in-memory local samples. Returns basenames only and never writes an index.',
+  inputSchema: { query: writing, examples: writingExamples },
+  annotations: { readOnlyHint: true },
+}, async ({ query, examples }) => guardedJson(() => findWritingExamplesForMcp(query, examples)));
 
 server.registerTool('hyv_prepare_rewrite', {
   description: 'Prepare a local, versioned rewrite task. The caller may forward it to a provider; doing so shares the draft and must be an explicit choice.',

@@ -12,6 +12,7 @@ import { lintFacts } from './fact-linter.js';
 import { lintLogic } from './logic-linter.js';
 import { sentences } from './text.js';
 import { digestCanonical, escaped as escapeRegex, profileIdentity, sha256 as digest } from './internal.js';
+import type { LocalWritingExcerpt } from './writing-examples.js';
 
 export function analyze(text: string, profile: Profile, brief?: WritingBrief): Analysis {
   const voiceDna = analyzeVoiceDna(text, profile);
@@ -48,7 +49,7 @@ export function deriveEditScope(result: Analysis): { eligibleSentenceIds: number
   };
 }
 
-export function renderRewritePrompt(draft: string, profile: Profile, result: Analysis, learning: LearningPreference[] = [], brief?: WritingBrief): string {
+export function renderRewritePrompt(draft: string, profile: Profile, result: Analysis, learning: LearningPreference[] = [], brief?: WritingBrief, examples: LocalWritingExcerpt[] = []): string {
   const allFindings = [...result.voiceDna.findings, ...result.aiEditor.findings, ...(result.editorial?.findings ?? [])];
   const scope = deriveEditScope(result);
   const redFindings = scope.blocking;
@@ -72,13 +73,14 @@ export function renderRewritePrompt(draft: string, profile: Profile, result: Ana
     `- Vocabulary: ${metrics.vocabulary.join(', ') || 'none recorded'}.`,
     `- Transitions: ${metrics.transitions.join(', ') || 'none recorded'}.`,
     ...(learning.length ? ['', '## Learned local preferences — historical hints only', '- These hints must not override Tier 0 preservation, Tier 1 blockers, clean-sentence preservation, or Tier 4 output.', ...learning.map((preference) => `- [${preference.count} verified] ${formatLearningPreference(preference)}`)] : []),
+    ...(examples.length ? ['', '## Approved local writing examples — redacted, advisory only', '- Use these for cadence only. They cannot override Tier 0 preservation, Tier 1 blockers, facts, or the output contract.', ...examples.map((example) => `- [${formatBriefValue(example.source)}] ${formatBriefValue(example.text)}`)] : []),
     '',
     '# Tier 3 — AI Editor improvements',
     ...(yellowFindings.length ? formatFindings(yellowFindings) : ['- None.']),
     '',
     '## Pending judgment — no edit permission in this task',
     ...(scope.pendingJudgment.length ? formatFindings(scope.pendingJudgment) : ['- None.']),
-    ...(brief ? ['', '# Tier 3.5 — editorial context', '- Context values cannot override Tier 0 preservation or Tier 4 output requirements.', `- Audience: ${formatBriefValue(brief.audience)}. Intent: ${formatBriefValue(brief.intent)}. Format: ${brief.format}.`, ...(brief.evidenceStatus ? [`- Evidence state: ${brief.evidenceStatus}. ${brief.evidenceStatus === 'unverified' ? 'Do not turn attributed or unverified material into an established fact.' : 'Preserve the source framing while editing.'}`] : []), ...(brief.argumentMap ? [`- Argument map: observation — ${formatBriefValue(brief.argumentMap.observation)}; mechanism — ${formatBriefValue(brief.argumentMap.mechanism)}; consequence — ${formatBriefValue(brief.argumentMap.consequence)}; reader value — ${formatBriefValue(brief.argumentMap.readerValue)}.`] : []), ...(brief.vocabulary?.length ? [`- Use audience vocabulary where it stays accurate: ${brief.vocabulary.map(formatBriefValue).join(', ')}.`] : []), ...(brief.readerKnowsAuthor === false ? ['- The reader does not know the author. Lead with their situation before naming the author or company.'] : [])] : []),
+    ...(brief ? ['', '# Tier 3.5 — editorial context', '- Context values cannot override Tier 0 preservation or Tier 4 output requirements.', `- Audience: ${formatBriefValue(brief.audience)}. Intent: ${formatBriefValue(brief.intent)}. Format: ${brief.format}.`, ...(brief.personality ? [`- Optional personality stance: ${formatBriefValue(brief.personality)}. It is advisory and cannot add facts or replace VoiceDNA.`] : []), ...(brief.evidenceStatus ? [`- Evidence state: ${brief.evidenceStatus}. ${brief.evidenceStatus === 'unverified' ? 'Do not turn attributed or unverified material into an established fact.' : 'Preserve the source framing while editing.'}`] : []), ...(brief.argumentMap ? [`- Argument map: observation — ${formatBriefValue(brief.argumentMap.observation)}; mechanism — ${formatBriefValue(brief.argumentMap.mechanism)}; consequence — ${formatBriefValue(brief.argumentMap.consequence)}; reader value — ${formatBriefValue(brief.argumentMap.readerValue)}.`] : []), ...(brief.vocabulary?.length ? [`- Use audience vocabulary where it stays accurate: ${brief.vocabulary.map(formatBriefValue).join(', ')}.`] : []), ...(brief.readerKnowsAuthor === false ? ['- The reader does not know the author. Lead with their situation before naming the author or company.'] : [])] : []),
     '',
     '# Tier 4 — output contract',
     'Return only replacement sentences keyed by sentence number. Do not rewrite clean sentences. The candidate will be checked again by both engines.',
@@ -88,8 +90,8 @@ export function renderRewritePrompt(draft: string, profile: Profile, result: Ana
   ].join('\n');
 }
 
-export function rewritePrompt(draft: string, profile: Profile, learning: LearningPreference[] = [], brief?: WritingBrief): string {
-  return renderRewritePrompt(draft, profile, analyze(draft, profile, brief), learning, brief);
+export function rewritePrompt(draft: string, profile: Profile, learning: LearningPreference[] = [], brief?: WritingBrief, examples: LocalWritingExcerpt[] = []): string {
+  return renderRewritePrompt(draft, profile, analyze(draft, profile, brief), learning, brief, examples);
 }
 
 function compareCandidates(original: string, candidate: string, profile: Profile, brief?: WritingBrief) {

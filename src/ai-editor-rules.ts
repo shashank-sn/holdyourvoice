@@ -6,7 +6,7 @@ export interface Rule {
   expression: RegExp;
   reason: string;
   suggestion: string;
-  scope?: 'sentence' | 'line';
+  scope?: 'sentence' | 'line' | 'document';
 }
 
 /** Reviewed static sentence-compatible rules shipped in @holdyourvoice/hyv@2.9.24. */
@@ -182,4 +182,14 @@ export const rules: Rule[] = [
   { id: "format.title-case-heading", severity: "yellow", expression: /^#{1,6}\s+(?:[A-Z][a-z]+\s+){2,}[A-Z][a-z]+\s*$/u, reason: "A title-case heading can create generic template texture.", suggestion: "Use sentence case or a more specific heading.", scope: "line" },
   { id: "format.emoji-heading", severity: "yellow", expression: /^#{1,6}\s+\p{Extended_Pictographic}/u, reason: "An emoji heading can add template-like decoration without meaning.", suggestion: "Use a precise text heading.", scope: "line" },
   { id: "format.hyphenated-modifier-stack", severity: "yellow", expression: /\b(?:\p{L}+-){2,}\p{L}+\b/u, reason: "A stack of hyphenated modifiers can make prose sound manufactured.", suggestion: "Use a direct noun phrase or split the claim.", },
+  { id: "ai.forced-triplet", severity: "yellow", expression: /\b(?:[\p{L}-]+\s*,\s*){2}(?:and\s+)?[\p{L}-]+\b/u, reason: "A neat three-item construction can read like generated cadence when it carries no real taxonomy.", suggestion: "Keep the list only when the three items are necessary and distinct." },
+  { id: "ai.repeated-sentence-opening", severity: "yellow", expression: /\b\p{L}+/u, reason: "Three consecutive sentences opening the same way can create mechanical cadence.", suggestion: "Vary the openings or combine the sentences when the repetition adds no emphasis.", scope: "document" },
+  { id: "format.bold-density", severity: "yellow", expression: /\*\*[^*\n]+\*\*/u, reason: "Repeated bold fragments can make prose read like a template instead of a document.", suggestion: "Keep bold only for real navigation or remove decorative emphasis.", scope: "document" },
+  { id: "format.repeated-heading-body", severity: "yellow", expression: /^#{1,6}\s+(.+)$/mu, reason: "Repeating a heading verbatim in its body can add generated padding.", suggestion: "Start the body with the evidence or explanation instead of restating the heading.", scope: "document" },
+  { id: "ai.clipped-fragment-run", severity: "yellow", expression: /\b\p{L}+/u, reason: "A run of clipped fragments can manufacture punchy rhythm without adding information.", suggestion: "Join the fragments into a complete sentence or keep only the one that carries the point.", scope: "document" },
+  { id: "ai.formulaic-aphorism", severity: "yellow", expression: /\b(?:less is more|quality over quantity|the devil is in the details|actions speak louder than words)\b/i, reason: "A stock saying can stand in for the actual observation.", suggestion: "State the concrete lesson from this situation." },
+  { id: "ai.fake-candid-opener", severity: "yellow", expression: /^\s*i(?:'m| am) (?:going to )?(?:be )?(?:honest|real)\b/i, reason: "A performed candid opening can add authority without evidence.", suggestion: "Open with the concrete observation or claim." },
+  { id: "ai.metric-theater", severity: "yellow", expression: /\b(?:\d{1,2}:\d{2}\s*(?:a\.?(?:m)?\.?|p\.?(?:m)?\.?)|\d+(?:\.\d+)?x\s*(?:roi|return|growth|lift))\b/i, reason: "Hyper-specific numbers can simulate evidence when no source accompanies them.", suggestion: "Cite the measurement and source, or use only the detail the claim needs." },
+  { id: "ai.jargon-stack", severity: "yellow", expression: /\b(?:synergy|leverage|alignment|ecosystem|framework|paradigm|stakeholder|scalable|holistic)\b/i, reason: "Several business abstractions in one sentence can hide the mechanism.", suggestion: "Replace the stack with the people, action, system, and result.", scope: "document" },
+  { id: "ai.sentence-length-cluster", severity: "yellow", expression: /\b\p{L}+/u, reason: "A long run of similarly sized medium sentences can sound mechanically paced.", suggestion: "Vary length where it improves the natural rhythm of the argument.", scope: "document" },
 ];

@@ -19,6 +19,8 @@ import { inspectDeliveryIntegrity, parseDeliveryIntegrityPolicy } from './delive
 import { assessProfileReadiness } from './profile-quality.js';
 import { evaluateStrictQuality } from './strict-quality.js';
 import { scoreHeldoutProfile } from './profile-score.js';
+import { findWritingExamples, type LocalWritingExampleInput } from './writing-examples.js';
+import { evaluateIsolatedBacktest } from './backtest.js';
 
 function profileFromJson(profileJson: string) {
   try {
@@ -67,6 +69,10 @@ export function scoreHeldoutForMcp(draft: string, profileJson: string, samples: 
   return scoreHeldoutProfile(draft, profileFromJson(profileJson), samples, channel);
 }
 
+export function backtestForMcp(context: string, target: string, candidate: string, profileJson: string, samples: string[]) {
+  return evaluateIsolatedBacktest(context, target, candidate, profileFromJson(profileJson), samples);
+}
+
 export function inspectHygieneForMcp(draft: string) {
   return inspectHygiene(draft);
 }
@@ -75,9 +81,13 @@ export function finalOutputCheckForMcp(text: string) {
   return finalOutputCheck(text);
 }
 
-export function rewritePromptForMcp(draft: string, profileJson: string, options: LearningOptions = {}, writingBriefJson?: string) {
+export function findWritingExamplesForMcp(query: string, samples: LocalWritingExampleInput[]) {
+  return findWritingExamples(query, samples);
+}
+
+export function rewritePromptForMcp(draft: string, profileJson: string, options: LearningOptions = {}, writingBriefJson?: string, samples?: LocalWritingExampleInput[]) {
   const profile = profileFromJson(profileJson);
-  return { prompt: rewritePrompt(draft, profile, composeLearning(profile, options), writingBriefFromJson(writingBriefJson)) };
+  return { prompt: rewritePrompt(draft, profile, composeLearning(profile, options), writingBriefFromJson(writingBriefJson), samples ? findWritingExamples(draft, samples) : []) };
 }
 
 export function prepareRewriteForMcp(draft: string, profileJson: string, copySpecJson?: string, writingBriefJson?: string) {

@@ -122,6 +122,7 @@ export interface WritingBrief {
   intent: string;
   format: WritingFormat;
   readerKnowsAuthor?: boolean;
+  personality?: string;
   vocabulary?: string[];
   prohibitedTerms?: string[];
   title?: string;
