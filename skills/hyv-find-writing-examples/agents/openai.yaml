@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Writing Examples"
+  short_description: "Find redacted local style examples without storing an index."
+  default_prompt: "Use $hyv-find-writing-examples to find up to three redacted excerpts from explicit local writing samples."

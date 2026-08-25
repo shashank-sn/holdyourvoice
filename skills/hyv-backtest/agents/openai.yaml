@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Backtest"
+  short_description: "Evaluate a supplied reconstruction without generating text."
+  default_prompt: "Use $hyv-backtest to score a caller-supplied reconstruction against held-out local writing without making an authorship claim."

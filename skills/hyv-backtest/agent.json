@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-backtest",
+  "title": "hyv-backtest",
+  "description": "Evaluate a caller-supplied reconstruction against a held-out local target without generating text.",
+  "instruction_file": "SKILL.md",
+  "role": "Information-isolated evaluator",
+  "workflow_phase": "verify",
+  "input": { "required": ["context path", "held-out target path", "candidate path", "profile path", "three or more held-out sample paths"], "optional": [] },
+  "output": { "required": ["text-free backtest report"], "optional": [] },
+  "evidence_requirements": ["Report preservation, AI Editor, and held-out-band results separately; never call the report an authorship or generation result."],
+  "permissions": ["execute_commands", "read_repository"],
+  "stop_conditions": ["Stop when the candidate was not supplied by the caller or fewer than three held-out samples are supplied."],
+  "tool_free_mode": { "available": true, "behavior": "Provide the exact command and state that the local backtest is NOT_RUN; never invent a score.", "unavailable_statuses": ["NOT_AVAILABLE", "NOT_CONFIGURED", "NOT_RUN", "STALE", "ERROR"] },
+  "handoff_to": ["hyv-verify"]
+}

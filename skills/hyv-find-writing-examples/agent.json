@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-find-writing-examples",
+  "title": "hyv-find-writing-examples",
+  "description": "Find redacted excerpts from explicit local writing samples in memory only.",
+  "instruction_file": "SKILL.md",
+  "role": "Private style evidence finder",
+  "workflow_phase": "analyze",
+  "input": { "required": ["query", "one to 64 explicit local samples with basenames"], "optional": [] },
+  "output": { "required": ["up to three redacted excerpts with basenames"], "optional": [] },
+  "evidence_requirements": ["Report only basenames and redacted excerpts. Never claim an index was stored or a network request was made."],
+  "permissions": ["execute_commands", "read_repository"],
+  "stop_conditions": ["Stop when samples are not explicitly supplied, a source is not a basename, or the query has no useful local terms."],
+  "tool_free_mode": { "available": true, "behavior": "State that local example lookup is NOT_RUN and provide the exact MCP operation; never invent excerpts.", "unavailable_statuses": ["NOT_AVAILABLE", "NOT_CONFIGURED", "NOT_RUN", "STALE", "ERROR"] },
+  "handoff_to": ["hyv-rewrite-prompt"]
+}
