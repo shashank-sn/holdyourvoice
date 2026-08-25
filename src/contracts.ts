@@ -69,6 +69,16 @@ export interface RuleAllowance {
   evidenceDigest: string;
 }
 
+export type ProfileChannel = 'general' | 'email' | 'chat' | 'long-form' | 'social' | 'docs';
+
+export interface ToneVector {
+  formality: number;
+  confidence: number;
+  warmth: number;
+  energy: number;
+  complexity: number;
+}
+
 export interface FounderFingerprint {
   contractionRate: number;
   sentenceLengthDistribution: { short: number; medium: number; long: number };
@@ -87,6 +97,8 @@ export interface ProfileV3 {
   provenance: ProfileProvenance;
   rulePolicy: Record<string, RulePolicyState>;
   ruleAllowances?: Record<string, RuleAllowance>;
+  channel?: ProfileChannel;
+  tone?: ToneVector;
   fingerprint: FounderFingerprint;
   tolerances: Record<FingerprintMetric, MetricTolerance>;
   metricFixtures: Record<FingerprintMetric, string[]>;

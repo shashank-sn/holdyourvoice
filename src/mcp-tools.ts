@@ -1,7 +1,7 @@
 import { RULESET_VERSION, serializedRules } from './ai-editor.js';
 import { parseCopySpec } from './copy-spec.js';
 import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
-import type { ApprovalCapabilityEnvelopeV1, ApprovalTrustStoreV1, DeterministicVerificationArtifactV1, PreEditReduction, ProfileV3, RecompositionPolicyV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteLifecycleContextV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
+import type { ApprovalCapabilityEnvelopeV1, ApprovalTrustStoreV1, DeterministicVerificationArtifactV1, PreEditReduction, ProfileChannel, ProfileV3, RecompositionPolicyV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteLifecycleContextV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
 import { clearLearning, composeLearning, inspectLearning, type LearningOptions, migrateLearningV2ToV3, ratifyLearningEvent, recordLearningInstruction, supersedeLearningEvent } from './learning.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { lintLogic } from './logic-linter.js';
@@ -18,6 +18,7 @@ import { lintFacts, type FactMetadata, type FactSource } from './fact-linter.js'
 import { inspectDeliveryIntegrity, parseDeliveryIntegrityPolicy } from './delivery-integrity.js';
 import { assessProfileReadiness } from './profile-quality.js';
 import { evaluateStrictQuality } from './strict-quality.js';
+import { scoreHeldoutProfile } from './profile-score.js';
 
 function profileFromJson(profileJson: string) {
   try {
@@ -60,6 +61,10 @@ export function analyzeForMcp(draft: string, profileJson: string, writingBriefJs
 
 export function strictCheckForMcp(draft: string, profileJson: string, samples: string[], writingBriefJson?: string) {
   return evaluateStrictQuality(draft, profileFromJson(profileJson), samples, writingBriefFromJson(writingBriefJson));
+}
+
+export function scoreHeldoutForMcp(draft: string, profileJson: string, samples: string[], channel?: ProfileChannel) {
+  return scoreHeldoutProfile(draft, profileFromJson(profileJson), samples, channel);
 }
 
 export function inspectHygieneForMcp(draft: string) {

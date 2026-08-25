@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, logicLintForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, rebuildWriterRequestForMcp, reduceJudgmentForMcp, rewritePromptForMcp, strictCheckForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, logicLintForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, rebuildWriterRequestForMcp, reduceJudgmentForMcp, rewritePromptForMcp, scoreHeldoutForMcp, strictCheckForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { canonicalJson } from './canonical-json.js';
 
 const profile = buildProfileForMcp(['I write clearly. I keep the useful detail.', 'I make the call. Then I explain the trade-off.'], ['leverage']);
@@ -26,6 +26,17 @@ test('exposes the strict local quality gate through MCP helpers', () => {
   const report = strictCheckForMcp('I leverage a clear plan.', profileJson, ['one.', 'two.']);
   assert.equal(report.disposition, 'blocked');
   assert.ok(report.findings.some((finding) => finding.id === 'strict.profile.version'));
+});
+
+test('scores explicit held-out samples through MCP without storing them', () => {
+  const samples = [
+    'I write a direct note about the launch. The owner checks the evidence before we ship. The next step stays clear and small.',
+    'I name the trade-off before I make a decision. We keep the mechanism visible for the person doing the work. The release has one owner.',
+    'I start from evidence in the issue. Then I explain the constraint and choose a concrete next step. The team checks the result.',
+  ];
+  const result = scoreHeldoutForMcp(samples[0]!, JSON.stringify(buildProfileForMcp(samples)), samples);
+  assert.equal(result.version, '1');
+  assert.equal(result.selfSimilarity?.ceiling, 100);
 });
 
 test('inspects Unicode hygiene through MCP without a voice profile', () => {

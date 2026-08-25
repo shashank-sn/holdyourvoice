@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-ingest",
+  "title": "hyv-ingest",
+  "description": "Redact an owner-authorized Gmail or Telegram export into local VoiceDNA samples.",
+  "instruction_file": "SKILL.md",
+  "role": "Private sample hygiene operator",
+  "workflow_phase": "analyze",
+  "input": {
+    "required": ["gmail-sent-mbox or telegram-desktop-json source", "explicit owner identifier", "absolute existing output directory outside every Git checkout"],
+    "optional": ["--blocked=word sentence-drop entries"]
+  },
+  "output": { "required": ["new redacted samples.jsonl", "new text-free receipt.json"], "optional": [] },
+  "evidence_requirements": [
+    "Confirm the explicit source type, owner identifier, output directory, and receipt counts without reproducing sample prose.",
+    "State Presidio as NOT_CONFIGURED unless an approved adapter actually reports otherwise."
+  ],
+  "permissions": ["execute_commands", "read_repository", "write_repository"],
+  "stop_conditions": [
+    "Stop when ownership is not explicit, the output is relative, inside a Git checkout, missing, or already contains either output file, or the source type is not supported."
+  ],
+  "tool_free_mode": {
+    "available": true,
+    "behavior": "Provide the exact local command and state that ingest is NOT_RUN; never claim redaction or write output without execution.",
+    "unavailable_statuses": ["NOT_AVAILABLE", "NOT_CONFIGURED", "NOT_RUN", "STALE", "ERROR"]
+  },
+  "handoff_to": ["hyv-profile", "hyv-score"]
+}

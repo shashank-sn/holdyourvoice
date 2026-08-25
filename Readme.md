@@ -81,6 +81,8 @@ npm install --global @holdyourvoice/hyv
 
 For a one-off command, replace `hyv` with `npx @holdyourvoice/hyv`.
 
+For Humanizer's complementary editor skill, install it separately with `npx skills add blader/humanizer`. It is not a HYV dependency: HYV's local AI Editor keeps its own versioned rules and final-output gate.
+
 ## basic workflow
 
 1. Build a local profile from your samples.
@@ -124,6 +126,10 @@ producer | hyv final-check -
 | Command | Purpose |
 | --- | --- |
 | `hyv profile <profile.json> <sample...>` | Build a local profile from two or more samples. |
+| `hyv profile v3 <profile.json> --id=writer.channel --channel=email <sample...>` | Build a signed channel-specific Profile v3; optional tone is advisory metadata. |
+| `hyv profile compose --ratio 70:30 <profile...>` | Locally compose two or more Profile v3 metrics without creating writing. |
+| `hyv score <draft> <profile-v3.json> <heldout...>` | Measure the draft against a separate held-out local writing range; may abstain. |
+| `hyv ingest <source> <export> --owner=owner --output=/absolute/dir` | Create redacted, owner-authorized Gmail or Telegram samples and a text-free receipt. |
 | `hyv analyze <draft> <profile.json>` | Run VoiceDNA, AI Editor, and hygiene checks. |
 | `hyv strict-check <draft> <profile-v3.json> <sample...>` | Run the opt-in strict local quality gate. It requires a calibrated V3 profile built from five or more samples, five non-duplicate samples with a consistent visible format and 1,500 words total, and returns `strict-ready`, `needs-human-review`, or `blocked`. |
 | `hyv hygiene <draft> [--fix]` | Inspect hidden Unicode or write a conservative cleaned copy. |

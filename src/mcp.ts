@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, assessProfileForMcp, buildProfileForMcp, clearLearningForMcp, deliveryCheckForMcp, factLintForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, logicLintForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, rebuildWriterRequestForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, strictCheckForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, assessProfileForMcp, buildProfileForMcp, clearLearningForMcp, deliveryCheckForMcp, factLintForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, finalizeRejectionForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, logicLintForMcp, migrateLearningForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, rebuildWriterRequestForMcp, recordApprovedLearningForMcp, recordLearningForMcp, reduceJudgmentForMcp, rewritePromptForMcp, scoreHeldoutForMcp, strictCheckForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { HYV_VERSION } from './version.js';
 import { loadApprovalContext } from './approval-context.js';
 
@@ -12,6 +12,7 @@ const copySpecJson = z.string().min(1).max(250_000);
 const writingBriefJson = z.string().min(1).max(50_000);
 const samples = z.array(writing).min(2).max(20);
 const strictSamples = z.array(writing).min(2).max(20);
+const heldoutSamples = z.array(writing).min(3).max(20);
 const avoid = z.array(z.string().min(1).max(200)).max(50).optional();
 const lifecycleJson = z.string().min(1).max(1_048_576);
 const approvedLearningText = z.string().min(1).max(1_048_576);
@@ -82,6 +83,12 @@ server.registerTool('hyv_strict_check', {
   inputSchema: { draft: writing, profile_json: profileJson, samples: strictSamples, writing_brief_json: writingBriefJson.optional() },
   annotations: { readOnlyHint: true },
 }, async ({ draft, profile_json, samples: localSamples, writing_brief_json }) => guardedJson(() => strictCheckForMcp(draft, profile_json, localSamples, writing_brief_json)));
+
+server.registerTool('hyv_score', {
+  description: 'Score a draft against explicit held-out local samples. It reports a VoiceDNA component vector and the writer’s own similarity band, or abstains when channel or language evidence is inadequate. It is not an authorship score.',
+  inputSchema: { draft: writing, profile_json: profileJson, samples: heldoutSamples, channel: z.enum(['general', 'email', 'chat', 'long-form', 'social', 'docs']).optional() },
+  annotations: { readOnlyHint: true },
+}, async ({ draft, profile_json, samples: localSamples, channel }) => guardedJson(() => scoreHeldoutForMcp(draft, profile_json, localSamples, channel)));
 
 server.registerTool('hyv_hygiene', {
   description: 'Inspect text for zero-width characters, bidirectional controls, Unicode tag characters, and unusual spaces without changing it or requiring a voice profile.',

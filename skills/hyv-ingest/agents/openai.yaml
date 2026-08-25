@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Ingest"
+  short_description: "Redact an owner-authorized Gmail or Telegram export into local writing samples."
+  default_prompt: "Use $hyv-ingest to create redacted local samples from an owner-authorized Gmail or Telegram export without network access."

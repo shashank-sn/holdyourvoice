@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
-import type { FingerprintMetric, Profile, ProfileV2, ProfileV3, RuleAllowance, VoiceDnaMetrics } from './contracts.js';
+import type { FingerprintMetric, Profile, ProfileChannel, ProfileV2, ProfileV3, RuleAllowance, ToneVector, VoiceDnaMetrics } from './contracts.js';
 import { canonicalJson } from './canonical-json.js';
 import { isPlainObject } from './internal.js';
 
 const METRICS_KEYS = ['sentenceLength', 'sentenceVariation', 'sentenceStructure', 'rhythm', 'paragraphLength', 'openingMoves', 'vocabulary', 'lexicalDensity', 'pointOfView', 'punctuation', 'caseStyle', 'questionRate', 'transitions'] as const;
 const PROFILE_V3_REQUIRED_KEYS = ['version', 'id', 'revision', 'revisionDigest', 'sampleCount', 'metrics', 'avoid', 'provenance', 'rulePolicy', 'fingerprint', 'tolerances', 'metricFixtures'] as const;
-const PROFILE_V3_ALLOWED_KEYS = [...PROFILE_V3_REQUIRED_KEYS, 'ruleAllowances'] as const;
+const PROFILE_V3_ALLOWED_KEYS = [...PROFILE_V3_REQUIRED_KEYS, 'ruleAllowances', 'channel', 'tone'] as const;
 const FINGERPRINT_METRICS: FingerprintMetric[] = ['contractionRate', 'sentenceLengthDistribution', 'bulletRate', 'enDashRate'];
 const STABLE_ID = /^[a-z0-9](?:[a-z0-9._-]{0,127})$/;
 export const SAMPLE_ALLOWANCE_RULE_IDS = new Set(['punct.em-dash', 'punct.en-dash']);
@@ -79,6 +79,15 @@ function isRuleAllowances(value: unknown, profileSampleCount: unknown): value is
   });
 }
 
+function isProfileChannel(value: unknown): value is ProfileChannel {
+  return ['general', 'email', 'chat', 'long-form', 'social', 'docs'].includes(value as string);
+}
+
+function isTone(value: unknown): value is ToneVector {
+  return isPlainObject(value) && hasKnownKeys(value, ['formality', 'confidence', 'warmth', 'energy', 'complexity'])
+    && Object.values(value).every(isRate);
+}
+
 function isFingerprint(value: unknown): boolean {
   if (!isPlainObject(value) || !hasKnownKeys(value, FINGERPRINT_METRICS)) return false;
   const distribution = value.sentenceLengthDistribution;
@@ -127,6 +136,8 @@ function parseProfileV3(value: Record<string, unknown>): ProfileV3 {
   if (value.ruleAllowances && Object.keys(value.ruleAllowances).some((id) => (value.rulePolicy as Record<string, unknown>)[id] === 'blocking')) {
     throw new Error('Profile version 3 rule allowances cannot weaken an explicit blocking policy.');
   }
+  if (value.channel !== undefined && !isProfileChannel(value.channel)) throw new Error('Profile version 3 channel must be one of the supported local writing channels.');
+  if (value.tone !== undefined && !isTone(value.tone)) throw new Error('Profile version 3 tone must contain five 0–1 advisory dimensions.');
   if (!hasValidRevisionDigest(value)) throw new Error('Profile version 3 revision digest does not match its canonical contents.');
   return value as unknown as ProfileV3;
 }
