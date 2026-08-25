@@ -24,10 +24,11 @@ import { formatLogicLintReport, lintLogic } from './logic-linter.js';
 import { loadAll, validateAll, validateId, sortedIds, describe, emitJson, emitPrompt } from './agents/index.js';
 import { inspectDeliveryIntegrity, parseDeliveryIntegrityPolicy } from './delivery-integrity.js';
 import { assessProfileReadiness } from './profile-quality.js';
+import { evaluateStrictQuality } from './strict-quality.js';
 import { normalizeFinding, parseSurfacePolicy } from './disposition.js';
 import { composeTeamProfile, parseTeamProfileBundle } from './team-profile.js';
 
-const usage = 'Commands: agent, profile, team-profile, analyze, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, delivery-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, dispositions, mcp';
+const usage = 'Commands: agent, profile, team-profile, analyze, strict-check, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, delivery-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, dispositions, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -342,6 +343,14 @@ function runAnalyze(args: string[]): number {
   if (!draft || !profilePath) throw new Error('Usage: hyv analyze draft.md profile.json [writing-brief.json]');
   json(analyze(input(draft), readProfile(profilePath), readBrief(briefPath)));
   return 0;
+}
+
+function runStrictCheck(args: string[]): number {
+  const [draft, profilePath, ...samplePaths] = args;
+  if (!draft || !profilePath || samplePaths.length < 2) throw new Error('Usage: hyv strict-check draft.md profile-v3.json sample-a.md sample-b.md [sample-c.md ...]');
+  const report = evaluateStrictQuality(input(draft), readProfile(profilePath), samplePaths.map(input));
+  json(report);
+  return report.disposition === 'strict-ready' ? 0 : 2;
 }
 
 function runHygiene(args: string[]): number {
@@ -678,6 +687,7 @@ const commandHandlers: Record<string, CommandHandler> = {
   profile: runProfile,
   'team-profile': runTeamProfile,
   analyze: runAnalyze,
+  'strict-check': runStrictCheck,
   hygiene: runHygiene,
   'inspect-hidden-text': runInspectHiddenText,
   'apply-hidden-text-policy': runApplyHiddenTextPolicy,

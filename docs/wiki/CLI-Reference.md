@@ -60,7 +60,7 @@ HYV does not intercept unrelated applications in the background. Each host must 
 
 ## Portable agents
 
-The 23 writing and runtime commands are also exposed as model-neutral portable agent packages under `skills/hyv-*/`, each containing an `agent.json` (contract: role, phase, inputs, outputs, evidence, permissions, stop conditions, tool-free mode, handoff), a `SKILL.md` (instructions), and an `agents/openai.yaml` (interface metadata). This mirrors the clean-code portable-agent pattern and lets any host load a single operation without invoking the whole CLI or MCP server.
+The 24 writing and runtime commands are also exposed as model-neutral portable agent packages under `skills/hyv-*/`, each containing an `agent.json` (contract: role, phase, inputs, outputs, evidence, permissions, stop conditions, tool-free mode, handoff), a `SKILL.md` (instructions), and an `agents/openai.yaml` (interface metadata). This mirrors the clean-code portable-agent pattern and lets any host load a single operation without invoking the whole CLI or MCP server.
 
 - `agent list` prints every package with its role and workflow phase.
 - `agent validate [id]` validates all packages (or one) against the contract schema and prints `PASS`; an unknown id or a schema violation exits `1`.

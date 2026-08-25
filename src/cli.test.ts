@@ -81,6 +81,23 @@ test('runs contextual analysis and batch analysis without changing the profile c
   }
 });
 
+test('exposes strict quality as an opt-in v3-only CLI gate', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-strict-cli-'));
+  try {
+    const profile = join(directory, 'profile.json'); const draft = join(directory, 'draft.md');
+    const samples = Array.from({ length: 5 }, (_, index) => join(directory, `sample-${index}.md`));
+    for (const [index, sample] of samples.entries()) writeFileSync(sample, `i write sample ${index}. `.repeat(300));
+    writeFileSync(profile, JSON.stringify({ version: '2', sampleCount: 2, metrics: { sentenceLength: 5, sentenceVariation: 1, sentenceStructure: [], rhythm: 1, paragraphLength: 1, openingMoves: [], vocabulary: [], lexicalDensity: 0.5, pointOfView: 'mixed', punctuation: { '!': 0, '?': 0, ';': 0, ':': 0, '—': 0 }, caseStyle: 'mixed', questionRate: 0, transitions: [] }, avoid: [] }));
+    writeFileSync(draft, 'The launch starts Tuesday.');
+    const result = run(['strict-check', draft, profile, ...samples]);
+    assert.equal(result.status, 2, result.stderr);
+    assert.equal(JSON.parse(result.stdout).disposition, 'blocked');
+    assert.equal(JSON.parse(result.stdout).findings[0].id, 'strict.profile.version');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('inspects and conservatively fixes Unicode hygiene without overwriting either file', () => {
   const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-cli-'));
   try {
@@ -532,10 +549,10 @@ test('agent list enumerates every command as one portable package', () => {
   const result = run(['agent', 'list']);
   assert.equal(result.status, 0, result.stderr);
   const entries = JSON.parse(result.stdout);
-  assert.equal(entries.length, 23);
+  assert.equal(entries.length, 24);
   const ids = entries.map((entry: { id: string }) => entry.id);
   assert.equal(new Set(ids).size, ids.length);
-  for (const id of ['hyv-profile', 'hyv-analyze', 'hyv-verify', 'hyv-mcp', 'hyv-patterns']) {
+  for (const id of ['hyv-profile', 'hyv-analyze', 'hyv-verify', 'hyv-mcp', 'hyv-patterns', 'hyv-strict-check']) {
     assert.ok(ids.includes(id), `missing ${id}`);
   }
   for (const entry of entries) {

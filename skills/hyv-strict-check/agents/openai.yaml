@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Strict Check"
+  short_description: "Run strict local AI-pattern and voice-match checks."
+  default_prompt: "Use $hyv-strict-check to run a strict local quality check on this draft."

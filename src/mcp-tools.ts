@@ -17,6 +17,7 @@ import { MAX_JSON_BYTES } from './internal.js';
 import { lintFacts, type FactMetadata, type FactSource } from './fact-linter.js';
 import { inspectDeliveryIntegrity, parseDeliveryIntegrityPolicy } from './delivery-integrity.js';
 import { assessProfileReadiness } from './profile-quality.js';
+import { evaluateStrictQuality } from './strict-quality.js';
 
 function profileFromJson(profileJson: string) {
   try {
@@ -55,6 +56,10 @@ export function buildProfileForMcp(samples: string[], avoid: string[] = []) {
 
 export function analyzeForMcp(draft: string, profileJson: string, writingBriefJson?: string) {
   return analyze(draft, profileFromJson(profileJson), writingBriefFromJson(writingBriefJson));
+}
+
+export function strictCheckForMcp(draft: string, profileJson: string, samples: string[], writingBriefJson?: string) {
+  return evaluateStrictQuality(draft, profileFromJson(profileJson), samples, writingBriefFromJson(writingBriefJson));
 }
 
 export function inspectHygieneForMcp(draft: string) {
