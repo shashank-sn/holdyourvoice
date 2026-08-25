@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-evaluate-local",
+  "title": "hyv-evaluate-local",
+  "description": "Run the optional deterministic local writing evaluation composite without model calls.",
+  "instruction_file": "SKILL.md",
+  "role": "Local writing evaluation reporter",
+  "workflow_phase": "verify",
+  "input": { "required": ["input path", "candidate path", "user paragraph JSON", "AI-shadow paragraph JSON"], "optional": [] },
+  "output": { "required": ["paragraph-isolated evaluation report"], "optional": [] },
+  "evidence_requirements": ["Report that the authorship component is a local train-only proxy, not an authorship verdict.", "Do not allow paragraph IDs in both train and test sets."],
+  "permissions": ["execute_commands", "read_repository"],
+  "stop_conditions": ["Stop when either fixture has fewer than two unique paragraph IDs or the JSON schema is invalid."],
+  "tool_free_mode": { "available": true, "behavior": "Provide the exact command and state that the report is NOT_RUN; never invent scores.", "unavailable_statuses": ["NOT_AVAILABLE", "NOT_CONFIGURED", "NOT_RUN", "STALE", "ERROR"] },
+  "handoff_to": ["hyv-verify"]
+}

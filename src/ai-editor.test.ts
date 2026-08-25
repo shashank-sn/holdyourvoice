@@ -3,6 +3,7 @@ import test from 'node:test';
 import { analyzeAiEditor, maskNonProse, RULESET_VERSION, rules, serializedRules } from './ai-editor.js';
 import type { ProfileV3, RulePolicyState } from './contracts.js';
 import { createHash } from 'node:crypto';
+import { AI_SHADOW_FAIL_SET_V1 } from './ai-shadow-fixtures.js';
 
 test('publishes executable rules with stable IDs and repair directions', () => {
   assert.equal(RULESET_VERSION, '3.5.0-local.2');
@@ -191,6 +192,10 @@ test('keeps bounded Humanizer and Ghostwriter document cues advisory', () => {
   }
   assert.equal(analyzeAiEditor('Three source IDs appear in the manifest.').findings.some((finding) => finding.id === 'ai.forced-triplet'), false);
   assert.equal(analyzeAiEditor('Owners checked the queue. Operators checked the log. Reviewers checked the proof.').findings.some((finding) => finding.id === 'ai.repeated-sentence-opening'), false);
+});
+
+test('keeps the frozen synthetic AI-shadow fail set executable without runtime generation', () => {
+  for (const fixture of AI_SHADOW_FAIL_SET_V1) assert.ok(analyzeAiEditor(fixture.text).findings.some((finding) => finding.id === fixture.rule), fixture.id);
 });
 
 test('keeps counterexamples for representative inherited rules', () => {

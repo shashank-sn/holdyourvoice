@@ -31,8 +31,11 @@ import { composeProfiles, parseProfileRatio } from './profile-compose.js';
 import { scoreHeldoutProfile } from './profile-score.js';
 import { ingestGmailSentMbox, ingestTelegramDesktopJson } from './sample-ingest.js';
 import { evaluateIsolatedBacktest } from './backtest.js';
+import { watchProfileSamples } from './profile-watch.js';
+import { evaluateLocalComposite, type EvalParagraph } from './local-eval.js';
+import { findWritingExamples, type LocalWritingExampleInput } from './writing-examples.js';
 
-const usage = 'Commands: agent, profile, team-profile, analyze, score, backtest, ingest, strict-check, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, delivery-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, dispositions, mcp';
+const usage = 'Commands: agent, profile, team-profile, analyze, score, backtest, evaluate-local, ingest, strict-check, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, delivery-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, dispositions, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -311,7 +314,33 @@ function runAgent(args: string[]): number {
 
 type CommandHandler = (args: string[]) => number | Promise<number>;
 
-function runProfile(args: string[]): number {
+async function runProfileWatch(args: string[]): Promise<number> {
+  const [output, ...rest] = args;
+  const samples: string[] = []; let id = ''; let channel: ProfileChannel | undefined; let debounceMs = 500;
+  for (const value of rest) {
+    if (value.startsWith('--id=')) id = value.slice('--id='.length);
+    else if (value.startsWith('--channel=')) channel = value.slice('--channel='.length) as ProfileChannel;
+    else if (value.startsWith('--debounce-ms=')) debounceMs = Number(value.slice('--debounce-ms='.length));
+    else samples.push(value);
+  }
+  if (!output || !isAbsolute(output) || !id || !channel || samples.length < 2) throw new Error('Usage: hyv profile watch /absolute/profile.json --id=writer.channel --channel=email sample-a.md sample-b.md [--debounce-ms=500]');
+  outputOutsideGitCheckout(dirname(output));
+  let initial = true;
+  const rebuild = () => {
+    const profile = buildProfileV3(samples.map(input), id, channel!);
+    writeFileSync(output, JSON.stringify(profile, null, 2) + '\n', { encoding: 'utf8', flag: initial ? 'wx' : 'w', mode: 0o600 });
+    initial = false;
+    json({ version: '1', status: 'rebuilt', sampleCount: samples.length, profileId: profile.id, revisionDigest: profile.revisionDigest });
+  };
+  rebuild();
+  const handle = watchProfileSamples({ samples, debounceMs, rebuild });
+  await new Promise<void>((resolve) => process.once('SIGINT', resolve));
+  handle.close();
+  return 0;
+}
+
+function runProfile(args: string[]): number | Promise<number> {
+  if (args[0] === 'watch') return runProfileWatch(args.slice(1));
   if (args[0] === 'assess') {
     if (args.length < 3) throw new Error('Usage: hyv profile assess sample-a.md sample-b.md [sample-c.md]');
     json(assessProfileReadiness(args.slice(1).map(input)));
@@ -370,6 +399,19 @@ function runBacktest(args: string[]): number {
   const [contextPath, targetPath, candidatePath, profilePath, ...heldoutPaths] = args;
   if (!contextPath || !targetPath || !candidatePath || !profilePath || heldoutPaths.length < 3) throw new Error('Usage: hyv backtest context.md heldout-target.md candidate.md profile.json heldout-a.md heldout-b.md heldout-c.md');
   json(evaluateIsolatedBacktest(input(contextPath), input(targetPath), input(candidatePath), readProfile(profilePath), heldoutPaths.map(input)));
+  return 0;
+}
+
+function readEvalParagraphs(path: string, label: string): EvalParagraph[] {
+  const value = readJson(path);
+  if (!Array.isArray(value) || !value.every((item) => item && typeof item === 'object' && typeof (item as { paragraph_id?: unknown }).paragraph_id === 'string' && typeof (item as { text?: unknown }).text === 'string')) throw new Error(`${label} must be a JSON array of { paragraph_id, text } values.`);
+  return value.map((item) => ({ paragraphId: (item as { paragraph_id: string }).paragraph_id, text: (item as { text: string }).text }));
+}
+
+function runEvaluateLocal(args: string[]): number {
+  const [inputPath, candidatePath, userPath, aiShadowPath] = args;
+  if (!inputPath || !candidatePath || !userPath || !aiShadowPath || args.length !== 4) throw new Error('Usage: hyv evaluate-local input.md candidate.md user-paragraphs.json ai-shadow-paragraphs.json');
+  json(evaluateLocalComposite(input(inputPath), input(candidatePath), readEvalParagraphs(userPath, 'User paragraphs'), readEvalParagraphs(aiShadowPath, 'AI-shadow paragraphs')));
   return 0;
 }
 
@@ -553,10 +595,16 @@ function runBatchAnalyze(args: string[]): number {
 }
 
 function runRewritePrompt(args: string[]): number {
-  const [draft, profilePath, briefPath] = args;
-  if (!draft || !profilePath) throw new Error('Usage: hyv rewrite-prompt draft.md profile.json [writing-brief.json]');
+  const [draft, profilePath, ...rest] = args;
+  const exampleOption = rest.find((value) => value.startsWith('--examples-json='));
+  const briefPaths = rest.filter((value) => !value.startsWith('--'));
+  const briefPath = briefPaths[0];
+  if (!draft || !profilePath || briefPaths.length > 1 || rest.some((value) => value.startsWith('--') && !value.startsWith('--examples-json='))) throw new Error('Usage: hyv rewrite-prompt draft.md profile.json [writing-brief.json] [--examples-json=local-examples.json]');
   const profile = readProfile(profilePath);
-  console.log(rewritePrompt(input(draft), profile, composeLearning(profile), readBrief(briefPath)));
+  const examplesValue = exampleOption ? readJson(exampleOption.slice('--examples-json='.length)) : undefined;
+  if (examplesValue !== undefined && (!Array.isArray(examplesValue) || !examplesValue.every((item) => item && typeof item === 'object' && typeof (item as { basename?: unknown }).basename === 'string' && typeof (item as { text?: unknown }).text === 'string'))) throw new Error('Local examples must be a JSON array of { basename, text } values.');
+  const draftText = input(draft);
+  console.log(rewritePrompt(draftText, profile, composeLearning(profile), readBrief(briefPath), examplesValue ? findWritingExamples(draftText, examplesValue as LocalWritingExampleInput[]) : []));
   return 0;
 }
 
@@ -798,6 +846,7 @@ const commandHandlers: Record<string, CommandHandler> = {
   analyze: runAnalyze,
   score: runScore,
   backtest: runBacktest,
+  'evaluate-local': runEvaluateLocal,
   ingest: runIngest,
   'strict-check': runStrictCheck,
   hygiene: runHygiene,

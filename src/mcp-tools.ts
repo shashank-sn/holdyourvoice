@@ -21,6 +21,7 @@ import { evaluateStrictQuality } from './strict-quality.js';
 import { scoreHeldoutProfile } from './profile-score.js';
 import { findWritingExamples, type LocalWritingExampleInput } from './writing-examples.js';
 import { evaluateIsolatedBacktest } from './backtest.js';
+import { evaluateLocalComposite, type EvalParagraph } from './local-eval.js';
 
 function profileFromJson(profileJson: string) {
   try {
@@ -71,6 +72,10 @@ export function scoreHeldoutForMcp(draft: string, profileJson: string, samples: 
 
 export function backtestForMcp(context: string, target: string, candidate: string, profileJson: string, samples: string[]) {
   return evaluateIsolatedBacktest(context, target, candidate, profileFromJson(profileJson), samples);
+}
+
+export function evaluateLocalForMcp(input: string, candidate: string, user: EvalParagraph[], aiShadow: EvalParagraph[]) {
+  return evaluateLocalComposite(input, candidate, user, aiShadow);
 }
 
 export function inspectHygieneForMcp(draft: string) {

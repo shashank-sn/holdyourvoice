@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Local Evaluation"
+  short_description: "Run an isolated local writing-evaluation composite."
+  default_prompt: "Use $hyv-evaluate-local to run the paragraph-isolated local evaluation composite without making an authorship claim."

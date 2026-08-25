@@ -617,10 +617,10 @@ test('agent list enumerates every command as one portable package', () => {
   const result = run(['agent', 'list']);
   assert.equal(result.status, 0, result.stderr);
   const entries = JSON.parse(result.stdout);
-  assert.equal(entries.length, 28);
+  assert.equal(entries.length, 29);
   const ids = entries.map((entry: { id: string }) => entry.id);
   assert.equal(new Set(ids).size, ids.length);
-  for (const id of ['hyv-profile', 'hyv-score', 'hyv-ingest', 'hyv-backtest', 'hyv-find-writing-examples', 'hyv-analyze', 'hyv-verify', 'hyv-mcp', 'hyv-patterns', 'hyv-strict-check']) {
+  for (const id of ['hyv-profile', 'hyv-score', 'hyv-ingest', 'hyv-backtest', 'hyv-evaluate-local', 'hyv-find-writing-examples', 'hyv-analyze', 'hyv-verify', 'hyv-mcp', 'hyv-patterns', 'hyv-strict-check']) {
     assert.ok(ids.includes(id), `missing ${id}`);
   }
   const strict = JSON.parse(run(['agent', 'describe', 'hyv-strict-check']).stdout).agent;

@@ -5,7 +5,7 @@ import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRe
 import { HYV_VERSION } from './version.js';
 import { loadApprovalContext } from './approval-context.js';
 import { findWritingExamplesForMcp } from './mcp-tools.js';
-import { backtestForMcp } from './mcp-tools.js';
+import { backtestForMcp, evaluateLocalForMcp } from './mcp-tools.js';
 
 const writing = z.string().min(1).max(100_000);
 const hygieneText = z.string().max(100_000);
@@ -15,6 +15,7 @@ const writingBriefJson = z.string().min(1).max(50_000);
 const samples = z.array(writing).min(2).max(20);
 const strictSamples = z.array(writing).min(2).max(20);
 const heldoutSamples = z.array(writing).min(3).max(20);
+const evalParagraphs = z.array(z.object({ paragraph_id: z.string().min(1).max(160), text: writing })).min(2).max(50);
 const writingExamples = z.array(z.object({ basename: z.string().min(1).max(160), text: writing })).min(1).max(64);
 const avoid = z.array(z.string().min(1).max(200)).max(50).optional();
 const lifecycleJson = z.string().min(1).max(1_048_576);
@@ -98,6 +99,12 @@ server.registerTool('hyv_backtest', {
   inputSchema: { context: writing, target: writing, candidate: writing, profile_json: profileJson, samples: heldoutSamples },
   annotations: { readOnlyHint: true },
 }, async ({ context, target, candidate, profile_json, samples: localSamples }) => guardedJson(() => backtestForMcp(context, target, candidate, profile_json, localSamples)));
+
+server.registerTool('hyv_evaluate_local', {
+  description: 'Run a deterministic optional local evaluation composite: train-only TF-IDF logistic proxy, content F1, AI-tell change, and stylometric cosine. It groups paragraph IDs before splitting and is not an authorship verdict.',
+  inputSchema: { input: writing, candidate: writing, user: evalParagraphs, ai_shadow: evalParagraphs },
+  annotations: { readOnlyHint: true },
+}, async ({ input, candidate, user, ai_shadow }) => guardedJson(() => evaluateLocalForMcp(input, candidate, user.map((item) => ({ paragraphId: item.paragraph_id, text: item.text })), ai_shadow.map((item) => ({ paragraphId: item.paragraph_id, text: item.text })) )));
 
 server.registerTool('hyv_hygiene', {
   description: 'Inspect text for zero-width characters, bidirectional controls, Unicode tag characters, and unusual spaces without changing it or requiring a voice profile.',
