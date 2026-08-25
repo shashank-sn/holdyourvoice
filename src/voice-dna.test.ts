@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ProfileV3 } from './contracts.js';
-import { analyzeVoiceDna, buildProfile, measureFounderFingerprint } from './voice-dna.js';
+import { analyzeVoiceDna, buildProfile, buildProfileV3, measureFounderFingerprint } from './voice-dna.js';
+import { parseProfile } from './profile.js';
 
 function profileV3(overrides: Partial<ProfileV3['fingerprint']> = {}): ProfileV3 {
   const base = buildProfile(['i write plainly. i name the work.', 'i keep the mechanism clear. i avoid filler.']);
@@ -71,6 +72,17 @@ test('keeps buildProfile and v2 analysis output exactly on version 2', () => {
   assert.equal(profile.version, '2');
   assert.deepEqual(Object.keys(profile), ['version', 'sampleCount', 'metrics', 'avoid']);
   assert.equal(analyzeVoiceDna('i write plainly.', profile).version, '2');
+});
+
+test('builds a signed channel-specific Profile v3 without retaining sample prose', () => {
+  const profile = buildProfileV3([
+    'I write directly about the release — and name the owner.',
+    'I keep the mechanism visible — then choose the next step.',
+  ], 'founder.email', 'email', [], { formality: 0.4, confidence: 0.7, warmth: 0.6, energy: 0.3, complexity: 0.5 });
+  assert.equal(profile.channel, 'email');
+  assert.equal(profile.ruleAllowances?.['punct.em-dash']?.sampleCount, 2);
+  assert.strictEqual(parseProfile(profile), profile);
+  assert.equal(JSON.stringify(profile).includes('keep the mechanism visible'), false);
 });
 
 test('measures contractions in both directions and accepts curly apostrophes', () => {

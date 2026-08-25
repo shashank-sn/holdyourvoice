@@ -1,6 +1,6 @@
 # portable agents
 
-HYV ships 24 portable agent packages for its writing and runtime commands. A host can load one operation without loading the full CLI or MCP server.
+HYV ships 26 portable agent packages for its writing and runtime commands. A host can load one operation without loading the full CLI or MCP server.
 
 ## MCP core
 

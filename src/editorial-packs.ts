@@ -47,6 +47,7 @@ export function parseWritingBrief(value: unknown): WritingBrief {
   const brief = value as Partial<WritingBrief>;
   if (brief.version !== '1' || !isText(brief.audience, 500) || !isText(brief.intent, 500) || !formats.includes(brief.format as WritingFormat)
     || (brief.readerKnowsAuthor !== undefined && typeof brief.readerKnowsAuthor !== 'boolean')
+    || (brief.personality !== undefined && !isText(brief.personality, 500))
     || (brief.vocabulary !== undefined && !isTerms(brief.vocabulary))
     || (brief.prohibitedTerms !== undefined && !isTerms(brief.prohibitedTerms))
     || (brief.title !== undefined && !isText(brief.title, 500))

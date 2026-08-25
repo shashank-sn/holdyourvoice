@@ -4,8 +4,10 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, logicLintForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, rebuildWriterRequestForMcp, reduceJudgmentForMcp, rewritePromptForMcp, strictCheckForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
+import { analyzeBatchForMcp, analyzeForMcp, applyHiddenTextPolicyForMcp, applyRebuildForMcp, applyRewriteForMcp, buildProfileForMcp, clearLearningForMcp, finalOutputCheckForMcp, finalizeLifecycleForMcp, inspectHiddenTextForMcp, inspectHygieneForMcp, inspectLearningForMcp, inspectLifecycleForMcp, logicLintForMcp, patternsForMcp, prepareJudgmentForMcp, prepareLifecycleForMcp, prepareRebuildForMcp, prepareRewriteForMcp, ratifyLearningForMcp, recordApprovedLearningForMcp, recordLearningForMcp, rebuildWriterRequestForMcp, reduceJudgmentForMcp, rewritePromptForMcp, scoreHeldoutForMcp, strictCheckForMcp, submitSemanticVerdictForMcp, supersedeLearningForMcp, validateFinalApprovalForMcp, verifyCopySpecForMcp, verifyForMcp } from './mcp-tools.js';
 import { canonicalJson } from './canonical-json.js';
+import { findWritingExamplesForMcp } from './mcp-tools.js';
+import { backtestForMcp } from './mcp-tools.js';
 
 const profile = buildProfileForMcp(['I write clearly. I keep the useful detail.', 'I make the call. Then I explain the trade-off.'], ['leverage']);
 const profileJson = JSON.stringify(profile);
@@ -26,6 +28,34 @@ test('exposes the strict local quality gate through MCP helpers', () => {
   const report = strictCheckForMcp('I leverage a clear plan.', profileJson, ['one.', 'two.']);
   assert.equal(report.disposition, 'blocked');
   assert.ok(report.findings.some((finding) => finding.id === 'strict.profile.version'));
+});
+
+test('scores explicit held-out samples through MCP without storing them', () => {
+  const samples = [
+    'I write a direct note about the launch. The owner checks the evidence before we ship. The next step stays clear and small.',
+    'I name the trade-off before I make a decision. We keep the mechanism visible for the person doing the work. The release has one owner.',
+    'I start from evidence in the issue. Then I explain the constraint and choose a concrete next step. The team checks the result.',
+  ];
+  const result = scoreHeldoutForMcp(samples[0]!, JSON.stringify(buildProfileForMcp(samples)), samples);
+  assert.equal(result.version, '1');
+  assert.equal(result.selfSimilarity?.ceiling, 100);
+});
+
+test('runs an isolated backtest without returning target or candidate prose', () => {
+  const samples = ['I write direct evidence for the operator doing the release work today.', 'The owner checks each rollback and names the next step for production.', 'The report keeps the mechanism visible and gives the team one concrete action.'];
+  const report = backtestForMcp('Explain the rollout owner.', 'The owner checks rollback.', 'The owner checks rollback.', JSON.stringify(buildProfileForMcp(samples)), samples);
+  assert.equal(report.preservation.score, 100);
+  assert.equal(JSON.stringify(report).includes('The owner checks rollback.'), false);
+});
+
+test('finds and injects redacted local writing examples without storing an index', () => {
+  const examples = [{ basename: 'email.md', text: 'The retry queue stays local; owner@example.com receives the review.' }];
+  const found = findWritingExamplesForMcp('The retry queue needs review.', examples);
+  assert.equal(found[0]?.source, 'email.md');
+  assert.match(found[0]?.text ?? '', /REDACTED:EMAIL/);
+  const prompt = rewritePromptForMcp('The retry queue needs review.', profileJson, {}, undefined, examples);
+  assert.match(prompt.prompt, /Approved local writing examples/);
+  assert.doesNotMatch(prompt.prompt, /owner@example\.com/);
 });
 
 test('inspects Unicode hygiene through MCP without a voice profile', () => {

@@ -64,6 +64,21 @@ export interface ProfileProvenance {
   createdAt: string;
 }
 
+export interface RuleAllowance {
+  sampleCount: number;
+  evidenceDigest: string;
+}
+
+export type ProfileChannel = 'general' | 'email' | 'chat' | 'long-form' | 'social' | 'docs';
+
+export interface ToneVector {
+  formality: number;
+  confidence: number;
+  warmth: number;
+  energy: number;
+  complexity: number;
+}
+
 export interface FounderFingerprint {
   contractionRate: number;
   sentenceLengthDistribution: { short: number; medium: number; long: number };
@@ -81,6 +96,9 @@ export interface ProfileV3 {
   avoid: string[];
   provenance: ProfileProvenance;
   rulePolicy: Record<string, RulePolicyState>;
+  ruleAllowances?: Record<string, RuleAllowance>;
+  channel?: ProfileChannel;
+  tone?: ToneVector;
   fingerprint: FounderFingerprint;
   tolerances: Record<FingerprintMetric, MetricTolerance>;
   metricFixtures: Record<FingerprintMetric, string[]>;
@@ -104,6 +122,7 @@ export interface WritingBrief {
   intent: string;
   format: WritingFormat;
   readerKnowsAuthor?: boolean;
+  personality?: string;
   vocabulary?: string[];
   prohibitedTerms?: string[];
   title?: string;

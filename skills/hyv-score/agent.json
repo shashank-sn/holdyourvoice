@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "id": "hyv-score",
+  "title": "hyv-score",
+  "description": "Score a draft against an explicit held-out local writing band.",
+  "instruction_file": "SKILL.md",
+  "role": "Held-out voice evaluator",
+  "workflow_phase": "verify",
+  "input": {
+    "required": ["draft path", "profile path", "three or more held-out sample paths"],
+    "optional": ["--channel=email|chat|long-form|social|docs|general"]
+  },
+  "output": { "required": ["local held-out score report"], "optional": [] },
+  "evidence_requirements": [
+    "Report the returned band disposition and abstentions exactly; it is not an authorship claim.",
+    "Do not replace held-out samples with profile-building samples or claim a result when language confidence is insufficient."
+  ],
+  "permissions": ["execute_commands", "read_repository"],
+  "stop_conditions": [
+    "Stop when fewer than three held-out samples are supplied, the selected channel conflicts with the profile, or the score abstains."
+  ],
+  "tool_free_mode": {
+    "available": true,
+    "behavior": "Provide the exact command and state that local score execution is NOT_RUN; never invent a score.",
+    "unavailable_statuses": ["NOT_AVAILABLE", "NOT_CONFIGURED", "NOT_RUN", "STALE", "ERROR"]
+  },
+  "handoff_to": ["hyv-rewrite-prompt", "hyv-verify"]
+}

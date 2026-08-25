@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { closeSync, constants, fstatSync, linkSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, extname, join, resolve } from 'node:path';
+import { closeSync, constants, fstatSync, linkSync, lstatSync, mkdtempSync, openSync, readFileSync, readSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, extname, isAbsolute, join, resolve } from 'node:path';
 import { RULESET_VERSION, serializedRules } from './ai-editor.js';
 import { parseCopySpec } from './copy-spec.js';
-import type { Profile, ProfileV3, WritingBrief } from './contracts.js';
+import type { Profile, ProfileChannel, ProfileV3, WritingBrief } from './contracts.js';
 import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
 import { clearLearning, composeLearning, inspectLearning, type LearningOptions, migrateLearningV2ToV3, profileFingerprint, ratifyLearningEvent, recordLearningInstruction, supersedeLearningEvent } from './learning.js';
 import { cleanHygiene, finalOutputCheck, inspectHygiene } from './hygiene.js';
@@ -17,7 +17,7 @@ import type { ApprovalCapabilityEnvelopeV1, DeterministicVerificationArtifactV1,
 import { canonicalJson, parseCanonicalJson } from './canonical-json.js';
 import { MAX_JSON_BYTES } from './internal.js';
 import { finalizeLifecycle, inspectLifecycle, prepareLifecycle, recordApprovedLearning, submitSemanticVerdict, validateFinalApproval } from './lifecycle-adapter.js';
-import { buildProfile } from './voice-dna.js';
+import { buildProfile, buildProfileV3 } from './voice-dna.js';
 import { loadApprovalContext } from './approval-context.js';
 import { formatFactLintReport, lintFacts, type FactMetadata, type FactSource } from './fact-linter.js';
 import { formatLogicLintReport, lintLogic } from './logic-linter.js';
@@ -27,8 +27,15 @@ import { assessProfileReadiness } from './profile-quality.js';
 import { evaluateStrictQuality } from './strict-quality.js';
 import { normalizeFinding, parseSurfacePolicy } from './disposition.js';
 import { composeTeamProfile, parseTeamProfileBundle } from './team-profile.js';
+import { composeProfiles, parseProfileRatio } from './profile-compose.js';
+import { scoreHeldoutProfile } from './profile-score.js';
+import { ingestGmailSentMbox, ingestTelegramDesktopJson } from './sample-ingest.js';
+import { evaluateIsolatedBacktest } from './backtest.js';
+import { watchProfileSamples } from './profile-watch.js';
+import { evaluateLocalComposite, type EvalParagraph } from './local-eval.js';
+import { findWritingExamples, type LocalWritingExampleInput } from './writing-examples.js';
 
-const usage = 'Commands: agent, profile, team-profile, analyze, strict-check, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, delivery-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, dispositions, mcp';
+const usage = 'Commands: agent, profile, team-profile, analyze, score, backtest, evaluate-local, ingest, strict-check, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, delivery-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, dispositions, mcp';
 
 function input(path: string): string {
   return path === '-' ? readFileSync(0, 'utf8') : readFileSync(path, 'utf8');
@@ -307,14 +314,158 @@ function runAgent(args: string[]): number {
 
 type CommandHandler = (args: string[]) => number | Promise<number>;
 
-function runProfile(args: string[]): number {
+async function runProfileWatch(args: string[]): Promise<number> {
+  const [output, ...rest] = args;
+  const samples: string[] = []; let id = ''; let channel: ProfileChannel | undefined; let debounceMs = 500;
+  for (const value of rest) {
+    if (value.startsWith('--id=')) id = value.slice('--id='.length);
+    else if (value.startsWith('--channel=')) channel = value.slice('--channel='.length) as ProfileChannel;
+    else if (value.startsWith('--debounce-ms=')) debounceMs = Number(value.slice('--debounce-ms='.length));
+    else samples.push(value);
+  }
+  if (!output || !isAbsolute(output) || !id || !channel || samples.length < 2) throw new Error('Usage: hyv profile watch /absolute/profile.json --id=writer.channel --channel=email sample-a.md sample-b.md [--debounce-ms=500]');
+  outputOutsideGitCheckout(dirname(output));
+  let initial = true;
+  const rebuild = () => {
+    const profile = buildProfileV3(samples.map(input), id, channel!);
+    writeFileSync(output, JSON.stringify(profile, null, 2) + '\n', { encoding: 'utf8', flag: initial ? 'wx' : 'w', mode: 0o600 });
+    initial = false;
+    json({ version: '1', status: 'rebuilt', sampleCount: samples.length, profileId: profile.id, revisionDigest: profile.revisionDigest });
+  };
+  rebuild();
+  const handle = watchProfileSamples({ samples, debounceMs, rebuild });
+  await new Promise<void>((resolve) => process.once('SIGINT', resolve));
+  handle.close();
+  return 0;
+}
+
+function runProfile(args: string[]): number | Promise<number> {
+  if (args[0] === 'watch') return runProfileWatch(args.slice(1));
   if (args[0] === 'assess') {
     if (args.length < 3) throw new Error('Usage: hyv profile assess sample-a.md sample-b.md [sample-c.md]');
     json(assessProfileReadiness(args.slice(1).map(input)));
     return 0;
   }
+  if (args[0] === 'compose') {
+    const rest = args.slice(1);
+    const ratioIndex = rest.findIndex((value) => value === '--ratio' || value.startsWith('--ratio='));
+    if (ratioIndex < 0) throw new Error('Usage: hyv profile compose --ratio 70:30 profile-a.json profile-b.json [profile-c.json]');
+    const ratio = rest[ratioIndex] === '--ratio' ? rest[ratioIndex + 1] : rest[ratioIndex]!.slice('--ratio='.length);
+    const profilePaths = rest.filter((_, index) => index !== ratioIndex && index !== ratioIndex + Number(rest[ratioIndex] === '--ratio'));
+    if (!ratio || profilePaths.length < 2) throw new Error('Usage: hyv profile compose --ratio 70:30 profile-a.json profile-b.json [profile-c.json]');
+    const profiles = profilePaths.map(readProfile);
+    if (profiles.some((profile) => profile.version !== '3')) throw new Error('Profile composition requires Profile v3 inputs.');
+    json(composeProfiles(profiles as ProfileV3[], parseProfileRatio(ratio, profiles.length)));
+    return 0;
+  }
+  if (args[0] === 'v3') {
+    const [output, ...rest] = args.slice(1);
+    const samples: string[] = []; const avoid: string[] = [];
+    let id = ''; let channel: ProfileChannel | undefined; let tone: ProfileV3['tone'];
+    for (const argument of rest) {
+      if (argument.startsWith('--id=')) id = argument.slice('--id='.length);
+      else if (argument.startsWith('--channel=')) channel = argument.slice('--channel='.length) as ProfileChannel;
+      else if (argument.startsWith('--avoid=')) avoid.push(argument.slice('--avoid='.length));
+      else if (argument.startsWith('--tone=')) {
+        const values = argument.slice('--tone='.length).split(',').map(Number);
+        if (values.length !== 5 || values.some((value) => !Number.isFinite(value) || value < 0 || value > 1)) throw new Error('Tone must use five 0–1 comma-separated values: formality,confidence,warmth,energy,complexity.');
+        tone = { formality: values[0]!, confidence: values[1]!, warmth: values[2]!, energy: values[3]!, complexity: values[4]! };
+      } else samples.push(argument);
+    }
+    if (!output || !id || !channel || samples.length < 2) throw new Error('Usage: hyv profile v3 profile.json --id=writer.channel --channel=email sample-a.md sample-b.md [--tone=0,0,0,0,0] [--avoid=phrase]');
+    writeJson(output, buildProfileV3(samples.map(input), id, channel, avoid, tone));
+    return 0;
+  }
   const { output, samples, avoid } = profileArguments(args);
   writeJson(output, buildProfile(samples.map(input), avoid));
+  return 0;
+}
+
+function runScore(args: string[]): number {
+  const [draftPath, profilePath, ...rest] = args;
+  if (!draftPath || !profilePath) throw new Error('Usage: hyv score draft.md profile.json heldout-a.md heldout-b.md heldout-c.md [--channel=channel]');
+  const samplePaths: string[] = [];
+  let channel: ProfileChannel | undefined;
+  for (const value of rest) {
+    if (value.startsWith('--channel=')) channel = value.slice('--channel='.length) as ProfileChannel;
+    else samplePaths.push(value);
+  }
+  if (samplePaths.length < 3) throw new Error('Usage: hyv score draft.md profile.json heldout-a.md heldout-b.md heldout-c.md [--channel=channel]');
+  json(scoreHeldoutProfile(input(draftPath), readProfile(profilePath), samplePaths.map(input), channel));
+  return 0;
+}
+
+function runBacktest(args: string[]): number {
+  const [contextPath, targetPath, candidatePath, profilePath, ...heldoutPaths] = args;
+  if (!contextPath || !targetPath || !candidatePath || !profilePath || heldoutPaths.length < 3) throw new Error('Usage: hyv backtest context.md heldout-target.md candidate.md profile.json heldout-a.md heldout-b.md heldout-c.md');
+  json(evaluateIsolatedBacktest(input(contextPath), input(targetPath), input(candidatePath), readProfile(profilePath), heldoutPaths.map(input)));
+  return 0;
+}
+
+function readEvalParagraphs(path: string, label: string): EvalParagraph[] {
+  const value = readJson(path);
+  if (!Array.isArray(value) || !value.every((item) => item && typeof item === 'object' && typeof (item as { paragraph_id?: unknown }).paragraph_id === 'string' && typeof (item as { text?: unknown }).text === 'string')) throw new Error(`${label} must be a JSON array of { paragraph_id, text } values.`);
+  return value.map((item) => ({ paragraphId: (item as { paragraph_id: string }).paragraph_id, text: (item as { text: string }).text }));
+}
+
+function runEvaluateLocal(args: string[]): number {
+  const [inputPath, candidatePath, userPath, aiShadowPath] = args;
+  if (!inputPath || !candidatePath || !userPath || !aiShadowPath || args.length !== 4) throw new Error('Usage: hyv evaluate-local input.md candidate.md user-paragraphs.json ai-shadow-paragraphs.json');
+  json(evaluateLocalComposite(input(inputPath), input(candidatePath), readEvalParagraphs(userPath, 'User paragraphs'), readEvalParagraphs(aiShadowPath, 'AI-shadow paragraphs')));
+  return 0;
+}
+
+function outputOutsideGitCheckout(path: string): void {
+  if (!isAbsolute(path)) throw new Error('Sample ingest output must be an absolute path outside a Git checkout.');
+  let current: string;
+  try {
+    const stats = lstatSync(path);
+    if (!stats.isDirectory() || stats.isSymbolicLink()) throw new Error('Sample ingest output directory must be an existing non-symlink directory outside a Git checkout.');
+    current = realpathSync(path);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Sample ingest output directory')) throw error;
+    throw new Error('Sample ingest output directory must already exist and remain outside a Git checkout.');
+  }
+  for (;;) {
+    try {
+      lstatSync(join(current, '.git'));
+      throw new Error('Sample ingest output must be outside a Git checkout.');
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Sample ingest output must be outside a Git checkout.') throw error;
+    }
+    const parent = dirname(current);
+    if (parent === current) return;
+    current = parent;
+  }
+}
+
+function runIngest(args: string[]): number {
+  const [sourceType, sourcePath, ...options] = args;
+  let owner = ''; let output = ''; const blockedWords: string[] = [];
+  for (const option of options) {
+    if (option.startsWith('--owner=')) owner = option.slice('--owner='.length);
+    else if (option.startsWith('--output=')) output = option.slice('--output='.length);
+    else if (option.startsWith('--blocked=')) blockedWords.push(option.slice('--blocked='.length));
+    else throw new Error('Usage: hyv ingest <gmail-sent-mbox|telegram-desktop-json> export --owner=owner --output=/absolute/safe-directory [--blocked=word]');
+  }
+  if (!sourcePath || !owner || !output || !['gmail-sent-mbox', 'telegram-desktop-json'].includes(sourceType ?? '')) throw new Error('Usage: hyv ingest <gmail-sent-mbox|telegram-desktop-json> export --owner=owner --output=/absolute/safe-directory [--blocked=word]');
+  outputOutsideGitCheckout(output);
+  const result = sourceType === 'gmail-sent-mbox'
+    ? ingestGmailSentMbox(input(sourcePath), owner, blockedWords)
+    : ingestTelegramDesktopJson(input(sourcePath), owner, blockedWords);
+  const outputDirectory = realpathSync(output);
+  const samplesPath = join(outputDirectory, 'samples.jsonl'); const receiptPath = join(outputDirectory, 'receipt.json');
+  try { writeFileSync(samplesPath, result.samples.map((sample) => JSON.stringify({ text: sample })).join('\n') + (result.samples.length ? '\n' : ''), { encoding: 'utf8', flag: 'wx', mode: 0o600 }); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new Error('Sample ingest output directory must already exist and remain outside a Git checkout.');
+    throw error;
+  }
+  try { writeFileSync(receiptPath, JSON.stringify(result.receipt, null, 2) + '\n', { encoding: 'utf8', flag: 'wx', mode: 0o600 }); }
+  catch (error) {
+    try { rmSync(samplesPath, { force: true }); } catch {}
+    throw error;
+  }
+  json(result.receipt);
   return 0;
 }
 
@@ -444,10 +595,16 @@ function runBatchAnalyze(args: string[]): number {
 }
 
 function runRewritePrompt(args: string[]): number {
-  const [draft, profilePath, briefPath] = args;
-  if (!draft || !profilePath) throw new Error('Usage: hyv rewrite-prompt draft.md profile.json [writing-brief.json]');
+  const [draft, profilePath, ...rest] = args;
+  const exampleOption = rest.find((value) => value.startsWith('--examples-json='));
+  const briefPaths = rest.filter((value) => !value.startsWith('--'));
+  const briefPath = briefPaths[0];
+  if (!draft || !profilePath || briefPaths.length > 1 || rest.some((value) => value.startsWith('--') && !value.startsWith('--examples-json='))) throw new Error('Usage: hyv rewrite-prompt draft.md profile.json [writing-brief.json] [--examples-json=local-examples.json]');
   const profile = readProfile(profilePath);
-  console.log(rewritePrompt(input(draft), profile, composeLearning(profile), readBrief(briefPath)));
+  const examplesValue = exampleOption ? readJson(exampleOption.slice('--examples-json='.length)) : undefined;
+  if (examplesValue !== undefined && (!Array.isArray(examplesValue) || !examplesValue.every((item) => item && typeof item === 'object' && typeof (item as { basename?: unknown }).basename === 'string' && typeof (item as { text?: unknown }).text === 'string'))) throw new Error('Local examples must be a JSON array of { basename, text } values.');
+  const draftText = input(draft);
+  console.log(rewritePrompt(draftText, profile, composeLearning(profile), readBrief(briefPath), examplesValue ? findWritingExamples(draftText, examplesValue as LocalWritingExampleInput[]) : []));
   return 0;
 }
 
@@ -687,6 +844,10 @@ const commandHandlers: Record<string, CommandHandler> = {
   profile: runProfile,
   'team-profile': runTeamProfile,
   analyze: runAnalyze,
+  score: runScore,
+  backtest: runBacktest,
+  'evaluate-local': runEvaluateLocal,
+  ingest: runIngest,
   'strict-check': runStrictCheck,
   hygiene: runHygiene,
   'inspect-hidden-text': runInspectHiddenText,

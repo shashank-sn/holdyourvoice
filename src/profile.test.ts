@@ -105,6 +105,35 @@ test('rejects malformed Profile v3 identity, policy, provenance, and unknown key
   }
 });
 
+test('accepts a signed eligible allowance and rejects an unsafe allowance', () => {
+  const profile = profileV3();
+  const unsigned = { ...profile };
+  delete (unsigned as Partial<ProfileV3>).revisionDigest;
+  const withAllowance = {
+    ...unsigned,
+    ruleAllowances: { 'punct.em-dash': { sampleCount: 2, evidenceDigest: 'a'.repeat(64) } },
+  };
+  const accepted = {
+    ...withAllowance,
+    revisionDigest: createHash('sha256').update(canonicalJson(withAllowance)).digest('hex'),
+  };
+  assert.strictEqual(parseProfile(accepted), accepted);
+
+  const blocked = profileV3();
+  const blockedUnsigned = { ...blocked };
+  delete (blockedUnsigned as Partial<ProfileV3>).revisionDigest;
+  const unsafe = {
+    ...blockedUnsigned,
+    rulePolicy: { 'punct.em-dash': 'blocking' as const },
+    ruleAllowances: { 'punct.em-dash': { sampleCount: 2, evidenceDigest: 'a'.repeat(64) } },
+  };
+  const signedUnsafe = {
+    ...unsafe,
+    revisionDigest: createHash('sha256').update(canonicalJson(unsafe)).digest('hex'),
+  };
+  assert.throws(() => parseProfile(signedUnsafe), /cannot weaken an explicit blocking policy/);
+});
+
 test('rejects unbounded or invalid Profile v3 metrics and tolerances', () => {
   for (const mutate of [
     (profile: ProfileV3) => { profile.fingerprint.contractionRate = Number.NaN; },

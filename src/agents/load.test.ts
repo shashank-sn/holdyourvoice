@@ -141,7 +141,7 @@ test('rejects unknown contract fields and invalid OpenAI interface metadata', ()
 
 test('published packages declare command execution and required writes', () => {
   const packages = loadAll();
-  const writers = new Set(['hyv-profile', 'hyv-hygiene', 'hyv-apply-hidden-text-policy', 'hyv-prepare-rewrite', 'hyv-prepare-judgment', 'hyv-prepare-rebuild', 'hyv-rebuild-writer-request', 'hyv-lifecycle', 'hyv-learning']);
+  const writers = new Set(['hyv-profile', 'hyv-ingest', 'hyv-hygiene', 'hyv-apply-hidden-text-policy', 'hyv-prepare-rewrite', 'hyv-prepare-judgment', 'hyv-prepare-rebuild', 'hyv-rebuild-writer-request', 'hyv-lifecycle', 'hyv-learning']);
   for (const [id, pkg] of packages) {
     assert.ok(pkg.descriptor.permissions.includes('execute_commands'), `${id} must require command execution`);
     assert.equal(pkg.descriptor.permissions.includes('write_repository'), writers.has(id), `${id} write permission mismatch`);

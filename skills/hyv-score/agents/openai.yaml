@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hyv Score"
+  short_description: "Score a draft against an explicit held-out local writing band."
+  default_prompt: "Use $hyv-score to score a draft against three or more held-out local samples without making an authorship claim."

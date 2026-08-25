@@ -1,7 +1,7 @@
 import { RULESET_VERSION, serializedRules } from './ai-editor.js';
 import { parseCopySpec } from './copy-spec.js';
 import { analyzeBatch, parseWritingBrief } from './editorial-packs.js';
-import type { ApprovalCapabilityEnvelopeV1, ApprovalTrustStoreV1, DeterministicVerificationArtifactV1, PreEditReduction, ProfileV3, RecompositionPolicyV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteLifecycleContextV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
+import type { ApprovalCapabilityEnvelopeV1, ApprovalTrustStoreV1, DeterministicVerificationArtifactV1, PreEditReduction, ProfileChannel, ProfileV3, RecompositionPolicyV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteLifecycleContextV1, RewriteReceipt, SemanticPolicy, SemanticReviewTaskV1, SemanticViolation } from './contracts.js';
 import { clearLearning, composeLearning, inspectLearning, type LearningOptions, migrateLearningV2ToV3, ratifyLearningEvent, recordLearningInstruction, supersedeLearningEvent } from './learning.js';
 import { analyze, rewritePrompt, verify, verifyWithCopySpec } from './pipeline.js';
 import { lintLogic } from './logic-linter.js';
@@ -18,6 +18,10 @@ import { lintFacts, type FactMetadata, type FactSource } from './fact-linter.js'
 import { inspectDeliveryIntegrity, parseDeliveryIntegrityPolicy } from './delivery-integrity.js';
 import { assessProfileReadiness } from './profile-quality.js';
 import { evaluateStrictQuality } from './strict-quality.js';
+import { scoreHeldoutProfile } from './profile-score.js';
+import { findWritingExamples, type LocalWritingExampleInput } from './writing-examples.js';
+import { evaluateIsolatedBacktest } from './backtest.js';
+import { evaluateLocalComposite, type EvalParagraph } from './local-eval.js';
 
 function profileFromJson(profileJson: string) {
   try {
@@ -62,6 +66,18 @@ export function strictCheckForMcp(draft: string, profileJson: string, samples: s
   return evaluateStrictQuality(draft, profileFromJson(profileJson), samples, writingBriefFromJson(writingBriefJson));
 }
 
+export function scoreHeldoutForMcp(draft: string, profileJson: string, samples: string[], channel?: ProfileChannel) {
+  return scoreHeldoutProfile(draft, profileFromJson(profileJson), samples, channel);
+}
+
+export function backtestForMcp(context: string, target: string, candidate: string, profileJson: string, samples: string[]) {
+  return evaluateIsolatedBacktest(context, target, candidate, profileFromJson(profileJson), samples);
+}
+
+export function evaluateLocalForMcp(input: string, candidate: string, user: EvalParagraph[], aiShadow: EvalParagraph[]) {
+  return evaluateLocalComposite(input, candidate, user, aiShadow);
+}
+
 export function inspectHygieneForMcp(draft: string) {
   return inspectHygiene(draft);
 }
@@ -70,9 +86,13 @@ export function finalOutputCheckForMcp(text: string) {
   return finalOutputCheck(text);
 }
 
-export function rewritePromptForMcp(draft: string, profileJson: string, options: LearningOptions = {}, writingBriefJson?: string) {
+export function findWritingExamplesForMcp(query: string, samples: LocalWritingExampleInput[]) {
+  return findWritingExamples(query, samples);
+}
+
+export function rewritePromptForMcp(draft: string, profileJson: string, options: LearningOptions = {}, writingBriefJson?: string, samples?: LocalWritingExampleInput[]) {
   const profile = profileFromJson(profileJson);
-  return { prompt: rewritePrompt(draft, profile, composeLearning(profile, options), writingBriefFromJson(writingBriefJson)) };
+  return { prompt: rewritePrompt(draft, profile, composeLearning(profile, options), writingBriefFromJson(writingBriefJson), samples ? findWritingExamples(draft, samples) : []) };
 }
 
 export function prepareRewriteForMcp(draft: string, profileJson: string, copySpecJson?: string, writingBriefJson?: string) {

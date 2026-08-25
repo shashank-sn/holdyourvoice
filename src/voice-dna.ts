@@ -1,4 +1,7 @@
-import type { EngineReport, Finding, FounderFingerprint, Profile, VoiceDnaMetrics } from './contracts.js';
+import { createHash } from 'node:crypto';
+import { canonicalJson } from './canonical-json.js';
+import type { EngineReport, Finding, FounderFingerprint, Profile, ProfileChannel, ProfileV3, ToneVector, VoiceDnaMetrics } from './contracts.js';
+import { deriveRuleAllowances } from './rule-allowances.js';
 import { deviation, mean, paragraphs, sentences, words } from './text.js';
 
 const STOP_WORDS = new Set(['the', 'and', 'that', 'with', 'this', 'from', 'your', 'have', 'were', 'they', 'will', 'into', 'about', 'what', 'when', 'where']);
@@ -16,7 +19,7 @@ function top(items: string[], limit: number): string[] {
   return [...counts].sort((left, right) => right[1] - left[1]).slice(0, limit).map(([item]) => item);
 }
 
-function profileMetrics(text: string): VoiceDnaMetrics {
+export function profileMetrics(text: string): VoiceDnaMetrics {
   const draftSentences = sentences(text);
   const draftWords = words(text);
   const lengths = draftSentences.map((sentence) => words(sentence.text).length);
@@ -86,6 +89,36 @@ export function buildProfile(samples: string[], avoid: string[] = []): Profile {
   if (samples.length < 2) throw new Error('Provide at least two local writing samples.');
   if (samples.some((sample) => !words(sample).length)) throw new Error('Every local writing sample must contain writing.');
   return { version: '2', sampleCount: samples.length, metrics: profileMetrics(samples.join('\n\n')), avoid };
+}
+
+export function buildProfileV3(samples: string[], id: string, channel: ProfileChannel, avoid: string[] = [], tone?: ToneVector): ProfileV3 {
+  const base = buildProfile(samples, avoid);
+  const sampleText = samples.join('\n\n');
+  const fixtureIds = samples.map((_, index) => 'sample.' + String(index + 1).padStart(3, '0'));
+  const unsigned = {
+    version: '3' as const,
+    id,
+    revision: 1,
+    sampleCount: base.sampleCount,
+    metrics: base.metrics,
+    avoid: base.avoid,
+    provenance: { source: 'local-author-owned-samples', rights: 'author-owned', createdAt: new Date().toISOString() },
+    rulePolicy: {},
+    ...(Object.keys(deriveRuleAllowances(samples)).length ? { ruleAllowances: deriveRuleAllowances(samples) } : {}),
+    channel,
+    ...(tone ? { tone } : {}),
+    fingerprint: measureFounderFingerprint(sampleText),
+    tolerances: {
+      contractionRate: { absolute: 0.1, calibrated: false },
+      sentenceLengthDistribution: { absolute: 0.15, calibrated: false },
+      bulletRate: { absolute: 0.1, calibrated: false },
+      enDashRate: { absolute: 0.05, calibrated: false },
+    },
+    metricFixtures: {
+      contractionRate: fixtureIds, sentenceLengthDistribution: fixtureIds, bulletRate: fixtureIds, enDashRate: fixtureIds,
+    },
+  };
+  return { ...unsigned, revisionDigest: createHash('sha256').update(canonicalJson(unsigned)).digest('hex') };
 }
 
 function finding(id: string, severity: Finding['severity'], sentence: number, excerpt: string, reason: string, suggestion: string): Finding {

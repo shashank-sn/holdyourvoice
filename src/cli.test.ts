@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -50,13 +50,30 @@ test('creates an explicit local avoid list and exposes the ruleset', () => {
   }
 });
 
+test('builds a channel-specific Profile v3 from local samples', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-profile-v3-cli-'));
+  try {
+    const first = join(directory, 'first.md'); const second = join(directory, 'second.md'); const profile = join(directory, 'profile.json');
+    writeFileSync(first, 'I write directly about the release. The owner checks the evidence.');
+    writeFileSync(second, 'I keep the mechanism visible. The next step stays clear.');
+    const result = run(['profile', 'v3', profile, '--id=founder.email', '--channel=email', '--tone=0.4,0.7,0.6,0.3,0.5', first, second]);
+    assert.equal(result.status, 0, result.stderr);
+    const parsed = JSON.parse(readFileSync(profile, 'utf8'));
+    assert.equal(parsed.version, '3');
+    assert.equal(parsed.channel, 'email');
+    assert.equal(parsed.tone.warmth, 0.6);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('publishes the same normalized reconciled catalog and version through CLI and MCP', () => {
   const result = run(['patterns']);
   assert.equal(result.status, 0, result.stderr);
   const cliCatalog = JSON.parse(result.stdout);
   const mcpCatalog = patternsForMcp();
-  assert.equal(cliCatalog.version, '3.2.0-reconciled.1');
-  assert.equal(cliCatalog.rules.length, 148);
+  assert.equal(cliCatalog.version, '3.5.0-local.3');
+  assert.equal(cliCatalog.rules.length, 182);
   assert.deepEqual(cliCatalog, mcpCatalog);
 });
 
@@ -76,6 +93,57 @@ test('runs contextual analysis and batch analysis without changing the profile c
     assert.equal(batch.findings.length, 2);
     assert.equal(run(['prepare-rewrite', draft, profile, task, brief]).status, 0);
     assert.equal(JSON.parse(readFileSync(task, 'utf8')).writingBrief.format, 'social');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('scores a candidate only against explicit held-out local samples', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-score-cli-'));
+  try {
+    const samples = Array.from({ length: 3 }, (_, index) => join(directory, 'sample-' + index + '.md'));
+    const profile = join(directory, 'profile.json'); const draft = join(directory, 'draft.md');
+    const text = [
+      'I write a direct note about the launch. The owner checks the evidence before we ship. The next step stays clear and small. The report remains useful.',
+      'I name the trade-off before I make the decision. We keep the mechanism visible for the person doing the work. The release has one owner. The report stays useful.',
+      'I start from evidence in the issue. Then I explain the constraint and choose a concrete next step. The team checks the result. The report stays useful.',
+    ];
+    for (const [index, sample] of samples.entries()) writeFileSync(sample, text[index]!);
+    writeFileSync(draft, 'I name the evidence, explain the trade-off, and choose a next step. The owner checks the work before release. The report stays useful for the team.');
+    assert.equal(run(['profile', profile, ...samples]).status, 0);
+    const result = run(['score', draft, profile, ...samples]);
+    assert.equal(result.status, 0, result.stderr);
+    const score = JSON.parse(result.stdout);
+    assert.equal(score.version, '1');
+    assert.equal(score.selfSimilarity.ceiling, 100);
+    assert.equal(Object.keys(score.components).length, 13);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('ingests an explicit Gmail export only to an absolute directory outside a Git checkout', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'holdyourvoice-ingest-cli-'));
+  try {
+    const source = join(directory, 'sent.mbox');
+    writeFileSync(source, [
+      'From sender@example.com Mon Jan 1 00:00:00 2026',
+      'From: Owner <owner@example.com>',
+      '',
+      'Reach owner@example.com before we ship.',
+    ].join('\n'));
+    const result = run(['ingest', 'gmail-sent-mbox', source, '--owner=Owner <owner@example.com>', '--output=' + directory]);
+    assert.equal(result.status, 0, result.stderr);
+    const receipt = JSON.parse(result.stdout);
+    assert.equal(receipt.samplesAccepted, 1);
+    assert.equal(JSON.stringify(receipt).includes('owner@example.com'), false);
+    assert.equal(readFileSync(join(directory, 'samples.jsonl'), 'utf8').includes('REDACTED:EMAIL'), true);
+    assert.equal(run(['ingest', 'gmail-sent-mbox', source, '--owner=Owner <owner@example.com>', '--output=' + process.cwd()]).status, 1);
+    const linkedOutput = join(directory, 'linked-output');
+    symlinkSync(process.cwd(), linkedOutput);
+    const linked = run(['ingest', 'gmail-sent-mbox', source, '--owner=Owner <owner@example.com>', '--output=' + linkedOutput]);
+    assert.equal(linked.status, 1);
+    assert.match(linked.stderr, /non-symlink directory/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -549,10 +617,10 @@ test('agent list enumerates every command as one portable package', () => {
   const result = run(['agent', 'list']);
   assert.equal(result.status, 0, result.stderr);
   const entries = JSON.parse(result.stdout);
-  assert.equal(entries.length, 24);
+  assert.equal(entries.length, 29);
   const ids = entries.map((entry: { id: string }) => entry.id);
   assert.equal(new Set(ids).size, ids.length);
-  for (const id of ['hyv-profile', 'hyv-analyze', 'hyv-verify', 'hyv-mcp', 'hyv-patterns', 'hyv-strict-check']) {
+  for (const id of ['hyv-profile', 'hyv-score', 'hyv-ingest', 'hyv-backtest', 'hyv-evaluate-local', 'hyv-find-writing-examples', 'hyv-analyze', 'hyv-verify', 'hyv-mcp', 'hyv-patterns', 'hyv-strict-check']) {
     assert.ok(ids.includes(id), `missing ${id}`);
   }
   const strict = JSON.parse(run(['agent', 'describe', 'hyv-strict-check']).stdout).agent;

@@ -1,12 +1,14 @@
 import { createHash } from 'node:crypto';
-import type { FingerprintMetric, Profile, ProfileV2, ProfileV3, VoiceDnaMetrics } from './contracts.js';
+import type { FingerprintMetric, Profile, ProfileChannel, ProfileV2, ProfileV3, RuleAllowance, ToneVector, VoiceDnaMetrics } from './contracts.js';
 import { canonicalJson } from './canonical-json.js';
 import { isPlainObject } from './internal.js';
 
 const METRICS_KEYS = ['sentenceLength', 'sentenceVariation', 'sentenceStructure', 'rhythm', 'paragraphLength', 'openingMoves', 'vocabulary', 'lexicalDensity', 'pointOfView', 'punctuation', 'caseStyle', 'questionRate', 'transitions'] as const;
-const PROFILE_V3_KEYS = ['version', 'id', 'revision', 'revisionDigest', 'sampleCount', 'metrics', 'avoid', 'provenance', 'rulePolicy', 'fingerprint', 'tolerances', 'metricFixtures'] as const;
+const PROFILE_V3_REQUIRED_KEYS = ['version', 'id', 'revision', 'revisionDigest', 'sampleCount', 'metrics', 'avoid', 'provenance', 'rulePolicy', 'fingerprint', 'tolerances', 'metricFixtures'] as const;
+const PROFILE_V3_ALLOWED_KEYS = [...PROFILE_V3_REQUIRED_KEYS, 'ruleAllowances', 'channel', 'tone'] as const;
 const FINGERPRINT_METRICS: FingerprintMetric[] = ['contractionRate', 'sentenceLengthDistribution', 'bulletRate', 'enDashRate'];
 const STABLE_ID = /^[a-z0-9](?:[a-z0-9._-]{0,127})$/;
+export const SAMPLE_ALLOWANCE_RULE_IDS = new Set(['punct.em-dash', 'punct.en-dash', 'format.curly-quotes']);
 
 function hasKnownKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   return Object.keys(value).every((key) => keys.includes(key)) && keys.every((key) => key in value);
@@ -67,6 +69,25 @@ function isRulePolicy(value: unknown): boolean {
   return Object.entries(value).every(([id, state]) => STABLE_ID.test(id) && states.includes(state as string));
 }
 
+function isRuleAllowances(value: unknown, profileSampleCount: unknown): value is Record<string, RuleAllowance> {
+  if (!isPlainObject(value) || Object.keys(value).length > SAMPLE_ALLOWANCE_RULE_IDS.size || typeof profileSampleCount !== 'number') return false;
+  return Object.entries(value).every(([id, allowance]) => {
+    if (!SAMPLE_ALLOWANCE_RULE_IDS.has(id) || !isPlainObject(allowance)) return false;
+    const candidate = allowance as Record<string, unknown>;
+    return typeof candidate.sampleCount === 'number' && Number.isInteger(candidate.sampleCount) && candidate.sampleCount >= 2 && candidate.sampleCount <= profileSampleCount
+      && typeof candidate.evidenceDigest === 'string' && /^[a-f0-9]{64}$/.test(candidate.evidenceDigest);
+  });
+}
+
+function isProfileChannel(value: unknown): value is ProfileChannel {
+  return ['general', 'email', 'chat', 'long-form', 'social', 'docs'].includes(value as string);
+}
+
+function isTone(value: unknown): value is ToneVector {
+  return isPlainObject(value) && hasKnownKeys(value, ['formality', 'confidence', 'warmth', 'energy', 'complexity'])
+    && Object.values(value).every(isRate);
+}
+
 function isFingerprint(value: unknown): boolean {
   if (!isPlainObject(value) || !hasKnownKeys(value, FINGERPRINT_METRICS)) return false;
   const distribution = value.sentenceLengthDistribution;
@@ -96,7 +117,8 @@ function hasValidRevisionDigest(profile: Record<string, unknown>): boolean {
 }
 
 function parseProfileV3(value: Record<string, unknown>): ProfileV3 {
-  const valid = isPlainObject(value) && hasKnownKeys(value, PROFILE_V3_KEYS)
+  const valid = isPlainObject(value) && Object.keys(value).every((key) => PROFILE_V3_ALLOWED_KEYS.includes(key as typeof PROFILE_V3_ALLOWED_KEYS[number]))
+    && PROFILE_V3_REQUIRED_KEYS.every((key) => key in value)
     && typeof value.id === 'string' && STABLE_ID.test(value.id)
     && typeof value.revision === 'number' && Number.isSafeInteger(value.revision) && value.revision > 0
     && typeof value.sampleCount === 'number' && Number.isInteger(value.sampleCount) && value.sampleCount >= 2
@@ -108,6 +130,14 @@ function parseProfileV3(value: Record<string, unknown>): ProfileV3 {
     && isTolerances(value.tolerances)
     && isMetricFixtures(value.metricFixtures);
   if (!valid) throw new Error('Profile is not a valid Hold Your Voice version 3 profile. Rebuild it from fixture-backed metrics.');
+  if (value.ruleAllowances !== undefined && !isRuleAllowances(value.ruleAllowances, value.sampleCount)) {
+    throw new Error('Profile version 3 rule allowances must be derived from at least two samples and use eligible rule IDs.');
+  }
+  if (value.ruleAllowances && Object.keys(value.ruleAllowances).some((id) => (value.rulePolicy as Record<string, unknown>)[id] === 'blocking')) {
+    throw new Error('Profile version 3 rule allowances cannot weaken an explicit blocking policy.');
+  }
+  if (value.channel !== undefined && !isProfileChannel(value.channel)) throw new Error('Profile version 3 channel must be one of the supported local writing channels.');
+  if (value.tone !== undefined && !isTone(value.tone)) throw new Error('Profile version 3 tone must contain five 0–1 advisory dimensions.');
   if (!hasValidRevisionDigest(value)) throw new Error('Profile version 3 revision digest does not match its canonical contents.');
   return value as unknown as ProfileV3;
 }
