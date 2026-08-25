@@ -5,6 +5,7 @@ import { SAMPLE_ALLOWANCE_RULE_IDS } from './profile.js';
 const RULE_MATCHERS: Record<string, RegExp> = {
   'punct.em-dash': /—/u,
   'punct.en-dash': /–/u,
+  'format.curly-quotes': /[“”]/u,
 };
 
 function evidenceDigest(ruleId: string, samples: string[]): string {

@@ -38,16 +38,46 @@ function validate(inputs: LocalWritingExampleInput[]): void {
   }
 }
 
+interface IndexedSentence {
+  source: string;
+  position: number;
+  text: string;
+  terms: string[];
+}
+
+/** Builds an explicit in-memory inverted index; it is never written or retained. */
+function indexExamples(inputs: LocalWritingExampleInput[]): { entries: IndexedSentence[]; postings: Map<string, Map<number, number>>; documentFrequency: Map<string, number> } {
+  const entries = inputs.flatMap((input) => sentences(input.text).map((sentence, position) => ({ source: input.basename, position, text: sentence.text, terms: tokens(sentence.text) })));
+  const postings = new Map<string, Map<number, number>>();
+  const documentFrequency = new Map<string, number>();
+  for (const [entryIndex, entry] of entries.entries()) {
+    const seen = new Set<string>();
+    for (const term of entry.terms) {
+      const posting = postings.get(term) ?? new Map<number, number>();
+      posting.set(entryIndex, (posting.get(entryIndex) ?? 0) + 1); postings.set(term, posting);
+      seen.add(term);
+    }
+    for (const term of seen) documentFrequency.set(term, (documentFrequency.get(term) ?? 0) + 1);
+  }
+  return { entries, postings, documentFrequency };
+}
+
 /** Finds redacted local examples in supplied memory only; it never creates a corpus or index on disk. */
 export function findWritingExamples(query: string, inputs: LocalWritingExampleInput[], limit = 3): LocalWritingExcerpt[] {
   validate(inputs);
   const queryTokens = new Set(tokens(query));
   if (!queryTokens.size) return [];
-  const candidates = inputs.flatMap((input) => sentences(input.text).map((sentence, position) => ({ source: input.basename, position, text: sentence.text, terms: tokens(sentence.text) })));
-  const ranked = candidates.map((candidate) => ({
-    ...candidate,
-    score: candidate.terms.reduce((score, term) => score + Number(queryTokens.has(term)), 0),
-  })).filter((candidate) => candidate.score > 0).sort((left, right) => right.score - left.score || left.source.localeCompare(right.source) || left.position - right.position);
+  const index = indexExamples(inputs); const scores = new Map<number, number>();
+  const averageLength = index.entries.reduce((sum, entry) => sum + entry.terms.length, 0) / Math.max(1, index.entries.length);
+  for (const term of queryTokens) {
+    const posting = index.postings.get(term); if (!posting) continue;
+    const idf = Math.log(1 + (index.entries.length - (index.documentFrequency.get(term) ?? 0) + 0.5) / ((index.documentFrequency.get(term) ?? 0) + 0.5));
+    for (const [entryIndex, frequency] of posting) {
+      const entry = index.entries[entryIndex]!; const denominator = frequency + 1.2 * (1 - 0.75 + 0.75 * entry.terms.length / Math.max(1, averageLength));
+      scores.set(entryIndex, (scores.get(entryIndex) ?? 0) + idf * frequency * 2.2 / denominator);
+    }
+  }
+  const ranked = [...scores].map(([entryIndex, score]) => ({ ...index.entries[entryIndex]!, score })).sort((left, right) => right.score - left.score || left.source.localeCompare(right.source) || left.position - right.position);
   const usedSources = new Set<string>();
   const excerpts: LocalWritingExcerpt[] = [];
   for (const candidate of ranked) {

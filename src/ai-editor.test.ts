@@ -4,12 +4,13 @@ import { analyzeAiEditor, maskNonProse, RULESET_VERSION, rules, serializedRules 
 import type { ProfileV3, RulePolicyState } from './contracts.js';
 import { createHash } from 'node:crypto';
 import { AI_SHADOW_FAIL_SET_V1 } from './ai-shadow-fixtures.js';
+import { generateAiShadowFailSetV1 } from './ai-shadow-generator.js';
 
 test('publishes executable rules with stable IDs and repair directions', () => {
-  assert.equal(RULESET_VERSION, '3.5.0-local.2');
-  assert.equal(rules.length, 181);
-  assert.equal(createHash('sha256').update(JSON.stringify(rules.map((rule) => rule.id))).digest('hex'), '7dd994d46ad74a8c166a3c53e725a8edf958e95d25d93b19f376026f37f34895');
-  assert.equal(createHash('sha256').update(JSON.stringify(serializedRules())).digest('hex'), '1c4be22bb0a44dbd383954c77fb891e448b7322fd83a392487af8b5c06d60694');
+  assert.equal(RULESET_VERSION, '3.5.0-local.3');
+  assert.equal(rules.length, 182);
+  assert.equal(createHash('sha256').update(JSON.stringify(rules.map((rule) => rule.id))).digest('hex'), '172563cd3f55b363c895bb97c37f636dd718253799c369f329bb943dad416f16');
+  assert.equal(createHash('sha256').update(JSON.stringify(serializedRules())).digest('hex'), '542534f1223d65e7ae7d4c3da8ba22bd31b4ddae2dfe399f7672ca9e6a9cee6b');
   assert.equal(new Set(rules.map((rule) => rule.id)).size, rules.length);
   for (const rule of rules) {
     assert.match(rule.id, /^(ai|formula|hedge|struct|punct|bait|cringe|insider|ogilvy|format)\./);
@@ -167,6 +168,7 @@ test('covers the narrow 3.5 pattern additions with an editorial example for each
     ['format.bold-bullet-label', '- **Decision:** Ship Tuesday.'],
     ['format.title-case-heading', '# Generic Title Case Heading'],
     ['format.emoji-heading', '# 🚀 Launch plan'],
+    ['format.curly-quotes', 'The operator wrote “ship Tuesday” in the release note.'],
     ['format.hyphenated-modifier-stack', 'Use a high-trust-low-friction process.'],
   ] as const;
   for (const [id, example] of examples) assert.ok(analyzeAiEditor(example).findings.some((finding) => finding.id === id), id);
@@ -194,7 +196,8 @@ test('keeps bounded Humanizer and Ghostwriter document cues advisory', () => {
   assert.equal(analyzeAiEditor('Owners checked the queue. Operators checked the log. Reviewers checked the proof.').findings.some((finding) => finding.id === 'ai.repeated-sentence-opening'), false);
 });
 
-test('keeps the frozen synthetic AI-shadow fail set executable without runtime generation', () => {
+test('keeps the frozen synthetic AI-shadow fail set generated in CI and executable without runtime generation', () => {
+  assert.deepEqual(generateAiShadowFailSetV1(), AI_SHADOW_FAIL_SET_V1);
   for (const fixture of AI_SHADOW_FAIL_SET_V1) assert.ok(analyzeAiEditor(fixture.text).findings.some((finding) => finding.id === fixture.rule), fixture.id);
 });
 
@@ -282,7 +285,7 @@ test('retains the current question-hook and abstract-cluster detectors', () => {
 
 test('serializes reconstructable regular expressions and explicit scopes', () => {
   const catalog = serializedRules();
-  assert.equal(catalog.length, 181);
+  assert.equal(catalog.length, 182);
   assert.ok(catalog.every((rule) => rule.scope === 'sentence' || rule.scope === 'line' || rule.scope === 'document'));
   const meaningful = catalog.find((rule) => rule.id === 'ai.meaningful');
   assert.ok(meaningful);

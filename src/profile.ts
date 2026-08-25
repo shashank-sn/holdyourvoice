@@ -8,7 +8,7 @@ const PROFILE_V3_REQUIRED_KEYS = ['version', 'id', 'revision', 'revisionDigest',
 const PROFILE_V3_ALLOWED_KEYS = [...PROFILE_V3_REQUIRED_KEYS, 'ruleAllowances', 'channel', 'tone'] as const;
 const FINGERPRINT_METRICS: FingerprintMetric[] = ['contractionRate', 'sentenceLengthDistribution', 'bulletRate', 'enDashRate'];
 const STABLE_ID = /^[a-z0-9](?:[a-z0-9._-]{0,127})$/;
-export const SAMPLE_ALLOWANCE_RULE_IDS = new Set(['punct.em-dash', 'punct.en-dash']);
+export const SAMPLE_ALLOWANCE_RULE_IDS = new Set(['punct.em-dash', 'punct.en-dash', 'format.curly-quotes']);
 
 function hasKnownKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   return Object.keys(value).every((key) => keys.includes(key)) && keys.every((key) => key in value);

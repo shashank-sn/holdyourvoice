@@ -12,3 +12,11 @@ test('groups paragraph IDs before optional local composite evaluation', () => {
   assert.ok(report.stylometricCosine9 >= 0 && report.stylometricCosine9 <= 1);
   assert.equal(report.aiTellReduction.candidateFindings < report.aiTellReduction.inputFindings, true);
 });
+
+test('keeps every paragraph variant on one side of the local evaluation split', () => {
+  const user = [{ paragraphId: 'u1', text: 'I inspect the source.' }, { paragraphId: 'u1', text: 'I inspect the source before shipping.' }, { paragraphId: 'u2', text: 'I name the mechanism.' }];
+  const shadow = [{ paragraphId: 's1', text: 'This holistic framework transforms outcomes.' }, { paragraphId: 's1', text: 'This transformative framework unlocks outcomes.' }, { paragraphId: 's2', text: 'The ecosystem creates value.' }];
+  const report = evaluateLocalComposite('The source is visible.', 'I inspect the source before shipping.', user, shadow);
+  assert.equal(report.split.trainParagraphIds.includes('u1'), report.split.testParagraphIds.includes('u1') === false);
+  assert.equal(report.split.trainParagraphIds.includes('s1'), report.split.testParagraphIds.includes('s1') === false);
+});

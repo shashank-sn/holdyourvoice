@@ -6,7 +6,7 @@ import { sentences } from './text.js';
 export type { Rule } from './ai-editor-rules.js';
 export { rules } from './ai-editor-rules.js';
 
-export const RULESET_VERSION = '3.5.0-local.2';
+export const RULESET_VERSION = '3.5.0-local.3';
 const sentenceRules = rules.filter((rule) => rule.scope === undefined || rule.scope === 'sentence');
 const lineRules = rules.filter((rule) => rule.scope === 'line');
 const documentRules = rules.filter((rule) => rule.scope === 'document');

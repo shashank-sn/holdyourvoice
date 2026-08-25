@@ -10,11 +10,12 @@ test('keeps an isolated backtest generation-free and text-free in its report', (
     'I keep evidence visible and choose one next step for the person doing the work before the deployment window opens. The operator records the trade-off and names the owner for the rollback.',
   ];
   const target = 'The owner checks the source before the release and records the rollback evidence for the operator doing the production work.';
-  const candidate = 'The owner checks the source before the release and records the rollback evidence for the operator doing the production work.';
+  const candidate = 'The owner checks the source before the release and uses leverage for the operator doing the production work while the team records each rollback decision in the release log.';
   const report = evaluateIsolatedBacktest('Reply to the rollout question with the owner and check.', target, candidate, buildProfile(samples), samples);
   assert.equal(report.version, '1');
-  assert.equal(report.preservation.score, 100);
+  assert.ok(report.preservation.score < 100);
   assert.equal(report.heldout.selfSimilarity?.ceiling, 100);
   assert.equal(JSON.stringify(report).includes(target), false);
   assert.equal(JSON.stringify(report).includes(candidate), false);
+  assert.equal(JSON.stringify(report).includes('uses leverage for the operator'), false);
 });

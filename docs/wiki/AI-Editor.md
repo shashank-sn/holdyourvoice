@@ -1,6 +1,6 @@
 # ai editor
 
-AI Editor uses a reviewed, deterministic, versioned ruleset. the current `3.5.0-local.2` ruleset contains 181 stable catalog entries. most rules inspect one sentence; selected rules inspect one physical line or the document and still return stable sentence locations. frontmatter, fenced and inline code, URLs, and Markdown link targets are not prose and are excluded before matching. every rule has a stable ID, severity, reason, repair direction, reconstructable expression, and explicit scope. profile policy is applied after matching; a signed Profile v3 sample allowance may suppress only an eligible default, and an explicit policy always wins.
+AI Editor uses a reviewed, deterministic, versioned ruleset. the current `3.5.0-local.3` ruleset contains 182 stable catalog entries. most rules inspect one sentence; selected rules inspect one physical line or the document and still return stable sentence locations. frontmatter, fenced and inline code, URLs, and Markdown link targets are not prose and are excluded before matching. every rule has a stable ID, severity, reason, repair direction, reconstructable expression, and explicit scope. profile policy is applied after matching; a signed Profile v3 sample allowance may suppress only an eligible default, and an explicit policy always wins.
 
 run `hyv patterns` to inspect an installed release, or `node dist/cli.js patterns` in a built source checkout. the JSON output records the ruleset version and exact executable catalog.
 

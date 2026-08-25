@@ -55,7 +55,7 @@ Every added rule needs public provenance, a positive example, a counterexample, 
 | 16 | bold mini-heading bullet | missing | format.bold-bullet-label | advisory |
 | 17 | title-case heading | missing | format.title-case-heading | advisory |
 | 18 | emoji heading | missing | format.emoji-heading | advisory |
-| 19 | curly quotes | intentionally non-universal | format.curly-quotes profile-sensitive cue | advisory |
+| 19 | curly quotes | profile-sensitive | format.curly-quotes, sample-allowance eligible | advisory |
 | 20 | chatbot residue | partial | ai.chatbot-offer | judgment-required |
 | 21 | knowledge-limit disclaimer | missing | ai.knowledge-limit-disclaimer | judgment-required |
 | 22 | agreeable preamble | partial | ai.agreement-preamble | advisory |
@@ -74,6 +74,48 @@ Every added rule needs public provenance, a positive example, a counterexample, 
 | 35 | fake alternative | missing | ai.fake-alternative | judgment-required |
 
 Examples belong with each fixture: inflated legacy: “marking a pivotal moment in the evolution of” becomes a supported fact; shallow analysis: “highlighting its importance” becomes the supported fact; fake range: “from the Big Bang to dark matter” becomes two named topics; at-its-core: remove the announcement; unraised objection and fake alternative retain only a real claim or real choice.
+
+### Humanizer repair examples
+
+These are repair directions, not automatic rewrites. Keep a phrase when the profile, evidence, and context make it the exact choice.
+
+| # | Before | After |
+| --- | --- | --- |
+| 1 | “a pivotal moment” | name the observed change and consequence |
+| 2 | “the renowned scientist” | name the relevant work or result |
+| 3 | “highlighting its importance” | state the implication or evidence |
+| 4 | “in today’s changing landscape” | start with the actual condition |
+| 5 | “experts say” | name the source or make the claim directly |
+| 6 | “despite challenges, the outlook...” | name the remaining constraint and next step |
+| 7 | “a holistic framework” | name the people, system, and action |
+| 8 | “serving as a testament” | use a direct subject and verb |
+| 9 | “not X but Y” | name the real distinction without the pivot |
+| 10 | “speed, scale, and alignment” | keep only necessary, distinct items |
+| 11 | three sentences starting “we” | vary the opening or combine them |
+| 12 | “from the Big Bang to dark matter” | name connected topics and their relation |
+| 13 | “it is important that” | name the actor, evidence, or fact |
+| 14 | dramatic dash | keep it only when the writer’s profile supports it |
+| 15 | bolding four phrases | retain bold only for navigation |
+| 16 | “**Decision:**” on every bullet | use plain list items unless labels navigate |
+| 17 | “Generic Title Case Heading” | use a specific sentence-case heading |
+| 18 | “# 🚀 Launch plan” | use a precise text heading |
+| 19 | decorative curly quotes | retain only when the profile demonstrates the house style |
+| 20 | “let me know if you need anything” | offer one relevant next action or stop |
+| 21 | “as an AI...” | state the verified limit directly |
+| 22 | “absolutely, ...” | start with the answer or evidence |
+| 23 | filler connector | state the relation or remove it |
+| 24 | “very important” | name the measurable consequence |
+| 25 | “the possibilities are endless” | end on the decision or constraint |
+| 26 | “high-trust-low-friction” | use a direct noun phrase |
+| 27 | “at its core” | state the underlying claim |
+| 28 | “let’s now explore” | start with the point |
+| 29 | heading repeated in body | start the body with evidence |
+| 30 | obsolete naming aside | retain it only if it explains the claim |
+| 31 | “no demos. no decks. no...” | keep one point or form a complete sentence |
+| 32 | “quality over quantity” | state the concrete lesson |
+| 33 | “i’m going to be honest” | start with the observation |
+| 34 | “some might argue” | address a real, named objection |
+| 35 | “whether you choose...” | name the actual options and trade-off |
 
 ## implementation units
 
@@ -133,7 +175,7 @@ Verification: no sockets, no raw sentences/paths in profiles or receipts, source
 
 Goal: ground a host-provided rewrite in local evidence and evaluate it without HYV becoming a generator.
 
-- A separately approved local excerpt index may return 2–3 redacted excerpts with basenames only to rewrite-prompt.
+- An explicit, in-memory local FTS index may return 2–3 redacted excerpts with basenames only to rewrite-prompt. It is rebuilt from caller-supplied samples for the request and is never written to disk.
 - A backtest receives context, held-out target, and a caller-supplied candidate. It returns preservation, AI Editor, and held-out band results separately.
 - Synthetic AI-tell fail fixtures may be generated only in development/CI and then frozen. No runtime LLM calls.
 

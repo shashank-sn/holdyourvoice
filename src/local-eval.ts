@@ -27,8 +27,8 @@ function cosine(left: number[], right: number[]): number {
   const magnitude = Math.sqrt(left.reduce((sum, value) => sum + value * value, 0) * right.reduce((sum, value) => sum + value * value, 0));
   return Number((magnitude ? dot / magnitude : 0).toFixed(3));
 }
-function uniqueParagraphs(values: EvalParagraph[], label: string): void {
-  if (values.length < 2 || values.some((value) => !value.paragraphId || !value.text.trim()) || new Set(values.map((value) => value.paragraphId)).size !== values.length) throw new Error(`${label} needs at least two unique paragraph IDs with text.`);
+function groupedParagraphs(values: EvalParagraph[], label: string): void {
+  if (values.length < 2 || values.some((value) => !value.paragraphId || !value.text.trim()) || new Set(values.map((value) => value.paragraphId)).size < 2) throw new Error(`${label} needs at least two paragraph IDs with text.`);
 }
 
 interface SparseVector { [term: string]: number; }
@@ -82,7 +82,7 @@ function localAuthorshipProbability(candidate: string, user: EvalParagraph[], sh
 
 /** Optional local evaluation. Groups whole paragraph IDs before train/test to prevent variant leakage. */
 export function evaluateLocalComposite(input: string, candidate: string, user: EvalParagraph[], aiShadow: EvalParagraph[]): LocalEvalReportV1 {
-  uniqueParagraphs(user, 'User paragraphs'); uniqueParagraphs(aiShadow, 'AI-shadow paragraphs');
+  groupedParagraphs(user, 'User paragraphs'); groupedParagraphs(aiShadow, 'AI-shadow paragraphs');
   const ids = [...new Set([...user, ...aiShadow].map((value) => value.paragraphId))].sort();
   const testIds = ids.filter((id, index) => index % 3 === 0); const trainIds = ids.filter((id) => !testIds.includes(id));
   const trainUser = user.filter((value) => trainIds.includes(value.paragraphId)); const trainShadow = aiShadow.filter((value) => trainIds.includes(value.paragraphId));
