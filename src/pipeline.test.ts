@@ -93,6 +93,15 @@ test('orders rewrite instructions by importance tier', () => {
   assert.ok(prompt.indexOf('# Tier 3') < prompt.indexOf('# Tier 4'));
 });
 
+test('gives strong, source-faithful repair feedback without authorizing a broader rewrite', () => {
+  const prompt = rewritePrompt('The scheduler failed — twice. Experts say this changes everything. The launch is on 14 August.', profile);
+  assert.match(prompt, /Treat each blocker as a required repair/);
+  assert.match(prompt, /Do not invent a source, metric, date, quotation, mechanism, example, CTA, or opinion/);
+  assert.match(prompt, /otherwise remove the unsupported framing without widening the claim/);
+  assert.match(prompt, /Before responding, check every Tier 1 finding against its replacement/);
+  assert.match(prompt, /Do not rewrite clean sentences/);
+});
+
 test('post gate reports a new AI regression', () => {
   const result = verify('I ship clear ideas.', 'I ship clear ideas — a game-changer.', profile);
   assert.equal(result.passed, false);
