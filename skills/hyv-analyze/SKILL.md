@@ -23,4 +23,4 @@ hyv analyze draft.md profile.json [writing-brief.json]
 
 ## Handoff
 
-Run `hyv analyze` directly to execute the operation. For ordinary editing, follow on with hyv-rewrite-prompt or hyv-prepare-rewrite. When the caller asks for a strict AI-pattern and voice-match decision, hand off to hyv-strict-check with a calibrated Profile v3 and the required local samples; analysis alone is not a strict-ready result.
+Run `hyv analyze` directly to execute the operation. Follow with hyv-rewrite-prompt or hyv-prepare-rewrite: both use strict-by-default repair scope, so every active AI Editor finding becomes a required repair. For calibrated voice evidence, hand off to hyv-strict-check with a Profile v3 and the required local samples; analysis alone is not a strict-ready result.

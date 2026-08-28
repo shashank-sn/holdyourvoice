@@ -54,10 +54,10 @@ test('blocks an underpowered or uncalibrated voice profile before trusting voice
   assert.ok(mixedFormatReport.findings.some((item) => item.id === 'strict.profile.format-spread'));
 });
 
-test('requires human review for a judgment-required AI pattern and blocks a configured one', () => {
+test('blocks every active AI Editor pattern under strict quality', () => {
   const review = evaluateStrictQuality('We leverage the existing checklist.', profile(), samples());
-  assert.equal(review.disposition, 'needs-human-review');
-  assert.ok(review.findings.some((item) => item.id === 'strict.ai_editor.ai.leverage' && item.disposition === 'review'));
+  assert.equal(review.disposition, 'blocked');
+  assert.ok(review.findings.some((item) => item.id === 'strict.ai_editor.ai.leverage' && item.disposition === 'block'));
 
   const blockedProfile = profile();
   blockedProfile.rulePolicy['ai.leverage'] = 'blocking';

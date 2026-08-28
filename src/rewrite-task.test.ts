@@ -24,19 +24,20 @@ test('applies only eligible numbered replacements and preserves all clean bytes'
   assert.deepEqual(result.receipt.adapterIds, []);
 });
 
-test('does not make an advisory broad catalog match eligible', () => {
+test('makes every active AI Editor finding eligible under the default strict rewrite policy', () => {
   const task = prepareRewriteTask('I write clear notes. This work is meaningful. I keep the mechanism visible.', profile);
-  assert.deepEqual(task.eligibleSentenceIds, []);
-  assert.deepEqual(task.sentences.map((sentence) => sentence.eligible), [false, false, false]);
+  assert.deepEqual(task.eligibleSentenceIds, [2]);
+  assert.deepEqual(task.sentences.map((sentence) => sentence.eligible), [false, true, false]);
+  assert.match(task.prompt, /Every active AI Editor finding is a required repair/);
 });
 
-test('grants edit scope only to blocking findings and keeps pending judgment separate', () => {
+test('makes advisory and judgment-required findings required repairs', () => {
   const advisory = prepareRewriteTask('Firstly, check the invoice.', profile);
-  assert.deepEqual(advisory.eligibleSentenceIds, []);
+  assert.deepEqual(advisory.eligibleSentenceIds, [1]);
   const neutralProfile = buildProfile(['I write plainly.', 'I name the mechanism.']);
   const pending = prepareRewriteTask('We leverage the scheduler.', neutralProfile);
-  assert.deepEqual(pending.eligibleSentenceIds, []);
-  assert.match(pending.prompt, /pending judgment/i);
+  assert.deepEqual(pending.eligibleSentenceIds, [1]);
+  assert.match(pending.prompt, /Every active AI Editor finding is a required repair/);
   const blocking = prepareRewriteTask('The scheduler failed — twice. The owner checked it.', profile);
   assert.deepEqual(blocking.eligibleSentenceIds, [1]);
 });
@@ -46,9 +47,9 @@ test('keeps blocking VoiceDNA avoid findings eligible', () => {
   assert.deepEqual(task.eligibleSentenceIds, [1]);
 });
 
-test('preserves founder reframes that reconciled policy makes advisory', () => {
+test('makes reconciled active founder reframes eligible under the default strict policy', () => {
   const task = prepareRewriteTask("This isn't positioning. This is proof.", profile);
-  assert.deepEqual(task.eligibleSentenceIds, []);
+  assert.deepEqual(task.eligibleSentenceIds, [1]);
 });
 
 test('preserves a clean draft byte-for-byte when the rewrite response is empty', () => {

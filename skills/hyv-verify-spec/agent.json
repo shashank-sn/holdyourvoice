@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "id": "hyv-verify-spec",
   "title": "hyv-verify-spec",
-  "description": "Verify a candidate against the existing voice gates and a local CopySpec.",
+  "description": "Verify a candidate against strict default voice gates and a local CopySpec.",
   "instruction_file": "SKILL.md",
   "role": "CopySpec verifier",
   "workflow_phase": "verify",

@@ -1,11 +1,11 @@
 ---
 name: hyv-rewrite-prompt
-description: Create a constrained editing brief without rewriting the draft.
+description: Create a strict constrained editing brief without rewriting the draft.
 ---
 
 # hyv-rewrite-prompt
 
-Create a constrained editing brief. It does not rewrite the draft or call a model. The brief is printed to stdout for redirect into a markdown file.
+Create a strict constrained editing brief. It does not rewrite the draft or call a model. The brief is printed to stdout for redirect into a markdown file.
 
 ## Usage
 
@@ -16,9 +16,10 @@ hyv rewrite-prompt draft.md profile.json [writing-brief.json] > rewrite-brief.md
 ## Behavior
 
 - Deterministic and local-first: this command never calls a provider and never sends drafts, samples, profiles, or telemetry to a service.
+- Strict by default: every active AI Editor finding is a required, source-faithful repair. Do not return a candidate with an active finding unresolved; a separate calibrated `hyv-strict-check` is required only when the caller needs a `strict-ready` voice-evidence result.
 - Commands that write use an explicit output path. Confirm that path before running the command.
 - This agent describes how to invoke the command and what it returns. It does not change command behavior or exit codes.
 
 ## Handoff
 
-Run `hyv rewrite-prompt` directly to execute the operation. Follow-on agents: hyv-prepare-rewrite.
+Run `hyv rewrite-prompt` directly to execute the operation. Follow-on agents: hyv-prepare-rewrite, hyv-verify.

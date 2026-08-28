@@ -1,4 +1,4 @@
 interface:
   display_name: "Hyv Verify Spec"
-  short_description: "Verify a candidate against the existing voice gates and a local CopySpec."
-  default_prompt: "Use $hyv-verify-spec to verify a candidate against the existing voice gates and a local copyspec."
+  short_description: "Verify a candidate against strict default voice gates and a local CopySpec."
+  default_prompt: "Use $hyv-verify-spec to reject a candidate with any active AI Editor finding or CopySpec failure."

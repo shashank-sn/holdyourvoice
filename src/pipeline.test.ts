@@ -95,7 +95,7 @@ test('orders rewrite instructions by importance tier', () => {
 
 test('gives strong, source-faithful repair feedback without authorizing a broader rewrite', () => {
   const prompt = rewritePrompt('The scheduler failed — twice. Experts say this changes everything. The launch is on 14 August.', profile);
-  assert.match(prompt, /Treat each blocker as a required repair/);
+  assert.match(prompt, /Every active AI Editor finding is a required repair/);
   assert.match(prompt, /Do not invent a source, metric, date, quotation, mechanism, example, CTA, or opinion/);
   assert.match(prompt, /otherwise remove the unsupported framing without widening the claim/);
   assert.match(prompt, /Before responding, check every Tier 1 finding against its replacement/);
@@ -136,9 +136,11 @@ test('advisory and pending-judgment findings pass while blocking findings fail',
   assert.equal(blocking.passed, false);
 });
 
-test('verify rejects only new policy-blocking regressions', () => {
+test('verify rejects unresolved active AI Editor findings under the default strict policy', () => {
   const neutralProfile = buildProfile(['I write plainly.', 'I name the mechanism.']);
-  assert.equal(verify('The scheduler failed twice.', 'The scheduler failed twice. We leverage logs.', neutralProfile).passed, true);
+  const unresolved = verify('The scheduler failed twice.', 'The scheduler failed twice. We leverage logs.', neutralProfile);
+  assert.equal(unresolved.passed, false);
+  assert.ok(unresolved.strictFindings.some((finding) => finding.id === 'ai.leverage'));
   assert.equal(verify('The scheduler failed twice.', 'The scheduler failed — twice.', profile).passed, false);
 });
 

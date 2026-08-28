@@ -1,11 +1,11 @@
 ---
 name: hyv-verify-spec
-description: Verify a candidate against the existing voice gates and a local CopySpec.
+description: Verify a candidate against strict default voice gates and a local CopySpec.
 ---
 
 # hyv-verify-spec
 
-Verify a candidate against the existing voice gates and a local CopySpec. Immutable claims remain verbatim unless atoms are supplied; then each declared atom must remain. Prohibited claims fail closed.
+Verify a candidate against strict default voice gates and a local CopySpec. Immutable claims remain verbatim unless atoms are supplied; then each declared atom must remain. Prohibited claims fail closed.
 
 ## Usage
 
@@ -16,6 +16,7 @@ hyv verify-spec original.md candidate.md profile.json copy-spec.json [writing-br
 ## Behavior
 
 - Deterministic and local-first: this command never calls a provider and never sends drafts, samples, profiles, or telemetry to a service.
+- Strict by default: verification fails when the candidate has any active AI Editor finding, in addition to CopySpec failures.
 - Commands that write use an explicit output path. Confirm that path before running the command.
 - This agent describes how to invoke the command and what it returns. It does not change command behavior or exit codes.
 

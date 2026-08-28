@@ -16,6 +16,7 @@ hyv prepare-rewrite draft.md profile.json task.json [copy-spec.json] [writing-br
 ## Behavior
 
 - Deterministic and local-first: this command never calls a provider and never sends drafts, samples, profiles, or telemetry to a service.
+- Strict by default: the task authorizes repairs for every active AI Editor finding and keeps unrelated sentences locked.
 - Commands that write use an explicit output path. Confirm that path before running the command.
 - This agent describes how to invoke the command and what it returns. It does not change command behavior or exit codes.
 

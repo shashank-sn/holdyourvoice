@@ -277,7 +277,7 @@ test('uses exit code 2 for a failed candidate gate and 1 for misuse', () => {
     assert.equal(run(['profile', profile, first, second, '--avoid=unlock']).status, 0);
     const verification = run(['verify', original, candidate, profile]);
     assert.equal(verification.status, 2);
-    assert.deepEqual(Object.keys(JSON.parse(verification.stdout)).sort(), ['candidate', 'finalOutput', 'logicLint', 'original', 'passed', 'preservationScore', 'regressions', 'version']);
+    assert.deepEqual(Object.keys(JSON.parse(verification.stdout)).sort(), ['candidate', 'finalOutput', 'logicLint', 'original', 'passed', 'preservationScore', 'regressions', 'strictFindings', 'version']);
     assert.equal(run(['unknown-command']).status, 1);
     assert.equal(run(['mcp', 'unexpected']).status, 1);
   } finally {

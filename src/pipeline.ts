@@ -38,10 +38,18 @@ export function isBlockingFinding(finding: Finding): boolean {
   return finding.engine === 'ai_editor' ? finding.appliedPolicy === 'blocking' : finding.severity === 'red';
 }
 
-export function deriveEditScope(result: Analysis): { eligibleSentenceIds: number[]; blocking: Finding[]; pendingJudgment: Finding[] } {
+export function isStrictFinding(finding: Finding): boolean {
+  return finding.engine === 'ai_editor' || isBlockingFinding(finding);
+}
+
+export function strictFindings(result: Analysis): Finding[] {
+  return [...result.voiceDna.findings, ...result.aiEditor.findings, ...(result.editorial?.findings ?? [])].filter(isStrictFinding);
+}
+
+export function deriveEditScope(result: Analysis, strict = false): { eligibleSentenceIds: number[]; blocking: Finding[]; pendingJudgment: Finding[] } {
   const findings = [...result.voiceDna.findings, ...result.aiEditor.findings, ...(result.editorial?.findings ?? [])];
-  const blocking = findings.filter(isBlockingFinding);
-  const pendingJudgment = findings.filter((finding) => finding.appliedPolicy === 'judgment-required');
+  const blocking = findings.filter(strict ? isStrictFinding : isBlockingFinding);
+  const pendingJudgment = strict ? [] : findings.filter((finding) => finding.appliedPolicy === 'judgment-required');
   return {
     eligibleSentenceIds: [...new Set(blocking.map((finding) => finding.sentence))].sort((left, right) => left - right),
     blocking,
@@ -51,17 +59,17 @@ export function deriveEditScope(result: Analysis): { eligibleSentenceIds: number
 
 export function renderRewritePrompt(draft: string, profile: Profile, result: Analysis, learning: LearningPreference[] = [], brief?: WritingBrief, examples: LocalWritingExcerpt[] = []): string {
   const allFindings = [...result.voiceDna.findings, ...result.aiEditor.findings, ...(result.editorial?.findings ?? [])];
-  const scope = deriveEditScope(result);
+  const scope = deriveEditScope(result, true);
   const redFindings = scope.blocking;
-  const yellowFindings = allFindings.filter((finding) => !isBlockingFinding(finding) && finding.appliedPolicy !== 'judgment-required');
+  const yellowFindings = allFindings.filter((finding) => !isStrictFinding(finding) && finding.appliedPolicy !== 'judgment-required');
   const metrics = profile.metrics;
 
   return [
     '# Tier 0 — non-negotiable preservation',
     'Preserve facts, names, numbers, claims, and every unflagged sentence exactly. Do not add claims, examples, sections, hooks, or CTAs.',
     '',
-    '# Tier 1 — release blockers',
-    'Treat each blocker as a required repair. Replace the flagged sentence with a stronger, source-faithful sentence; do not merely swap one stock phrase for another.',
+    '# Tier 1 — strict repair requirements',
+    'Every active AI Editor finding is a required repair. Replace each flagged sentence with a stronger, source-faithful sentence; do not merely swap one stock phrase for another.',
     'Use only facts already present in the draft, CopySpec, WritingBrief, or supplied source context. Do not invent a source, metric, date, quotation, mechanism, example, CTA, or opinion.',
     `VoiceDNA: ${result.voiceDna.score}/100 (${result.voiceDna.passed ? 'pass' : 'fail'}).`,
     `AI Editor: ${result.aiEditor.score}/100 (${result.aiEditor.passed ? 'pass' : 'fail'}).`,
@@ -133,16 +141,18 @@ export function verify(original: string, candidate: string, profile: Profile, br
   const logicLint = lintLogic(candidate, brief);
   const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
   const requiredFacts = verifyRequiredFacts(candidate, brief);
+  const unresolvedStrictFindings = strictFindings(checked);
   return {
     version: '2',
     original: baseline,
     candidate: checked,
     preservationScore: preservation,
     regressions,
+    strictFindings: unresolvedStrictFindings,
     finalOutput,
     logicLint,
     ...(factLint ? { factLint } : {}), ...(requiredFacts ? { requiredFacts } : {}),
-    passed: checked.passed && !regressions.some(isBlockingFinding) && preservation >= 70 && finalOutput.accepted && logicLint.passed && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
+    passed: checked.passed && unresolvedStrictFindings.length === 0 && !regressions.some(isBlockingFinding) && preservation >= 70 && finalOutput.accepted && logicLint.passed && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
   };
 }
 
@@ -159,17 +169,19 @@ export function verifyRebuildWithCopySpec(original: string, candidate: string, p
   const logicLint = lintLogic(candidate, brief);
   const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
   const requiredFacts = verifyRequiredFacts(candidate, brief);
+  const unresolvedStrictFindings = strictFindings(checked);
   return {
     version: '2',
     original: baseline,
     candidate: checked,
     preservationScore: preservation,
     regressions,
+    strictFindings: unresolvedStrictFindings,
     claims,
     finalOutput: finalCheck,
     logicLint,
     ...(factLint ? { factLint } : {}), ...(requiredFacts ? { requiredFacts } : {}),
-    passed: checked.passed && !regressions.some(isBlockingFinding) && claims.passed && finalCheck.accepted && logicLint.passed && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
+    passed: checked.passed && unresolvedStrictFindings.length === 0 && !regressions.some(isBlockingFinding) && claims.passed && finalCheck.accepted && logicLint.passed && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
   };
 }
 

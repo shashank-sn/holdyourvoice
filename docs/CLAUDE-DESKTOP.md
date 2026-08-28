@@ -30,11 +30,11 @@ Published GitHub Releases attach that same file automatically.
 | `hyv_analyze` | Runs VoiceDNA and AI Editor checks, a separate non-scoring Unicode hygiene inspection, and optional local WritingBrief context. |
 | `hyv_hygiene` | Inspects supplied text for hidden Unicode without a profile or file mutation. |
 | `hyv_final_check` | Gates exact final text from any producer and returns output only when it is safe to display. |
-| `hyv_rewrite_prompt` | Creates a constrained editing brief with optional local WritingBrief context; it makes no model call or rewrite. |
-| `hyv_prepare_rewrite` | Creates a versioned local rewrite task with optional CopySpec and WritingBrief context. |
-| `hyv_apply_rewrite` | Applies an eligible response to a prepared task and rechecks it locally. |
-| `hyv_verify` | Checks a candidate for regressions and lexical preservation, with optional WritingBrief context, without changing learning state. |
-| `hyv_verify_copy_spec` | Adds immutable-claim and prohibited-claim checks to local verification. |
+| `hyv_rewrite_prompt` | Creates a strict editing brief: every active AI Editor finding is a required repair. |
+| `hyv_prepare_rewrite` | Creates a strict versioned local rewrite task with optional CopySpec and WritingBrief context. |
+| `hyv_apply_rewrite` | Rechecks a prepared response locally and rejects unresolved active AI Editor findings. |
+| `hyv_verify` | Rejects a candidate with any active AI Editor finding, plus regressions and preservation failures. |
+| `hyv_verify_copy_spec` | Adds immutable-claim and prohibited-claim checks to strict local verification. |
 | `hyv_batch_analyze` | Checks two to one hundred supplied drafts for repeated openings and endings without storing them. |
 | `hyv_patterns` | Lists the exact executable AI Editor rules. |
 | `hyv_lifecycle_prepare_semantic` | Creates a normal-policy semantic task and its initial lifecycle artifact. |

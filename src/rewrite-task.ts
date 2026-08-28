@@ -97,7 +97,7 @@ export function prepareRewriteTask(draft: string, profile: Profile, copySpec?: C
   const result = analyze(draft, profile, writingBrief);
   const prompt = renderRewritePrompt(draft, profile, result, [], writingBrief);
   const mapped = sentences(draft);
-  const eligibleSentenceIds = new Set([...deriveEditScope(result).eligibleSentenceIds, ...authorizedSentenceIds]);
+  const eligibleSentenceIds = new Set([...deriveEditScope(result, true).eligibleSentenceIds, ...authorizedSentenceIds]);
   const taskBase = {
     version: '1' as const,
     draft,

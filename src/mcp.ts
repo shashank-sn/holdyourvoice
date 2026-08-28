@@ -83,7 +83,7 @@ server.registerTool('hyv_analyze', {
 }, async ({ draft, profile_json, writing_brief_json }) => guardedJson(() => analyzeForMcp(draft, profile_json, writing_brief_json)));
 
 server.registerTool('hyv_strict_check', {
-  description: 'Run the opt-in local strict quality gate. It requires a calibrated Profile v3 and local writing samples; it returns strict-ready, needs-human-review, or blocked without changing text or learning state.',
+  description: 'Run the calibrated local strict-quality gate. It requires a Profile v3 and local writing samples; it returns strict-ready, needs-human-review, or blocked without changing text or learning state.',
   inputSchema: { draft: writing, profile_json: profileJson, samples: strictSamples, writing_brief_json: writingBriefJson.optional() },
   annotations: { readOnlyHint: true },
 }, async ({ draft, profile_json, samples: localSamples, writing_brief_json }) => guardedJson(() => strictCheckForMcp(draft, profile_json, localSamples, writing_brief_json)));
@@ -149,7 +149,7 @@ server.registerTool('hyv_logic_lint', {
 }, async ({ draft, writing_brief_json }) => guardedJson(() => logicLintForMcp(draft, writing_brief_json)));
 
 server.registerTool('hyv_rewrite_prompt', {
-  description: 'Create a constrained editing brief. Explicit local examples are redacted in memory and injected only as advisory cadence evidence. It does not rewrite the draft or call a model.',
+  description: 'Create a strict constrained editing brief. Every active AI Editor finding is a required repair; explicit local examples remain advisory cadence evidence. It does not rewrite the draft or call a model.',
   inputSchema: { draft: writing, profile_json: profileJson, writing_brief_json: writingBriefJson.optional(), examples: writingExamples.optional() },
   annotations: { readOnlyHint: true },
 }, async ({ draft, profile_json, writing_brief_json, examples }) => guardedJson(() => rewritePromptForMcp(draft, profile_json, {}, writing_brief_json, examples)));
@@ -161,13 +161,13 @@ server.registerTool('hyv_find_writing_examples', {
 }, async ({ query, examples }) => guardedJson(() => findWritingExamplesForMcp(query, examples)));
 
 server.registerTool('hyv_prepare_rewrite', {
-  description: 'Prepare a local, versioned rewrite task. The caller may forward it to a provider; doing so shares the draft and must be an explicit choice.',
+  description: 'Prepare a strict local, versioned rewrite task. Every active AI Editor finding is eligible for source-faithful repair; the caller may forward the task to a provider only by explicit choice.',
   inputSchema: { draft: writing, profile_json: profileJson, copy_spec_json: copySpecJson.optional(), writing_brief_json: writingBriefJson.optional() },
   annotations: { readOnlyHint: true },
 }, async ({ draft, profile_json, copy_spec_json, writing_brief_json }) => guardedJson(() => prepareRewriteForMcp(draft, profile_json, copy_spec_json, writing_brief_json)));
 
 server.registerTool('hyv_apply_rewrite', {
-  description: 'Validate and apply a model response to a prepared task, then run the local gates. It never calls a provider or stores source or candidate text.',
+  description: 'Validate a model response to a prepared task, then reject any candidate with an unresolved active AI Editor finding. It never calls a provider or stores source or candidate text.',
   inputSchema: { task_json: z.string().min(1).max(250_000), response_json: z.string().min(1).max(100_000), profile_json: profileJson },
   annotations: { readOnlyHint: true },
 }, async ({ task_json, response_json, profile_json }) => guardedJson(() => applyRewriteForMcp(task_json, response_json, profile_json)));
@@ -191,13 +191,13 @@ server.registerTool('hyv_reduce_judgment', {
 }, async ({ envelopes_json }) => guardedJson(() => reduceJudgmentForMcp(envelopes_json)));
 
 server.registerTool('hyv_verify', {
-  description: 'Verify a revised candidate against an original draft and portable profile without changing learning state.',
+  description: 'Verify a revised candidate against an original draft and portable profile. Every active AI Editor finding fails default verification; learning state remains unchanged.',
   inputSchema: { original: writing, candidate: writing, profile_json: profileJson, writing_brief_json: writingBriefJson.optional() },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 }, async ({ original, candidate, profile_json, writing_brief_json }) => guardedJson(() => verifyForMcp(original, candidate, profile_json, writing_brief_json)));
 
 server.registerTool('hyv_verify_copy_spec', {
-  description: 'Verify a candidate against the existing voice gates and a local CopySpec. Immutable claims remain verbatim unless atoms are supplied; then each declared atom must remain. Prohibited claims fail closed.',
+  description: 'Verify a candidate against strict default voice gates and a local CopySpec. Every active AI Editor finding fails verification; immutable claims remain verbatim unless atoms are supplied, and prohibited claims fail closed.',
   inputSchema: { original: writing, candidate: writing, profile_json: profileJson, copy_spec_json: copySpecJson, writing_brief_json: writingBriefJson.optional() },
   annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
 }, async ({ original, candidate, profile_json, copy_spec_json, writing_brief_json }) => guardedJson(() => verifyCopySpecForMcp(original, candidate, profile_json, copy_spec_json, writing_brief_json)));
@@ -297,7 +297,7 @@ if (redactsSensitiveInputs) {
   ));
 
   server.registerTool('hyv_apply_rebuild', {
-    description: 'Validate and evaluate a whole-document rebuild response against a prepared authorized rebuild task. Capability input requires host-guaranteed sensitive-input redaction. It never calls a provider.',
+    description: 'Validate a whole-document rebuild response against a prepared authorized rebuild task and reject unresolved active AI Editor findings. Capability input requires host-guaranteed sensitive-input redaction. It never calls a provider.',
     inputSchema: { task_json: lifecycleJson, response_json: z.string().min(1).max(100_000), profile_json: profileJson, capability_json: lifecycleJson },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async (args) => guardedJson(
