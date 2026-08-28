@@ -32,8 +32,7 @@ function finding(id: string, disposition: StrictQualityFindingDisposition, reaso
 
 function strictFinding(source: Finding, profile: ProfileV3): StrictQualityFindingV1 {
   if (source.engine === 'ai_editor') {
-    const disposition = source.appliedPolicy === 'blocking' ? 'block' : 'review';
-    return finding(`strict.${source.engine}.${source.id}`, disposition, source.reason, source.suggestion, source.sentence);
+    return finding(`strict.${source.engine}.${source.id}`, 'block', source.reason, source.suggestion, source.sentence);
   }
   if (source.engine === 'voice_dna') {
     if (source.severity === 'red') return finding(`strict.${source.engine}.${source.id}`, 'block', source.reason, source.suggestion, source.sentence);

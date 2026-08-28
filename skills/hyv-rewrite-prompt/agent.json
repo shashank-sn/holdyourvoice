@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "id": "hyv-rewrite-prompt",
   "title": "hyv-rewrite-prompt",
-  "description": "Create a constrained editing brief without rewriting the draft.",
+  "description": "Create a strict constrained editing brief without rewriting the draft.",
   "instruction_file": "SKILL.md",
   "role": "Brief author",
   "workflow_phase": "plan",

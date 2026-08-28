@@ -33,7 +33,7 @@ hyv agent emit <id> --mode prompt|json [--host HOST] [--output FILE]
 
 The agent layer describes existing HYV operations. `hyv agent` reads the package tree and emits metadata. With `--output`, it creates a new contract file and refuses an existing target. Existing HYV commands execute writing workflows, and host policy controls permissions and network access.
 
-For strict workflows, hyv-analyze and hyv-verify both hand off to hyv-strict-check. That agent requires a calibrated Profile v3 and consistent local validation samples before it can return `strict-ready`; it hands off to hyv-final-check only after that result. The final-check agent still runs at the exact delivery boundary because it checks hidden text, not voice or AI-pattern quality.
+HYV rewrite and verification workflows are strict by default: every active AI Editor finding is a required repair and unresolved active findings fail deterministic verification. An explicit Profile v3 `disabled` policy remains a deliberate user exception. `hyv-strict-check` adds calibrated voice evidence; it requires a calibrated Profile v3 and consistent local validation samples before it can return `strict-ready`. The final-check agent still runs at the exact delivery boundary because it checks hidden text, not voice or AI-pattern quality.
 
 Host policy remains the authority for repository reads, file writes, command execution, subagents, and network access. The emitted descriptor reports the capabilities the host provides.
 

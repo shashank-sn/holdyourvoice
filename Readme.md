@@ -131,7 +131,7 @@ producer | hyv final-check -
 | `hyv score <draft> <profile-v3.json> <heldout...>` | Measure the draft against a separate held-out local writing range; may abstain. |
 | `hyv ingest <source> <export> --owner=owner --output=/absolute/dir` | Create redacted, owner-authorized Gmail or Telegram samples and a text-free receipt. |
 | `hyv analyze <draft> <profile.json>` | Run VoiceDNA, AI Editor, and hygiene checks. |
-| `hyv strict-check <draft> <profile-v3.json> <sample...>` | Run the opt-in strict local quality gate. It requires a calibrated V3 profile built from five or more samples, five non-duplicate samples with a consistent visible format and 1,500 words total, and returns `strict-ready`, `needs-human-review`, or `blocked`. |
+| `hyv strict-check <draft> <profile-v3.json> <sample...>` | Run the calibrated local strict-quality gate. It requires a V3 profile built from five or more samples, five non-duplicate validation samples with a consistent visible format and 1,500 words total, and returns `strict-ready`, `needs-human-review`, or `blocked`. |
 | `hyv hygiene <draft> [--fix]` | Inspect hidden Unicode or write a conservative cleaned copy. |
 | `hyv inspect-hidden-text <draft> [policy.json]` | Inspect hidden text with an optional policy. |
 | `hyv apply-hidden-text-policy <draft> <policy.json> <output>` | Apply approved hidden-text removals. |
@@ -143,7 +143,7 @@ producer | hyv final-check -
 | `hyv fact-lint <draft\|-> --source=id:path` | Check claims against local source files. |
 | `hyv logic-lint <draft\|-> [brief.json]` | Check deterministic document logic. |
 | `hyv batch-analyze <draft...>` | Find repeated openings and endings across drafts. |
-| `hyv rewrite-prompt <draft> <profile.json>` | Create a constrained editing brief. |
+| `hyv rewrite-prompt <draft> <profile.json>` | Create a strict constrained editing brief. |
 | `hyv prepare-rewrite ...` | Create a fingerprint-bound edit task. |
 | `hyv apply-rewrite ...` | Apply and verify a response to an edit task. |
 | `hyv prepare-judgment ...` | Create a pre-edit or post-candidate judgment task. |
@@ -158,6 +158,8 @@ producer | hyv final-check -
 | `hyv patterns` | Print the active AI Editor rule catalog. |
 | `hyv agent list\|validate\|describe\|emit` | Inspect or emit portable agent contracts. |
 | `hyv mcp` | Start the local MCP server on standard input/output. |
+
+`rewrite-prompt`, `prepare-rewrite`, `apply-rewrite`, and `verify` are strict by default: every active AI Editor finding must be repaired, and verification rejects a candidate that leaves one unresolved. A Profile v3 `disabled` policy is the only deliberate exception. `strict-check` adds the separate calibrated voice-evidence decision.
 
 Most commands return JSON. Exit code `0` means the command completed, `2` means a content or policy gate failed, and `1` means the command or input was invalid.
 

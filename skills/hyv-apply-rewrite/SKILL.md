@@ -16,6 +16,7 @@ hyv apply-rewrite task.json response.json profile.json
 ## Behavior
 
 - Deterministic and local-first: this command never calls a provider and never sends drafts, samples, profiles, or telemetry to a service.
+- The task's default strict policy rejects the candidate at deterministic verification when an active AI Editor finding remains. A successful deterministic result is not calibrated `strict-ready` voice evidence.
 - Commands that write use an explicit output path. Confirm that path before running the command.
 - This agent describes how to invoke the command and what it returns. It does not change command behavior or exit codes.
 

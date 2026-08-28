@@ -16,6 +16,7 @@ hyv apply-rebuild task.json response.json profile.json (--capability-stdin|--cap
 ## Behavior
 
 - Deterministic and local-first: this command never calls a provider and never sends drafts, samples, profiles, or telemetry to a service.
+- Strict by default: evaluation rejects a rebuild candidate with any unresolved active AI Editor finding.
 - Commands that write use an explicit output path. Confirm that path before running the command.
 - This agent describes how to invoke the command and what it returns. It does not change command behavior or exit codes.
 

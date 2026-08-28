@@ -6,9 +6,9 @@
 
 The model keeps facts, names, numbers, claims, and unflagged sentences unchanged. This prevents a smoother rewrite from changing the assignment or inventing evidence.
 
-## Tier 1 — release blockers
+## Tier 1 — strict repair requirements
 
-Red findings and the profile avoid list are non-negotiable. The brief shows each affected sentence, the rule, and the repair direction. Treat every blocker as a required repair: remove the named defect rather than swapping in another stock phrase. The post-rewrite gate checks these again.
+Every active AI Editor finding, red finding, and profile avoid-list match is non-negotiable. The brief shows each affected sentence, the rule, and the repair direction. Treat every item as a required repair: remove the named defect rather than swapping in another stock phrase. The post-rewrite gate rejects a candidate that leaves an active AI Editor finding unresolved.
 
 Repairs may use only facts already present in the draft, CopySpec, WritingBrief, or supplied local source context. A rewrite must never manufacture a source, metric, date, quotation, mechanism, example, CTA, or opinion.
 
@@ -16,9 +16,9 @@ Repairs may use only facts already present in the draft, CopySpec, WritingBrief,
 
 The profile supplies the 13 observable elements of the writer’s mechanics. Treat them as targets and preserve deliberate variation. The model repairs only flagged sentences.
 
-## Tier 3 — AI Editor improvements
+## Tier 3 — remaining editorial improvements
 
-Yellow findings are editorial opportunities: formulaic transitions, vague claims, manufactured contrast, and other repeatable patterns. A match never proves AI use. When a repair asks for a source, mechanism, or next step, use it only when it is already supported; otherwise remove the unsupported framing without widening the claim. Keep clean lines intact.
+Non-blocking VoiceDNA and editorial findings remain source-bounded guidance. An AI Editor match never proves AI use, even though every active match must be repaired in the strict rewrite flow. When a repair asks for a source, mechanism, or next step, use it only when it is already supported; otherwise remove the unsupported framing without widening the claim. Keep clean lines intact.
 
 ## Tier 3.5 — editorial context
 
