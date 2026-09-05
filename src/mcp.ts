@@ -13,7 +13,6 @@ const profileJson = z.string().min(1).max(50_000);
 const copySpecJson = z.string().min(1).max(250_000);
 const writingBriefJson = z.string().min(1).max(50_000);
 const samples = z.array(writing).min(2).max(20);
-const strictSamples = z.array(writing).min(2).max(20);
 const heldoutSamples = z.array(writing).min(3).max(20);
 const evalParagraphs = z.array(z.object({ paragraph_id: z.string().min(1).max(160), text: writing })).min(2).max(50);
 const writingExamples = z.array(z.object({ basename: z.string().min(1).max(160), text: writing })).min(1).max(64);
@@ -43,10 +42,6 @@ function failure(error: unknown) {
   return { content: [{ type: 'text' as const, text: error instanceof Error ? error.message : String(error) }], isError: true };
 }
 
-function lifecycleResult(result: ReturnType<typeof submitSemanticVerdictForMcp>) {
-  return json(result.ok ? result.artifact : { error: result.error });
-}
-
 function guardedJson(run: () => unknown, publicError?: string) {
   try {
     return json(run());
@@ -56,11 +51,10 @@ function guardedJson(run: () => unknown, publicError?: string) {
 }
 
 function guardedLifecycle(run: () => ReturnType<typeof submitSemanticVerdictForMcp>, publicError?: string) {
-  try {
-    return lifecycleResult(run());
-  } catch (error) {
-    return failure(publicError ? new Error(publicError) : error);
-  }
+  return guardedJson(() => {
+    const result = run();
+    return result.ok ? result.artifact : { error: result.error };
+  }, publicError);
 }
 
 const server = new McpServer({ name: 'hold-your-voice', version: HYV_VERSION });
@@ -84,7 +78,7 @@ server.registerTool('hyv_analyze', {
 
 server.registerTool('hyv_strict_check', {
   description: 'Run the calibrated local strict-quality gate. It requires a Profile v3 and local writing samples; it returns strict-ready, needs-human-review, or blocked without changing text or learning state.',
-  inputSchema: { draft: writing, profile_json: profileJson, samples: strictSamples, writing_brief_json: writingBriefJson.optional() },
+  inputSchema: { draft: writing, profile_json: profileJson, samples, writing_brief_json: writingBriefJson.optional() },
   annotations: { readOnlyHint: true },
 }, async ({ draft, profile_json, samples: localSamples, writing_brief_json }) => guardedJson(() => strictCheckForMcp(draft, profile_json, localSamples, writing_brief_json)));
 

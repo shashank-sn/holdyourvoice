@@ -222,6 +222,10 @@ function receipt(profile: Profile, event: LearningEvent, status: LearningMutatio
   return { version: '1', ...publicMetadata, digest: digest(publicMetadata) };
 }
 
+function requestDigest(event: LearningEvent): string {
+  return digest({ ...event, eventId: undefined, timestamp: undefined, requestDigest: undefined });
+}
+
 function eventBase(profile: Profile, kind: LearningEvent['kind'], options: LearningOptions): LearningEvent {
   const mutationId = options.mutationId ?? randomUUID();
   const base = {
@@ -229,7 +233,7 @@ function eventBase(profile: Profile, kind: LearningEvent['kind'], options: Learn
     profileRevision: revision(profile), revisionDigest: revisionDigest(profile), authority: options.authority ?? 'team',
     provenance: options.provenance ?? 'local', weight: options.weight ?? 1, compatibility: options.compatibility ?? 'same-or-newer', kind,
   } as LearningEvent;
-  return { ...base, requestDigest: digest({ ...base, eventId: undefined, timestamp: undefined, requestDigest: undefined }) };
+  return { ...base, requestDigest: requestDigest(base) };
 }
 
 function mutate(profile: Profile, event: LearningEvent, options: LearningOptions, validate?: (events: LearningEvent[]) => LearningMutationStatus | undefined): LearningMutationReceipt {
@@ -266,7 +270,7 @@ export function recordVerifiedCandidate(profile: Profile, verification: Verifica
   const outcome = createHash('sha256').update(`${identity(profile)}\0${candidate}`).digest('hex');
   if (readEvents(profile, options).some((event) => event.kind === 'verified_candidate' && event.outcome === outcome)) return 'nothing_to_learn';
   const event = { ...eventBase(profile, 'verified_candidate', { ...options, mutationId: options.mutationId ?? outcome }), resolved: resolved.slice(0, MAX_RESOLVED_FINDINGS), outcome };
-  event.requestDigest = digest({ ...event, eventId: undefined, timestamp: undefined, requestDigest: undefined });
+  event.requestDigest = requestDigest(event);
   const result = mutate(profile, event, options);
   return result.status === 'recorded' ? 'recorded' : result.status === 'already_recorded' ? 'nothing_to_learn' : 'write_failed';
 }
@@ -276,20 +280,26 @@ export function recordLearningInstruction(profile: Profile, instruction: string,
   if (!normalized) throw new Error('Learning instructions cannot be empty.');
   if (normalized.length > MAX_INSTRUCTION_CHARACTERS) throw new Error(`Learning instructions must be ${MAX_INSTRUCTION_CHARACTERS} characters or fewer.`);
   const event = { ...eventBase(profile, 'instruction', options), instruction: normalized };
-  event.requestDigest = digest({ ...event, eventId: undefined, timestamp: undefined, requestDigest: undefined });
+  event.requestDigest = requestDigest(event);
   return mutate(profile, event, options);
 }
 export function addLearningInstruction(profile: Profile, instruction: string, options: LearningOptions = {}): boolean { return recordLearningInstruction(profile, instruction, options).status === 'recorded'; }
 
-export function ratifyLearningEvent(profile: ProfileV3, targetEventId: string, options: LearningOptions = {}): LearningMutationReceipt {
-  const event = { ...eventBase(profile, 'ratification', options), targetEventId };
-  event.requestDigest = digest({ ...event, eventId: undefined, timestamp: undefined, requestDigest: undefined });
-  return mutate(profile, event, options, (events) => { const target = events.find((item) => item.eventId === targetEventId); return !target ? 'not_found' : authorityRank[event.authority] < authorityRank[target.authority] ? 'unauthorized' : undefined; });
+function recordControlEvent(profile: ProfileV3, kind: 'ratification' | 'supersession', targetEventId: string, options: LearningOptions): LearningMutationReceipt {
+  const event = { ...eventBase(profile, kind, options), targetEventId };
+  event.requestDigest = requestDigest(event);
+  return mutate(profile, event, options, (events) => {
+    const target = events.find((item) => item.eventId === targetEventId);
+    return !target ? 'not_found' : authorityRank[event.authority] < authorityRank[target.authority] ? 'unauthorized' : undefined;
+  });
 }
+
+export function ratifyLearningEvent(profile: ProfileV3, targetEventId: string, options: LearningOptions = {}): LearningMutationReceipt {
+  return recordControlEvent(profile, 'ratification', targetEventId, options);
+}
+
 export function supersedeLearningEvent(profile: ProfileV3, targetEventId: string, options: LearningOptions = {}): LearningMutationReceipt {
-  const event = { ...eventBase(profile, 'supersession', options), targetEventId };
-  event.requestDigest = digest({ ...event, eventId: undefined, timestamp: undefined, requestDigest: undefined });
-  return mutate(profile, event, options, (events) => { const target = events.find((item) => item.eventId === targetEventId); return !target ? 'not_found' : authorityRank[event.authority] < authorityRank[target.authority] ? 'unauthorized' : undefined; });
+  return recordControlEvent(profile, 'supersession', targetEventId, options);
 }
 
 export function migrateLearningV2ToV3(source: ProfileV2, target: ProfileV3, options: LearningOptions = {}): LearningMutationReceipt {

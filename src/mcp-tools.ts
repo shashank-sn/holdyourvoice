@@ -23,12 +23,16 @@ import { findWritingExamples, type LocalWritingExampleInput } from './writing-ex
 import { evaluateIsolatedBacktest } from './backtest.js';
 import { evaluateLocalComposite, type EvalParagraph } from './local-eval.js';
 
-function profileFromJson(profileJson: string) {
+function parseDocument<T>(text: string, parse: (value: unknown) => T, label: string): T {
   try {
-    return parseProfile(JSON.parse(profileJson));
+    return parse(JSON.parse(text));
   } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Profile is not valid JSON.');
+    throw new Error(error instanceof Error ? error.message : `${label} is not valid JSON.`);
   }
+}
+
+function profileFromJson(profileJson: string) {
+  return parseDocument(profileJson, parseProfile, 'Profile');
 }
 
 function profileV3FromJson(profileJson: string): ProfileV3 {
@@ -38,20 +42,11 @@ function profileV3FromJson(profileJson: string): ProfileV3 {
 }
 
 function copySpecFromJson(copySpecJson: string) {
-  try {
-    return parseCopySpec(JSON.parse(copySpecJson));
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'CopySpec is not valid JSON.');
-  }
+  return parseDocument(copySpecJson, parseCopySpec, 'CopySpec');
 }
 
 function writingBriefFromJson(writingBriefJson: string | undefined) {
-  if (!writingBriefJson) return undefined;
-  try {
-    return parseWritingBrief(JSON.parse(writingBriefJson));
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'WritingBrief is not valid JSON.');
-  }
+  return writingBriefJson ? parseDocument(writingBriefJson, parseWritingBrief, 'WritingBrief') : undefined;
 }
 
 export function buildProfileForMcp(samples: string[], avoid: string[] = []) {

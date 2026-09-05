@@ -28,7 +28,7 @@ test('reconciles branch and tag creates, rewrites, and deletions', () => {
     git(root, 'clone', '--quiet', source, checkout);
     git(checkout, 'config', 'user.name', 'Mirror Test');
     git(checkout, 'config', 'user.email', 'mirror-test@example.invalid');
-    git(checkout, 'switch', '--quiet', '-c', 'main');
+    git(checkout, 'switch', '--quiet', '-c', 'fixture/main');
     writeFileSync(join(checkout, 'main.txt'), 'first\n');
     git(checkout, 'add', 'main.txt');
     git(checkout, 'commit', '--quiet', '-m', 'first');
@@ -39,7 +39,7 @@ test('reconciles branch and tag creates, rewrites, and deletions', () => {
     git(checkout, 'tag', 'v1.0.0');
     git(checkout, 'push', '--quiet', '--all', 'origin');
     git(checkout, 'push', '--quiet', '--tags', 'origin');
-    git(source, 'symbolic-ref', 'HEAD', 'refs/heads/main');
+    git(source, 'symbolic-ref', 'HEAD', 'refs/heads/fixture/main');
     git(checkout, 'remote', 'set-head', 'origin', '-a');
     git(checkout, 'remote', 'add', 'mirror', mirror);
 
@@ -47,14 +47,14 @@ test('reconciles branch and tag creates, rewrites, and deletions', () => {
     assert.deepEqual(refs(mirror), refs(source));
     assert.equal(refs(mirror).some((ref) => ref.endsWith('refs/heads/HEAD')), false);
 
-    git(checkout, 'switch', '--quiet', 'main');
+    git(checkout, 'switch', '--quiet', 'fixture/main');
     writeFileSync(join(checkout, 'main.txt'), 'rewritten\n');
     git(checkout, 'add', 'main.txt');
     git(checkout, 'commit', '--quiet', '--amend', '-m', 'rewritten main');
     git(checkout, 'branch', '-D', 'feature/test');
     git(checkout, 'tag', '-d', 'v1.0.0');
     git(checkout, 'tag', 'v2.0.0');
-    git(checkout, 'push', '--quiet', '--force', 'origin', 'main');
+    git(checkout, 'push', '--quiet', '--force', 'origin', 'fixture/main');
     git(checkout, 'push', '--quiet', 'origin', '--delete', 'feature/test');
     git(checkout, 'push', '--quiet', 'origin', ':refs/tags/v1.0.0');
     git(checkout, 'push', '--quiet', 'origin', 'v2.0.0');

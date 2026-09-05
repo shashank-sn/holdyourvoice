@@ -4,34 +4,17 @@ import { finalOutputCheck, hygieneSourceFindings } from './hygiene.js';
 import { analyze, deriveEditScope, renderRewritePrompt, verifyDeterministically } from './pipeline.js';
 import { sentences } from './text.js';
 import { fingerprint } from './internal.js';
+import { failure, parseResponseJson, projectLifecycleBinding } from './rewrite-response.js';
 
-const MAX_RESPONSE_BYTES = 100_000;
 const MAX_REPLACEMENTS = 100;
 const MAX_REPLACEMENT_CHARACTERS = 10_000;
-
-function failure(code: RewriteFailure['code'], message: string, path?: string): RewriteFailure {
-  return { code, message, ...(path ? { path } : {}) };
-}
-
-function responseFingerprint(response: unknown): string {
-  return fingerprint(response);
-}
-
-function parseJson(value: string): unknown | RewriteFailure {
-  if (Buffer.byteLength(value) > MAX_RESPONSE_BYTES) return failure('response_too_large', `Response exceeds ${MAX_RESPONSE_BYTES} bytes.`);
-  try {
-    return JSON.parse(value);
-  } catch {
-    return failure('invalid_json', 'Response must be valid JSON.');
-  }
-}
 
 function isFailure(value: unknown): value is RewriteFailure {
   return typeof value === 'object' && value !== null && 'code' in value;
 }
 
 function parseResponse(value: unknown): RewriteResponse | RewriteResponseV2 | { version: '1'; mode: 'SHIP'; taskFingerprint: string } | RewriteFailure {
-  const raw = typeof value === 'string' ? parseJson(value) : value;
+  const raw = typeof value === 'string' ? parseResponseJson(value) : value;
   if (isFailure(raw)) return raw;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return failure('invalid_response_shape', 'Response must be an object.');
   const response = raw as Record<string, unknown>;
@@ -123,7 +106,7 @@ export function parseRewriteTask(value: unknown): RewriteTask {
 }
 
 function rejected(task: RewriteTask, raw: unknown, failures: RewriteFailure[], adapterIds: string[] = []): RewriteApplyResult {
-  return { status: 'repairable', failures, receipt: { version: '1', taskFingerprint: task.fingerprint, responseFingerprint: responseFingerprint(raw), adapterIds, replacementSentenceIds: [] } };
+  return { status: 'repairable', failures, receipt: { version: '1', taskFingerprint: task.fingerprint, responseFingerprint: fingerprint(raw), adapterIds, replacementSentenceIds: [] } };
 }
 
 export function applyShip(task: RewriteTask): RewriteApplyResult {
@@ -143,7 +126,7 @@ export function applyShip(task: RewriteTask): RewriteApplyResult {
 }
 
 export function applyRewriteResponse(task: RewriteTask, raw: unknown): RewriteApplyResult {
-  const source = typeof raw === 'string' ? parseJson(raw) : raw;
+  const source = typeof raw === 'string' ? parseResponseJson(raw) : raw;
   const parsed = isFailure(source) ? source : parseResponse(source);
   const fenced = isFailure(parsed) && parsed.code === 'invalid_json' ? repairFencedJson(raw) : { value: source };
   const repaired = isFailure(parsed) && parsed.code === 'invalid_response_shape' ? repairStringifiedReplacements(source) : fenced;
@@ -153,7 +136,7 @@ export function applyRewriteResponse(task: RewriteTask, raw: unknown): RewriteAp
   if (response.taskFingerprint !== task.fingerprint) return rejected(task, raw, [failure('task_fingerprint_mismatch', 'Response task fingerprint does not match this task.', 'taskFingerprint')], adapterIds);
   if ('mode' in response && response.mode === 'SHIP') {
     const shipped = applyShip(task);
-    return { ...shipped, receipt: { ...shipped.receipt, adapterIds, responseFingerprint: responseFingerprint(raw) } };
+    return { ...shipped, receipt: { ...shipped.receipt, adapterIds, responseFingerprint: fingerprint(raw) } };
   }
   if (response.version === '2') return applyRangeResponse(task, response, raw, adapterIds);
   if (!('replacements' in response)) return rejected(task, raw, [failure('invalid_response_shape', 'Response replacements must be an array.', 'replacements')], adapterIds);
@@ -173,7 +156,7 @@ export function applyRewriteResponse(task: RewriteTask, raw: unknown): RewriteAp
     const replacement = replacements.get(sentence.index);
     if (replacement !== undefined) candidate = `${candidate.slice(0, sentence.start)}${replacement}${candidate.slice(sentence.end)}`;
   }
-  return { status: 'accepted', candidate, failures: [], receipt: { version: '1', taskFingerprint: task.fingerprint, responseFingerprint: responseFingerprint(raw), adapterIds, replacementSentenceIds: [...seen].sort((left, right) => left - right), mode: 'EDIT' } };
+  return { status: 'accepted', candidate, failures: [], receipt: { version: '1', taskFingerprint: task.fingerprint, responseFingerprint: fingerprint(raw), adapterIds, replacementSentenceIds: [...seen].sort((left, right) => left - right), mode: 'EDIT' } };
 }
 
 function applyRangeResponse(task: RewriteTask, response: RewriteResponseV2, raw: unknown, adapterIds: string[]): RewriteApplyResult {
@@ -216,7 +199,7 @@ function applyRangeResponse(task: RewriteTask, response: RewriteResponseV2, raw:
     receipt: {
       version: '1',
       taskFingerprint: task.fingerprint,
-      responseFingerprint: responseFingerprint(raw),
+      responseFingerprint: fingerprint(raw),
       adapterIds,
       operationRanges: response.operations.map((operation) => ({ startSentenceId: operation.startSentenceId, endSentenceId: operation.endSentenceId })),
       mode: 'EDIT',
@@ -242,15 +225,5 @@ export function evaluateRewriteResponse(task: RewriteTask, raw: unknown, profile
 
 export function createRewriteLifecycleBinding(task: RewriteTask, receipt: RewriteReceipt, deterministic: DeterministicVerificationArtifactV1): RewriteLifecycleBindingV1 {
   if (!deterministic.passed || receipt.taskFingerprint !== task.fingerprint) throw new Error('Lifecycle binding requires a passed deterministic artifact for this rewrite task.');
-  return {
-    rewriteTaskFingerprint: task.fingerprint,
-    rewriteResponseFingerprint: receipt.responseFingerprint,
-    deterministicArtifactFingerprint: deterministic.artifactFingerprint,
-    sourceHash: deterministic.sourceHash,
-    candidateHash: deterministic.candidateHash,
-    profileId: deterministic.profileId,
-    profileRevisionDigest: deterministic.profileRevisionDigest,
-    rulesetVersion: deterministic.rulesetVersion,
-    schemaVersion: '1',
-  };
+  return projectLifecycleBinding(task.fingerprint, receipt, deterministic);
 }
