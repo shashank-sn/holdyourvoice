@@ -42,12 +42,16 @@ export function isStrictFinding(finding: Finding): boolean {
   return finding.engine === 'ai_editor' || isBlockingFinding(finding);
 }
 
+function analysisFindings(result: Analysis): Finding[] {
+  return [...result.voiceDna.findings, ...result.aiEditor.findings, ...(result.editorial?.findings ?? [])];
+}
+
 export function strictFindings(result: Analysis): Finding[] {
-  return [...result.voiceDna.findings, ...result.aiEditor.findings, ...(result.editorial?.findings ?? [])].filter(isStrictFinding);
+  return analysisFindings(result).filter(isStrictFinding);
 }
 
 export function deriveEditScope(result: Analysis, strict = false): { eligibleSentenceIds: number[]; blocking: Finding[]; pendingJudgment: Finding[] } {
-  const findings = [...result.voiceDna.findings, ...result.aiEditor.findings, ...(result.editorial?.findings ?? [])];
+  const findings = analysisFindings(result);
   const blocking = findings.filter(strict ? isStrictFinding : isBlockingFinding);
   const pendingJudgment = strict ? [] : findings.filter((finding) => finding.appliedPolicy === 'judgment-required');
   return {
@@ -58,7 +62,7 @@ export function deriveEditScope(result: Analysis, strict = false): { eligibleSen
 }
 
 export function renderRewritePrompt(draft: string, profile: Profile, result: Analysis, learning: LearningPreference[] = [], brief?: WritingBrief, examples: LocalWritingExcerpt[] = []): string {
-  const allFindings = [...result.voiceDna.findings, ...result.aiEditor.findings, ...(result.editorial?.findings ?? [])];
+  const allFindings = analysisFindings(result);
   const scope = deriveEditScope(result, true);
   const redFindings = scope.blocking;
   const yellowFindings = allFindings.filter((finding) => !isStrictFinding(finding) && finding.appliedPolicy !== 'judgment-required');
@@ -108,8 +112,8 @@ export function rewritePrompt(draft: string, profile: Profile, learning: Learnin
 function compareCandidates(original: string, candidate: string, profile: Profile, brief?: WritingBrief) {
   const baseline = analyze(original, profile, brief);
   const checked = analyze(candidate, profile, brief);
-  const baselineFindings = [...baseline.voiceDna.findings, ...baseline.aiEditor.findings, ...(baseline.editorial?.findings ?? [])];
-  const checkedFindings = [...checked.voiceDna.findings, ...checked.aiEditor.findings, ...(checked.editorial?.findings ?? [])];
+  const baselineFindings = analysisFindings(baseline);
+  const checkedFindings = analysisFindings(checked);
   const known = new Set(baselineFindings.map((finding) => `${finding.engine}:${finding.id}:${finding.sentence}`));
   const regressions = checkedFindings.filter((finding) => !known.has(`${finding.engine}:${finding.id}:${finding.sentence}`));
   const preservation = legacySetPreservation(original, candidate).score;
@@ -135,8 +139,11 @@ function verifyRequiredFacts(candidate: string, brief?: WritingBrief) {
   return { ...result, passed: false, failures: [...result.failures, ...reversed.map((fact) => ({ id: fact.id, code: 'missing_immutable_claim' as const, message: `Required fact ${fact.id} is negated or denied.`, evidence: 'WritingBrief required fact.' }))] };
 }
 
-export function verify(original: string, candidate: string, profile: Profile, brief?: WritingBrief): Verification {
+function verifyCandidate(original: string, candidate: string, profile: Profile, brief: WritingBrief | undefined, rebuild: { copySpec: CopySpec }): CopySpecVerification;
+function verifyCandidate(original: string, candidate: string, profile: Profile, brief?: WritingBrief): Verification;
+function verifyCandidate(original: string, candidate: string, profile: Profile, brief?: WritingBrief, rebuild?: { copySpec: CopySpec }): Verification | CopySpecVerification {
   const { baseline, checked, regressions, preservation } = compareCandidates(original, candidate, profile, brief);
+  const claims = rebuild ? verifyClaims(candidate, rebuild.copySpec) : undefined;
   const finalOutput = finalOutputCheck(candidate);
   const logicLint = lintLogic(candidate, brief);
   const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
@@ -149,11 +156,16 @@ export function verify(original: string, candidate: string, profile: Profile, br
     preservationScore: preservation,
     regressions,
     strictFindings: unresolvedStrictFindings,
+    ...(claims ? { claims } : {}),
     finalOutput,
     logicLint,
     ...(factLint ? { factLint } : {}), ...(requiredFacts ? { requiredFacts } : {}),
-    passed: checked.passed && unresolvedStrictFindings.length === 0 && !regressions.some(isBlockingFinding) && preservation >= 70 && finalOutput.accepted && logicLint.passed && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
+    passed: checked.passed && unresolvedStrictFindings.length === 0 && !regressions.some(isBlockingFinding) && (claims ? claims.passed : preservation >= 70) && finalOutput.accepted && logicLint.passed && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
   };
+}
+
+export function verify(original: string, candidate: string, profile: Profile, brief?: WritingBrief): Verification {
+  return verifyCandidate(original, candidate, profile, brief);
 }
 
 export function verifyWithCopySpec(original: string, candidate: string, profile: Profile, spec: CopySpec, brief?: WritingBrief): CopySpecVerification {
@@ -163,26 +175,7 @@ export function verifyWithCopySpec(original: string, candidate: string, profile:
 }
 
 export function verifyRebuildWithCopySpec(original: string, candidate: string, profile: Profile, spec: CopySpec, brief?: WritingBrief): CopySpecVerification {
-  const { baseline, checked, regressions, preservation } = compareCandidates(original, candidate, profile, brief);
-  const claims = verifyClaims(candidate, spec);
-  const finalCheck = finalOutputCheck(candidate);
-  const logicLint = lintLogic(candidate, brief);
-  const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
-  const requiredFacts = verifyRequiredFacts(candidate, brief);
-  const unresolvedStrictFindings = strictFindings(checked);
-  return {
-    version: '2',
-    original: baseline,
-    candidate: checked,
-    preservationScore: preservation,
-    regressions,
-    strictFindings: unresolvedStrictFindings,
-    claims,
-    finalOutput: finalCheck,
-    logicLint,
-    ...(factLint ? { factLint } : {}), ...(requiredFacts ? { requiredFacts } : {}),
-    passed: checked.passed && unresolvedStrictFindings.length === 0 && !regressions.some(isBlockingFinding) && claims.passed && finalCheck.accepted && logicLint.passed && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
-  };
+  return verifyCandidate(original, candidate, profile, brief, { copySpec: spec });
 }
 
 function projectDeterministicVerificationArtifact(

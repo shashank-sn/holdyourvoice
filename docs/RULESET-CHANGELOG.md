@@ -1,5 +1,9 @@
 # ruleset changelog
 
+## 3.6.1
+
+- simplified cli command ownership, shared verification and response handling, and removed duplicate maintenance code. commands, serialized contracts, approval boundaries, the executable rule catalog, and strict-default enforcement are unchanged.
+
 ## 3.6.0
 
 - Rewrite and rebuild workflows are strict by default: every active AI Editor finding is a required repair, and deterministic verification rejects a candidate that leaves one unresolved. This changes workflow enforcement only; it does not change the executable catalog or turn a finding into authorship evidence. An explicit Profile v3 `disabled` policy remains a deliberate exception.

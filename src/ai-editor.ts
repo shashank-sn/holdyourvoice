@@ -102,12 +102,12 @@ export function serializedRules() {
   }));
 }
 
-function documentFinding(rule: Rule, sentence: { index: number; text: string }): Finding {
+function ruleFinding(rule: Rule, sentence: { index: number; text: string }): Finding {
   return { engine: 'ai_editor', id: rule.id, severity: rule.severity, sentence: sentence.index, excerpt: sentence.text, reason: rule.reason, suggestion: rule.suggestion };
 }
 
 function documentMatches(rule: Rule, prose: string, mapped: Array<{ index: number; start: number; end: number; text: string }>): Finding[] {
-  const at = (index: number) => mapped[index] ? [documentFinding(rule, mapped[index]!)] : [];
+  const at = (index: number) => mapped[index] ? [ruleFinding(rule, mapped[index]!)] : [];
   if (rule.id === 'ai.repeated-sentence-opening') {
     for (let index = 0; index + 2 < mapped.length; index += 1) {
       const opening = mapped[index]!.text.match(/^\s*(\p{L}+)/u)?.[1]?.toLocaleLowerCase();
@@ -154,15 +154,7 @@ export function analyzeAiEditor(text: string, profile?: Profile): EngineReport {
   for (const sentence of mapped) {
     for (const rule of sentenceRules) {
       if (rule.expression.test(prose.slice(sentence.start, sentence.end))) {
-        matched.push({
-          engine: 'ai_editor',
-          id: rule.id,
-          severity: rule.severity,
-          sentence: sentence.index,
-          excerpt: sentence.text,
-          reason: rule.reason,
-          suggestion: rule.suggestion,
-        });
+        matched.push(ruleFinding(rule, sentence));
       }
     }
   }
@@ -176,15 +168,7 @@ export function analyzeAiEditor(text: string, profile?: Profile): EngineReport {
       const sentence = mapped.find((candidate) => candidate.start <= matchStart && matchStart < candidate.end)
         ?? mapped.find((candidate) => candidate.start >= lineStart && candidate.start < lineStart + line.length);
       if (!sentence) continue;
-      matched.push({
-        engine: 'ai_editor',
-        id: rule.id,
-        severity: rule.severity,
-        sentence: sentence.index,
-        excerpt: sentence.text,
-        reason: rule.reason,
-        suggestion: rule.suggestion,
-      });
+      matched.push(ruleFinding(rule, sentence));
     }
     lineStart += line.length + 1;
   }

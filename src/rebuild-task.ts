@@ -25,29 +25,16 @@ import { HYV_VERSION } from './version.js';
 import { buildRecompositionBrief, measureLexicalResidual, parseRecompositionPolicy } from './recomposition.js';
 import { provenanceStatusForRebuild, writerRequestForRebuild } from './provenance-status.js';
 import { fingerprint, profileIdentity, sha256 as digest } from './internal.js';
+import { failure, parseResponseJson, projectLifecycleBinding } from './rewrite-response.js';
 
-const MAX_RESPONSE_BYTES = 100_000;
 const MAX_CANDIDATE_CHARACTERS = 100_000;
-
-function failure(code: RewriteFailure['code'], message: string, path?: string): RewriteFailure {
-  return { code, message, ...(path ? { path } : {}) };
-}
 
 function isFailure(value: unknown): value is RewriteFailure {
   return typeof value === 'object' && value !== null && 'code' in value && 'message' in value;
 }
 
-function parseJson(value: string): unknown | RewriteFailure {
-  if (Buffer.byteLength(value) > MAX_RESPONSE_BYTES) return failure('response_too_large', `Response exceeds ${MAX_RESPONSE_BYTES} bytes.`);
-  try {
-    return JSON.parse(value);
-  } catch {
-    return failure('invalid_json', 'Response must be valid JSON.');
-  }
-}
-
 function parseRebuildResponse(value: unknown): RebuildResponse | RewriteFailure {
-  const raw = typeof value === 'string' ? parseJson(value) : value;
+  const raw = typeof value === 'string' ? parseResponseJson(value) : value;
   if (isFailure(raw)) return raw;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return failure('invalid_response_shape', 'Response must be an object.');
   const response = raw as Record<string, unknown>;
@@ -186,7 +173,7 @@ function rejected(task: RebuildTask, raw: unknown, failures: RewriteFailure[]): 
 }
 
 export function applyRebuildResponse(task: RebuildTask, raw: unknown): RewriteApplyResult {
-  const response = parseRebuildResponse(typeof raw === 'string' ? parseJson(raw) : raw);
+  const response = parseRebuildResponse(typeof raw === 'string' ? parseResponseJson(raw) : raw);
   if (isFailure(response)) return rejected(task, raw, [response]);
   if (response.taskFingerprint !== task.fingerprint) {
     return rejected(task, raw, [failure('task_fingerprint_mismatch', 'Response task fingerprint does not match this task.', 'taskFingerprint')]);
@@ -261,15 +248,5 @@ export function createRebuildLifecycleBinding(task: RebuildTask, receipt: Rewrit
   if (!deterministic.passed || receipt.taskFingerprint !== task.fingerprint || receipt.mode !== 'REBUILD' || deterministic.verificationKind !== 'rebuild') {
     throw new Error('Lifecycle binding requires a passed rebuild artifact for this rebuild task.');
   }
-  return {
-    rewriteTaskFingerprint: task.fingerprint,
-    rewriteResponseFingerprint: receipt.responseFingerprint,
-    deterministicArtifactFingerprint: deterministic.artifactFingerprint,
-    sourceHash: deterministic.sourceHash,
-    candidateHash: deterministic.candidateHash,
-    profileId: deterministic.profileId,
-    profileRevisionDigest: deterministic.profileRevisionDigest,
-    rulesetVersion: deterministic.rulesetVersion,
-    schemaVersion: '1',
-  };
+  return projectLifecycleBinding(task.fingerprint, receipt, deterministic);
 }
