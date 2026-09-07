@@ -1,0 +1,31 @@
+{
+  "name": "hold-your-voice",
+  "version": "3.6.1",
+  "description": "A careful writing-review workflow for protecting voice and removing generic AI patterns.",
+  "author": {
+    "name": "Shashank SN",
+    "url": "https://github.com/shashank-sn"
+  },
+  "homepage": "https://github.com/shashank-sn/holdyourvoice",
+  "repository": "https://github.com/shashank-sn/holdyourvoice",
+  "license": "MIT",
+  "keywords": ["writing", "voice", "editing", "privacy"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Hold Your Voice",
+    "shortDescription": "Review and revise writing without sanding off its voice.",
+    "longDescription": "A deliberate writing-review workflow for spotting generic AI patterns, protecting stated constraints, and revising only the text that needs work. It gives editorial guidance in ChatGPT; it does not run the local HYV CLI or claim deterministic VoiceDNA results.",
+    "developerName": "Shashank SN",
+    "category": "Productivity",
+    "capabilities": [],
+    "websiteURL": "https://github.com/shashank-sn/holdyourvoice",
+    "privacyPolicyURL": "https://github.com/shashank-sn/holdyourvoice/blob/main/docs/wiki/Privacy-and-Data-Rights.md",
+    "termsOfServiceURL": "https://github.com/shashank-sn/holdyourvoice/blob/main/docs/TERMS.md",
+    "defaultPrompt": [
+      "Review this draft for generic AI patterns while preserving its meaning and constraints.",
+      "Rewrite this draft in the style of these examples. Show a short review first, then the revision.",
+      "Check this final draft for visible formatting, unsupported claims, and wording that feels unlike the supplied examples."
+    ],
+    "brandColor": "#1F2937"
+  }
+}
