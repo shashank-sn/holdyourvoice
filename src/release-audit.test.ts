@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   mirror:
-    if: github.repository == 'shashank-sn/holdyourvoice'
+    if: github.repository == 'shashank-sn/holdyourvoice' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -96,15 +96,29 @@ test('accepts the complete public package contract', () => {
   }
 });
 
-test('requires the mirror workflow to run only in the public source repository', () => {
+test('requires the mirror workflow to run only in the public source repository outside Dependabot pushes', () => {
   const directory = fixture({
     'README.md': '# public',
-    '.github/workflows/mirror-to-stitchflow.yml': mirrorWorkflow.replace("    if: github.repository == 'shashank-sn/holdyourvoice'\n", ''),
+    '.github/workflows/mirror-to-stitchflow.yml': mirrorWorkflow.replace("    if: github.repository == 'shashank-sn/holdyourvoice' && github.actor != 'dependabot[bot]'\n", ''),
   });
   try {
     const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /mirror workflow must run only in the public source repository with a bounded timeout/);
+    assert.match(result.stderr, /mirror workflow must run only in the public source outside Dependabot pushes with a bounded timeout/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('requires the mirror workflow to exclude Dependabot pushes', () => {
+  const directory = fixture({
+    'README.md': '# public',
+    '.github/workflows/mirror-to-stitchflow.yml': mirrorWorkflow.replace(" && github.actor != 'dependabot[bot]'", ''),
+  });
+  try {
+    const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /mirror workflow must run only in the public source outside Dependabot pushes with a bounded timeout/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -116,7 +130,7 @@ for (const requirement of [
   { name: 'scheduled reconciliation', fragment: "  schedule:\n    - cron: '17 3 \* \* \*'\n", error: /mirror workflow must reconcile refs on a schedule/ },
   { name: 'serialized updates', fragment: '  group: mirror-to-stitchflow\n', error: /mirror workflow must serialize full-ref updates and finish the active update/ },
   { name: 'non-cancelled active updates', fragment: '  cancel-in-progress: false\n', error: /mirror workflow must serialize full-ref updates and finish the active update/ },
-  { name: 'bounded execution', fragment: '    timeout-minutes: 10\n', error: /mirror workflow must run only in the public source repository with a bounded timeout/ },
+  { name: 'bounded execution', fragment: '    timeout-minutes: 10\n', error: /mirror workflow must run only in the public source outside Dependabot pushes with a bounded timeout/ },
   { name: 'current checkout action', fragment: '      - uses: actions/checkout@v7\n', error: /mirror workflow must use the current checkout action/ },
   { name: 'deploy-key validation', fragment: '          if [ -z "${MIRROR_DEPLOY_KEY:-}" ]; then\n', error: /mirror workflow must validate the source deploy key/ },
   { name: 'tested reconciliation', fragment: '          node scripts/mirror-refs.mjs\n', error: /mirror workflow must run the tested ref reconciler/ },
