@@ -37,13 +37,32 @@ function hasOverlap(claimTerms: string[], source: SourceSentence): boolean {
 }
 function dates(value: string): string[] { return [...value.matchAll(DATE)].map((match) => new Date(match[0]).toISOString().slice(0, 10)).filter((value) => value !== ''); }
 function numbers(value: string): string[] { return value.match(/\b\d+(?:\.\d+)?\s*(?:%|days?|hours?|weeks?|months?|years?)?\b/gi) ?? []; }
+function numberContext(value: string): string {
+  return normal(numbers(value).reduce((text, number) => text.replace(number, 'QUANTITY'), value));
+}
 function negated(value: string): boolean { return /\b(?:does not|do not|did not|is not|are not|cannot|can't|won't|not)\b/i.test(value); }
 const NON_ENTITIES = new Set(['A', 'An', 'And', 'After', 'As', 'At', 'But', 'For', 'From', 'He', 'I', 'In', 'It', 'Its', 'On', 'Or', 'She', 'The', 'This', 'That', 'They', 'We', 'With', 'You']);
+const NUMBER_WORDS = /^(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?$/i;
 const CAPABILITY = /\b(?:exports?|supports|includes?|works with|can\s+(?:export|support|include)|(?:does not|do not|did not|is not|are not)\s+support)\s+([^.!?]+)/gi;
 const CAPABILITY_FILLER = new Set(['a', 'an', 'as', 'data', 'file', 'files', 'report', 'reports', 'the']);
 const CAPABILITY_FORMATS = new Set(['csv', 'json', 'pdf', 'xml']);
 function entities(value: string): string[] {
-  return (value.match(/\b[A-Z][\p{L}\p{M}'-]*(?:\s+[A-Z][\p{L}\p{M}'-]+)?\b/gu) ?? []).filter((entity) => !NON_ENTITIES.has(entity) && entity !== entity.toUpperCase());
+  return (value.match(/\b[A-Z][\p{L}\p{M}'-]*(?:\s+[A-Z][\p{L}\p{M}'-]+)?\b/gu) ?? []).filter((entity) => !NON_ENTITIES.has(entity) && !NUMBER_WORDS.test(entity) && entity !== entity.toUpperCase());
+}
+function entityContext(value: string): string {
+  return numberContext(entities(value).reduce((text, entity) => text.replace(entity, 'ENTITY'), value));
+}
+function hasEntityEvidence(claim: string, source: string, sourceLines: SourceSentence[]): boolean {
+  const sourceNames = entities(source);
+  return entities(claim).every((name, index) => {
+    const sourceName = sourceNames[index];
+    if (!sourceName) return false;
+    if (name === sourceName || (name.includes(' ') && sourceName.includes(' '))) return true;
+    if (sourceLines.some(({ text }) => entities(text).includes(sourceName) && text.indexOf(sourceName) > 0)) return true;
+    const productTypo = capabilityObjects(source).length > 0 && name.length >= 4 && name.length === sourceName.length
+      && [...name].filter((letter, position) => letter !== sourceName[position]).length === 1;
+    return productTypo;
+  });
 }
 function capabilityObjects(text: string): string[][] {
   return [...text.matchAll(CAPABILITY)].map((match) => [...new Set(tokens(match[1]).map((token) => token.replace(/s$/, '')).filter((token) => !CAPABILITY_FILLER.has(token)))]).filter((items) => items.length > 0);
@@ -73,7 +92,7 @@ function finding(claim: FactClaim, kind: FactFindingKind, severity: FactSeverity
 }
 
 export function extractFactClaims(draft: string): FactClaim[] {
-  const output = sentences(draft).map((sentence) => ({ text: sentence.text, sentence: sentence.index, start: sentence.start, end: sentence.end, kinds: kindFor(sentence.text) }));
+  const output = sentences(draft).filter((sentence) => !/^that['’]s it[.!]?$/i.test(sentence.text.trim())).map((sentence) => ({ text: sentence.text, sentence: sentence.index, start: sentence.start, end: sentence.end, kinds: kindFor(sentence.text) }));
   for (const match of draft.matchAll(/["“]([^"”]+)["”]/g)) {
     const start = match.index ?? 0; const containing = output.find((claim) => claim.start <= start && claim.end >= start) ?? output.find((claim) => claim.start <= start) ?? output[0];
     if (containing) output.push({ text: match[0], sentence: containing.sentence, start, end: start + match[0].length, kinds: ['attribution_quote'] });
@@ -110,7 +129,9 @@ function findingsForClaim(claim: FactClaim, input: FactLintInput, sourceLines: S
   const evidenceItems = relevant.length ? evidenceFor(relevant.slice(0, 2)) : fallbackEvidence(sourceLines);
   const quote = claim.text.match(QUOTE)?.[1];
   const sourceHasAttribution = input.sources.some((source) => /\b(said|according to|reported)\b/i.test(source.text));
-  if (quote && sourceHasAttribution && !input.sources.some((source) => source.text.includes(quote))) {
+  const enclosingSentence = sentences(input.draft).find((sentence) => sentence.start <= claim.start && sentence.end >= claim.start);
+  const claimHasAttribution = /\b(said|according to|reported)\b/i.test(enclosingSentence?.text ?? claim.text);
+  if (quote && claimHasAttribution && sourceHasAttribution && !input.sources.some((source) => source.text.includes(quote))) {
     const quoteRelevant = sourceLines.filter(({ text }) => /\b(said|according to|reported)\b/i.test(text));
     const quoteEvidence = quoteRelevant.length ? evidenceFor(quoteRelevant.slice(0, 2)) : input.sources.slice(0, 1).map((source) => evidence(source, source.text));
     return [finding(claim, 'quote_drift', 'error', 'The quoted wording differs from the supplied source.', quoteEvidence, 'high', 'Use the source wording or label the text as a paraphrase.')];
@@ -120,8 +141,12 @@ function findingsForClaim(claim: FactClaim, input: FactLintInput, sourceLines: S
   const sourceDates = relevant.flatMap(({ text }) => dates(text));
   const claimNumbers = numbers(claim.text);
   const sourceNumbers = relevant.flatMap(({ text }) => numbers(text));
-  if (!claimDates.length && !claim.kinds.includes('attribution_quote') && claimNumbers.length && sourceNumbers.length && claimNumbers.some((number) => !sourceNumbers.some((sourceNumber) => normal(sourceNumber) === normal(number)))) {
-    return [finding(claim, 'number_drift', 'error', 'A number or unit differs from relevant source evidence.', evidenceItems, 'high', 'Correct the number or unit, or cite a newer source.')];
+  if (!claimDates.length && (!claim.kinds.includes('attribution_quote') || (quote && !claimHasAttribution)) && claimNumbers.length && sourceNumbers.length && claimNumbers.some((number) => !sourceNumbers.some((sourceNumber) => normal(sourceNumber) === normal(number)))) {
+    const matching = relevant.filter(({ text }) => numberContext(text) === numberContext(claim.text));
+    if (matching.length) {
+      return [finding(claim, 'number_drift', 'error', 'A number or unit differs in otherwise matching source wording.', evidenceFor(matching.slice(0, 2)), 'high', 'Correct the number or unit, or cite a newer source.')];
+    }
+    return [finding(claim, 'missing_evidence', 'needs_human_review', 'The number is absent from related source wording, but the source relation does not match closely enough to establish a contradiction.', evidenceItems, 'low', 'Check whether the number is derived, paraphrased, or unsupported before changing it.')];
   }
   if (claimDates.length && sourceDates.length && claimDates.some((date) => !sourceDates.includes(date))) {
     return [finding(claim, 'date_drift', 'error', 'The draft date differs from relevant source evidence.', evidenceItems, 'high', 'Correct the date or cite a newer source.')];
@@ -130,7 +155,11 @@ function findingsForClaim(claim: FactClaim, input: FactLintInput, sourceLines: S
   const claimEntities = entities(claim.text);
   const sourceEntities = relevant.flatMap(({ text }) => entities(text));
   if (claimEntities.length && sourceEntities.length && claimEntities.some((entity) => !sourceEntities.some((sourceEntity) => normal(sourceEntity) === normal(entity)))) {
-    return [finding(claim, 'entity_drift', 'error', 'A named entity differs from relevant source evidence.', evidenceItems, 'high', 'Correct the name or cite the source that supports it.')];
+    const matching = relevant.filter(({ text }) => entityContext(text) === entityContext(claim.text) && hasEntityEvidence(claim.text, text, sourceLines));
+    if (matching.length) {
+      return [finding(claim, 'entity_drift', 'error', 'A named entity differs in otherwise matching source wording.', evidenceFor(matching.slice(0, 2)), 'high', 'Correct the name or cite the source that supports it.')];
+    }
+    return [finding(claim, 'missing_evidence', 'needs_human_review', 'Capitalized wording differs, but matching context does not establish an entity substitution.', evidenceItems, 'low', 'Review the wording and source context before changing names.')];
   }
 
   const capability = capabilityFinding(claim, relevant, evidenceItems);
@@ -147,11 +176,12 @@ function findingsForClaim(claim: FactClaim, input: FactLintInput, sourceLines: S
   if (overreach.length) return overreach;
   if (claimDates.some((date) => sourceDates.includes(date)) || same) return [];
 
-  if (!relevant.length && claim.kinds.includes('fact') && claimTerms.length <= 4) {
-    return [finding(claim, 'missing_evidence', 'needs_human_review', 'No close source evidence was found; the wording is too sparse for a reliable deterministic verdict.', evidenceItems, 'low', 'Confirm with a reviewer or provide a source.')];
-  }
-  if (!relevant.length || (claim.kinds.includes('number') && !relevant.some(({ text }) => /\b\d+(?:\.\d+)?%?\b/.test(text)))) {
+  if (claim.kinds.includes('number') && !sourceLines.some(({ text }) => numbers(text).length)) {
     return [finding(claim, 'unsupported_claim', 'error', 'No supplied source supports this checkable claim.', evidenceItems, 'medium', 'Add a source, remove the claim, or mark it as an approved hypothesis.')];
+  }
+
+  if (quote && !claimHasAttribution) {
+    return [finding(claim, 'missing_evidence', 'needs_human_review', 'The quotation is not attributed; deterministic matching cannot distinguish a rhetorical label from a sourced quotation.', evidenceItems, 'low', 'Review the quotation in context and attribute it if it presents source wording.')];
   }
 
   const semantic = semanticAdapter?.compare({ claim: claim.text, sources: input.sources });
@@ -159,11 +189,11 @@ function findingsForClaim(claim: FactClaim, input: FactLintInput, sourceLines: S
   if (semantic === 'contradicted') {
     return [finding(claim, 'semantic_contradiction', 'error', 'The configured semantic adapter found contradictory source evidence.', evidenceItems, 'medium', 'Review the cited sources and correct or qualify the claim.')];
   }
-  return [finding(claim, 'missing_evidence', 'needs_human_review', 'Relevant source material exists, but deterministic matching could not establish support.', evidenceItems, 'low', 'Review the source context or enable an approved semantic adapter.')];
+  return [finding(claim, 'missing_evidence', 'needs_human_review', 'Deterministic matching could not establish support; lexical differences alone do not establish a factual error.', evidenceItems, 'low', 'Review the source context or enable an approved semantic adapter.')];
 }
 
 function draftContradictions(claims: FactClaim[], sourceLines: SourceSentence[]): FactFinding[] {
-  const normalized = claims.map((claim) => {
+  const normalized = claims.filter((claim) => !/^["“][\s\S]*["”]$/.test(claim.text.trim())).map((claim) => {
     const text = normal(claim.text);
     return { claim, core: normal(text.replace(/\bnot\b/g, '')), negated: /\bnot\b/.test(text) };
   });
