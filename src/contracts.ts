@@ -279,12 +279,18 @@ export interface RewriteTaskSentence {
   eligible: boolean;
 }
 
+export interface RewriteFactRepair {
+  eligibleSentenceIds: number[];
+  findings: import('./fact-linter.js').FactFinding[];
+}
+
 export interface RewriteTask {
   version: '1';
   fingerprint: string;
   draft: string;
   sentences: RewriteTaskSentence[];
   eligibleSentenceIds: number[];
+  factRepair?: RewriteFactRepair;
   prompt: string;
   copySpec?: CopySpec;
   writingBrief?: WritingBrief;
@@ -414,9 +420,21 @@ export interface RewriteApplyResult {
   receipt: RewriteReceipt;
 }
 
+export interface RewriteFeedback {
+  disposition: 'repair_in_scope' | 'review_required';
+  message: string;
+  blockers: Array<{
+    gate: 'analysis' | 'facts' | 'logic' | 'preservation' | 'required_facts' | 'copy_spec' | 'hygiene';
+    disposition: 'repair_in_scope' | 'review_required';
+    sentenceIds: number[];
+    reason: string;
+  }>;
+}
+
 export interface RewriteEvaluation extends Omit<RewriteApplyResult, 'status'> {
   status: 'accepted' | 'repairable' | 'needs_escalation' | 'needs_semantic_review';
   verification?: Verification | CopySpecVerification;
+  feedback?: RewriteFeedback;
   deterministicArtifact?: DeterministicVerificationArtifactV1;
   lifecycleBinding?: RewriteLifecycleBindingV1;
 }

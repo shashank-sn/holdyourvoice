@@ -42,7 +42,13 @@ standard and rebuild verification share voicedna and ai editor checks, blocking-
 
 ## edit scope and approval
 
-`analysis.ts` derives edit eligibility from structured blocking findings. advisory and pending-judgment findings cannot grant edit scope. rewrite preparation stays limited to flagged sentence ids and preserves clean, unflagged text.
+`analysis.ts` derives edit eligibility from structured blocking findings. advisory and pending-judgment findings cannot grant edit scope. rewrite preparation includes strict findings, explicit caller authorization, and narrowly confirmed source mismatches; other sentences stay protected.
+
+`RewriteTask.factRepair` records source findings and the subset that grants sentence edit permission. automatic fact scope currently covers high-confidence number, date, and quote mismatches only when the claim matches a unique supplied source sentence after masking that value type. other wording must match. conflicting sources, uncertain evidence, entity changes, and capability changes require review; a confidence label alone cannot unlock text. the prompt reports the same eligibility and includes source excerpts as evidence. tasks without this optional field remain valid.
+
+`evaluateRewriteResponse` retains the existing lifecycle statuses. failed deterministic verification withholds the candidate and adds `feedback`: `repair_in_scope` permits another attempt limited to the listed blockers; `review_required` tells the caller to stop automatic retries and resolve evidence, conflicting constraints, or scope with a reviewer. blockers name the failed gate and use sentence IDs from the evaluated candidate; replacement IDs still come from the original task. aggregate, preservation, immutable-claim, logic, and unresolved hygiene failures conservatively require review. no provider calls or retry loop run inside the library. callers must inspect this disposition before retrying, and apply their own bounded attempt budget.
+
+deterministic success still returns `needs_semantic_review` with its artifact and lifecycle binding. remaining fact warnings or human-review findings additionally return `feedback.disposition: review_required`; the message explicitly distinguishes passed deterministic checks from unresolved factual meaning. this does not grant broader edit scope or replace semantic approval.
 
 | module | owns |
 | --- | --- |

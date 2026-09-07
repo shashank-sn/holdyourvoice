@@ -1,1 +1,1 @@
-export const HYV_VERSION = '4.0.0';
+export const HYV_VERSION = '4.0.1';

@@ -1,4 +1,5 @@
-import type { CopySpec, DeterministicVerificationArtifactV1, HygieneRangeOperation, Profile, RewriteApplyResult, RewriteEvaluation, RewriteFailure, RewriteLifecycleBindingV1, RewriteRangeOperation, RewriteReceipt, RewriteReplacement, RewriteResponse, RewriteResponseV2, RewriteTask, WritingBrief } from './contracts.js';
+import type { CopySpec, DeterministicVerificationArtifactV1, HygieneRangeOperation, Profile, RewriteApplyResult, RewriteEvaluation, RewriteFailure, RewriteFeedback, RewriteLifecycleBindingV1, RewriteRangeOperation, RewriteReceipt, RewriteReplacement, RewriteResponse, RewriteResponseV2, RewriteTask, WritingBrief } from './contracts.js';
+import { deriveFactRepair, isSourceBackedRepair } from './rewrite-prompt.js';
 import { parseWritingBrief } from './editorial-packs.js';
 import { finalOutputCheck, hygieneSourceFindings } from './hygiene.js';
 import { analyze, deriveEditScope, renderRewritePrompt, verifyDeterministically } from './pipeline.js';
@@ -84,15 +85,17 @@ function decodeResponse(raw: unknown): { response: ParsedResponse; adapterIds: s
 
 export function prepareRewriteTask(draft: string, profile: Profile, copySpec?: CopySpec, writingBrief?: WritingBrief, authorizedSentenceIds: number[] = []): RewriteTask {
   const result = analyze(draft, profile, writingBrief);
-  const prompt = renderRewritePrompt(draft, profile, result, [], writingBrief);
+  const factRepair = deriveFactRepair(draft, writingBrief);
+  const prompt = renderRewritePrompt(draft, profile, result, [], writingBrief, [], factRepair, authorizedSentenceIds);
   const mapped = sentences(draft);
-  const eligibleSentenceIds = new Set([...deriveEditScope(result, true).eligibleSentenceIds, ...authorizedSentenceIds]);
+  const eligibleSentenceIds = new Set([...deriveEditScope(result, true).eligibleSentenceIds, ...(factRepair?.eligibleSentenceIds ?? []), ...authorizedSentenceIds]);
   const taskBase = {
     version: '1' as const,
     draft,
     sentences: mapped.map((sentence) => ({ id: sentence.index, text: sentence.text, eligible: eligibleSentenceIds.has(sentence.index) })),
     eligibleSentenceIds: [...eligibleSentenceIds].sort((left, right) => left - right),
     prompt,
+    ...(factRepair ? { factRepair } : {}),
     ...(copySpec ? { copySpec } : {}),
     ...(writingBrief ? { writingBrief } : {}),
   };
@@ -218,10 +221,44 @@ export function evaluateRewriteResponse(task: RewriteTask, raw: unknown, profile
   const deterministicArtifact = checked.artifact;
   if (!verification.passed) {
     const { candidate: _candidate, ...withheld } = applied;
-    return { ...withheld, status: 'needs_escalation', verification };
+    return { ...withheld, status: 'needs_escalation', verification, feedback: rewriteFeedback(task, candidate, verification, output.changed) };
   }
   const lifecycleBinding = createRewriteLifecycleBinding(task, applied.receipt, deterministicArtifact);
-  return { ...applied, candidate, status: 'needs_semantic_review', verification, deterministicArtifact, lifecycleBinding };
+  const pendingFacts = verification.factLint?.findings.filter((finding) => finding.severity !== 'error') ?? [];
+  const feedback: RewriteFeedback | undefined = pendingFacts.length ? {
+    disposition: 'review_required',
+    message: 'Deterministic checks passed, but fact findings remain uncertain. Review the cited evidence during semantic review; these findings grant no added edit permission.',
+    blockers: pendingFacts.map((finding) => ({ gate: 'facts', disposition: 'review_required', sentenceIds: [finding.draftLocation.sentence], reason: finding.reason })),
+  } : undefined;
+  return { ...applied, candidate, status: 'needs_semantic_review', verification, deterministicArtifact, lifecycleBinding, ...(feedback ? { feedback } : {}) };
+}
+
+function rewriteFeedback(task: RewriteTask, candidate: string, verification: NonNullable<RewriteEvaluation['verification']>, hygieneChanged: boolean): RewriteFeedback {
+  const sourceHygiene = finalOutputCheck(task.draft);
+  const stableSentenceScope = !hygieneChanged && !sourceHygiene.changed && sourceHygiene.accepted;
+  const protectedText = new Set(task.sentences.filter((sentence) => !sentence.eligible).map((sentence) => sentence.text));
+  const candidateSentences = new Map(sentences(candidate).map((sentence) => [sentence.index, sentence.text]));
+  const inScope = (ids: number[]) => stableSentenceScope && ids.length > 0 && ids.every((id) => candidateSentences.has(id) && !protectedText.has(candidateSentences.get(id)!));
+  const blockers: RewriteFeedback['blockers'] = [];
+  const add = (gate: RewriteFeedback['blockers'][number]['gate'], reason: string, sentenceIds: number[] = [], repairable = false) => {
+    blockers.push({ gate, sentenceIds: [...new Set(sentenceIds)], reason: repairable && !stableSentenceScope ? `${reason} Hygiene normalization prevents reliable original sentence scope matching; review before retrying.` : reason, disposition: repairable && inScope(sentenceIds) ? 'repair_in_scope' : 'review_required' });
+  };
+  if (verification.strictFindings.length) {
+    for (const finding of verification.strictFindings) add('analysis', finding.reason, [finding.sentence], true);
+  } else if (!verification.candidate.passed) add('analysis', 'The aggregate analysis gate failed without a sentence-level repair. Review the profile or task scope.');
+  for (const finding of verification.factLint?.findings ?? []) {
+    if (finding.severity === 'error') add('facts', finding.reason, [finding.draftLocation.sentence], isSourceBackedRepair(finding, task.writingBrief?.factSources));
+  }
+  if (!verification.logicLint.passed) add('logic', 'Resolve the reported logic conflict with a reviewer before changing claims.', verification.logicLint.findings.filter((finding) => finding.severity === 'error').map((finding) => finding.sentence));
+  if (verification.preservationScore < 70) add('preservation', 'The candidate does not preserve enough source content. Review the changes before retrying.');
+  if (verification.requiredFacts && !verification.requiredFacts.passed) add('required_facts', 'Required facts are missing or denied. Review their compatibility with the authorized edits.');
+  if ('claims' in verification && !verification.claims.passed) add('copy_spec', 'CopySpec claim verification failed. Review the immutable claims before retrying.');
+  if (!verification.finalOutput.accepted) add('hygiene', 'Final-output hygiene remains unresolved. Review the reported characters and their permitted removal.');
+  if (!blockers.length) add('analysis', 'Verification failed without a localized repair. Review the verification report.');
+  const disposition = blockers.some((blocker) => blocker.disposition === 'review_required') ? 'review_required' : 'repair_in_scope';
+  return { disposition, message: disposition === 'review_required'
+    ? 'Stop automatic retries. Resolve the listed blockers with a reviewer or obtain a newly authorized task; protected sentences remain locked.'
+    : 'Repair only the listed blockers within this task scope, then verify again. Sentence IDs refer to the evaluated candidate; submit replacements using the original task IDs.', blockers };
 }
 
 export function createRewriteLifecycleBinding(task: RewriteTask, receipt: RewriteReceipt, deterministic: DeterministicVerificationArtifactV1): RewriteLifecycleBindingV1 {

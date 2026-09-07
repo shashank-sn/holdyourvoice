@@ -200,3 +200,26 @@ test('word economy review precedes output without unlocking protected sentences'
   assert.equal(result.failures[0]?.code, 'ineligible_sentence_id');
   assert.equal(task.draft, draft);
 });
+
+// Synthetic hidden-control fixtures exercise protected sentence provenance after cleanup.
+test('hygiene cleanup never grants retry permission to protected sentences', () => {
+  const guardedProfile = buildProfile(['The plan is ready.', 'The queue has room.'], ['robust', 'leverage']);
+  for (const draft of ['The plan is rob\u0007ust.', 'The plan is rob\u0007ust. I leverage the queue.']) {
+    const task = prepareRewriteTask(draft, guardedProfile);
+    assert.equal(task.sentences[0]?.eligible, false);
+    const response = { version: '1', taskFingerprint: task.fingerprint, replacements: [] };
+    const result = evaluateRewriteResponse(task, response, guardedProfile);
+    assert.equal(result.status, 'needs_escalation');
+    assert.equal(result.feedback?.disposition, 'review_required');
+    assert.ok(result.feedback?.blockers.some((blocker) => blocker.gate === 'analysis' && blocker.sentenceIds.includes(1) && blocker.disposition === 'review_required'));
+    assert.equal(applyRewriteResponse(task, { ...response, replacements: [{ sentenceId: 1, text: 'The plan is ready.' }] }).status, 'repairable');
+  }
+});
+
+test('hygiene changes that split sentence boundaries conservatively require review', () => {
+  const guardedProfile = buildProfile(['The plan is ready.', 'The queue has room.'], ['robust']);
+  const task = prepareRewriteTask('The plan is ready.\u0007The queue is robust.', guardedProfile);
+  const result = evaluateRewriteResponse(task, { version: '1', taskFingerprint: task.fingerprint, replacements: [] }, guardedProfile);
+  assert.equal(result.feedback?.disposition, 'review_required');
+  assert.ok(result.feedback?.blockers.filter((blocker) => blocker.gate === 'analysis').every((blocker) => blocker.disposition === 'review_required'));
+});
