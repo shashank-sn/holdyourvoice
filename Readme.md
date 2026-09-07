@@ -50,6 +50,8 @@ hyv verify draft.md candidate.md profile.json
 hyv final-check candidate.md
 ```
 
+before verification, the editing brief asks for a word economy review: **every word must earn its place.** cut filler, repeated ideas, and needless setup when removing them loses no meaning, evidence, clarity, or voice. preserve necessary uncertainty, attribution, emphasis, and rhythm. this is an editor or model judgment, not an automatic score or a word-count target. edits must stay within the authorized scope.
+
 rewrite and verification commands are strict by default: every active ai editor finding must be repaired. a v3 profile can deliberately disable a rule. verification also checks preservation, logic, required facts when supplied, and final-output hygiene. it does not record learning.
 
 `final-check` writes accepted text to stdout. it removes a leading byte-order mark; unresolved hidden characters withhold output and return exit code `2`. run it after the last edit or formatting change. stdin works too:

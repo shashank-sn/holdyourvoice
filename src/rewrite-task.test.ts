@@ -185,3 +185,18 @@ test('repairs only an exact outer JSON code fence after JSON parsing fails', () 
   assert.equal(result.status, 'accepted');
   assert.deepEqual(result.receipt.adapterIds, ['fenced_json_v1']);
 });
+
+
+test('word economy review precedes output without unlocking protected sentences', () => {
+  const draft = 'I leverage the answer. The launch may start Tuesday.';
+  const task = prepareRewriteTask(draft, profile);
+  assert.match(task.prompt, /every word must earn its place/);
+  assert.match(task.prompt, /meaning, evidence, clarity, or voice/);
+  assert.match(task.prompt, /Preserve facts, attribution, uncertainty, emphasis, rhythm/);
+  assert.match(task.prompt, /Do not optimize for a word-count target/);
+  assert.ok(task.prompt.indexOf('# Word economy review') < task.prompt.indexOf('# Tier 4'));
+  const result = applyRewriteResponse(task, { version: '1', taskFingerprint: task.fingerprint, replacements: [{ sentenceId: 2, text: 'The launch starts Tuesday.' }] });
+  assert.equal(result.status, 'repairable');
+  assert.equal(result.failures[0]?.code, 'ineligible_sentence_id');
+  assert.equal(task.draft, draft);
+});

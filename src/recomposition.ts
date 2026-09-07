@@ -1,3 +1,4 @@
+import { WORD_ECONOMY_REVIEW } from './rewrite-prompt.js';
 import type { CopySpec, LexicalResidualReportV1, RecompositionPolicyV1, WritingBrief } from './contracts.js';
 import { canonicalJson } from './canonical-json.js';
 import { words } from './text.js';
@@ -58,6 +59,9 @@ export function buildRecompositionBrief(copySpec: CopySpec, writingBrief?: Writi
     'Write a new whole-document candidate from the structured facts and constraints below.',
     'Do not edit, quote, or mirror source wording unless a CopySpec claim or atom requires it.',
     'Return only the candidate. Do not claim anything about authorship, AI origin, or watermark status.',
+    '',
+    '# Word economy review',
+    WORD_ECONOMY_REVIEW,
     '',
     '# CopySpec',
     canonicalJson({ audience: copySpec.audience, intent: copySpec.intent, channel: copySpec.channel, claims: copySpec.claims, ...(copySpec.prohibitedClaims ? { prohibitedClaims: copySpec.prohibitedClaims } : {}) }),

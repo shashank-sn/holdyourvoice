@@ -1,3 +1,4 @@
+import { WORD_ECONOMY_REVIEW } from './rewrite-prompt.js';
 import type {
   ApprovalTrustStoreV1,
   CopySpec,
@@ -61,6 +62,9 @@ function renderRebuildPrompt(draft: string, copySpec: CopySpec, writingBrief?: W
     'Return a whole-document candidate. Do not emit sentence replacements or range operations.',
     'Keep every immutable CopySpec claim and atom. Do not add prohibited claims.',
     'Claim, polarity, hygiene, fingerprint, and semantic gates remain blocking. Lexical survival is not required.',
+    '',
+    '# Word economy review',
+    WORD_ECONOMY_REVIEW,
     '',
     '# CopySpec',
     canonicalJson({ audience: copySpec.audience, intent: copySpec.intent, channel: copySpec.channel, claims: copySpec.claims, ...(copySpec.prohibitedClaims ? { prohibitedClaims: copySpec.prohibitedClaims } : {}) }),

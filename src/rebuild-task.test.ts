@@ -223,3 +223,15 @@ test('meaning-first rebuild binds the residual policy and blocks carried-over wo
   assert.equal(fresh.status, 'needs_semantic_review');
   assert.equal(fresh.receipt.lexicalResidual?.passed, true);
 });
+
+
+test('both rebuild modes require word economy review within preservation constraints', () => {
+  const reduction = rebuildRecommendation();
+  for (const policy of [undefined, recompositionPolicy]) {
+    const task = prepareRebuildTask(draft, profile, reduction, copySpec, capability(reduction), trustStore, 150, undefined, policy);
+    assert.match(task.prompt, /every word must earn its place/);
+    assert.match(task.prompt, /Preserve facts, attribution, uncertainty, emphasis, rhythm/);
+    assert.match(task.prompt, /not a deterministic pass/);
+    assert.match(task.prompt, /# CopySpec/);
+  }
+});

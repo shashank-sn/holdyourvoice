@@ -3,6 +3,8 @@ import type { LearningPreference } from './learning.js';
 import type { LocalWritingExcerpt } from './writing-examples.js';
 import { analysisFindings, deriveEditScope, isStrictFinding } from './analysis.js';
 
+export const WORD_ECONOMY_REVIEW = 'Before final verification, review the candidate: every word must earn its place. For each phrase, ask what meaning, evidence, clarity, or voice would be lost if it were cut. Remove filler, duplicate ideas, empty qualifiers, and needless setup only when nothing useful is lost. Preserve facts, attribution, uncertainty, emphasis, rhythm, and necessary transitions. Do not optimize for a word-count target. Cut only within the authorized edit scope; leave protected text unchanged and defer concerns outside that scope to a separate judgment review. Keep the required response format. This is editorial judgment, not a deterministic pass or permission to skip verification.';
+
 function formatLearningPreference(preference: LearningPreference): string {
   return preference.text.replace(/[\\`*_{\[\]}<>#]/g, '\\$&');
 }
@@ -73,6 +75,9 @@ export function renderRewritePrompt(draft: string, profile: Profile, result: Ana
     '## Pending judgment — no edit permission in this task',
     ...(scope.pendingJudgment.length ? formatFindings(scope.pendingJudgment) : ['- None.']),
     ...editorialContext(brief),
+    '',
+    '# Word economy review',
+    WORD_ECONOMY_REVIEW,
     '',
     '# Tier 4 — output contract',
     'Return only replacement sentences keyed by sentence number. Do not rewrite clean sentences. Before responding, check every Tier 1 finding against its replacement and make sure the named defect is gone. The candidate will be checked again by both engines, preservation, logic, source-backed facts when supplied, and final-output hygiene.',
