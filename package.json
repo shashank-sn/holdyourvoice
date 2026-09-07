@@ -17,6 +17,7 @@
     "bundle:claude": "esbuild src/mcp.ts --bundle --platform=node --format=esm --target=node20 --outfile=mcpb/server/index.js",
     "build:claude": "npm run build && npm run bundle:claude",
     "pack:claude": "npm run build:claude && node scripts/pack-claude.mjs",
+    "pack:chatgpt-plugin": "node scripts/pack-chatgpt-plugin.mjs",
     "scorecard": "node scripts/public-scorecard.mjs benchmarks",
     "validate:rule-contributions": "node scripts/validate-rule-contributions.mjs",
     "stage1:evaluate": "node scripts/evaluate-rewrite-benchmark.mjs",
