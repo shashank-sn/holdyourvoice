@@ -80,7 +80,7 @@ const mirrorRequirements = [
   [mirrorWorkflow, /^  workflow_dispatch:\s*$/m, 'mirror workflow must support manual recovery'],
   [mirrorWorkflow, /^  schedule:\n    - cron: ["']17 3 \* \* \*["']$/m, 'mirror workflow must reconcile refs on a schedule'],
   [mirrorWorkflow, /^concurrency:\n  group: mirror-to-stitchflow\n  cancel-in-progress: false$/m, 'mirror workflow must serialize full-ref updates and finish the active update'],
-  [mirrorWorkflow, /^  mirror:\n    if: github\.repository == 'shashank-sn\/holdyourvoice'\n    runs-on: ubuntu-latest\n    timeout-minutes: 10$/m, 'mirror workflow must run only in the public source repository with a bounded timeout'],
+  [mirrorWorkflow, /^  mirror:\n    if: github\.repository == 'shashank-sn\/holdyourvoice' && github\.actor != 'dependabot\[bot\]'\n    runs-on: ubuntu-latest\n    timeout-minutes: 10$/m, 'mirror workflow must run only in the public source outside Dependabot pushes with a bounded timeout'],
   [mirrorWorkflow, /^      - uses: actions\/checkout@v7$/m, 'mirror workflow must use the current checkout action'],
   [mirrorWorkflow, /^ {10}if \[ -z "\$\{MIRROR_DEPLOY_KEY:-\}" \]; then$/m, 'mirror workflow must validate the source deploy key'],
   [mirrorWorkflow, /^ {10}node scripts\/mirror-refs\.mjs$/m, 'mirror workflow must run the tested ref reconciler'],

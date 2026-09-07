@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   mirror:
-    if: github.repository == 'shashank-sn/holdyourvoice'
+    if: github.repository == 'shashank-sn/holdyourvoice' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
