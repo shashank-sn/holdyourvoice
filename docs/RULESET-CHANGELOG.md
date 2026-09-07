@@ -1,5 +1,9 @@
 # ruleset changelog
 
+## 3.5.0-local.4
+
+- adds `struct.colon-reveal` as an advisory physical-line cue for a narrow set of theatrical reveal labels followed by lowercase prose. headings, list labels, and ordinary explanatory colons remain outside its match. the rule is an editorial signal, not proof of AI authorship.
+
 ## 3.6.1
 
 - simplified cli command ownership, shared verification and response handling, and removed duplicate maintenance code. commands, serialized contracts, approval boundaries, the executable rule catalog, and strict-default enforcement are unchanged.

@@ -28,7 +28,7 @@ standard and rebuild verification share voicedna and ai editor checks, blocking-
 | `voice-dna.ts` | version 2 profile building, evaluation of both profile versions, and version 3 fingerprint drift. |
 | `ai-editor-rules.ts` | the stable deterministic rule catalog. |
 | `rule-allowances.ts` | non-verbatim evidence for narrow profile v3 stylistic exceptions. |
-| `ai-editor.ts` | markdown non-prose masking with preserved offsets; sentence, physical-line, and document rules under ruleset `3.5.0-local.3`; policy application without changing rule ids. |
+| `ai-editor.ts` | markdown non-prose masking with preserved offsets; sentence, physical-line, and document rules under ruleset `3.5.0-local.4`; policy application without changing rule ids. |
 | `fact-linter.ts` | source-grounded claim extraction and deterministic evidence checks. known conflicts are errors; unclear evidence requires human review. |
 | `hygiene.ts` | hidden unicode inspection and conservative, explicit cleaning without scoring the writing. |
 | `profile-quality.ts` | advisory sample readiness checks without changing profile bytes. |

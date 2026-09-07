@@ -7,10 +7,10 @@ import { AI_SHADOW_FAIL_SET_V1 } from './ai-shadow-fixtures.js';
 import { generateAiShadowFailSetV1 } from './ai-shadow-generator.js';
 
 test('publishes executable rules with stable IDs and repair directions', () => {
-  assert.equal(RULESET_VERSION, '3.5.0-local.3');
-  assert.equal(rules.length, 182);
-  assert.equal(createHash('sha256').update(JSON.stringify(rules.map((rule) => rule.id))).digest('hex'), '172563cd3f55b363c895bb97c37f636dd718253799c369f329bb943dad416f16');
-  assert.equal(createHash('sha256').update(JSON.stringify(serializedRules())).digest('hex'), '542534f1223d65e7ae7d4c3da8ba22bd31b4ddae2dfe399f7672ca9e6a9cee6b');
+  assert.equal(RULESET_VERSION, '3.5.0-local.4');
+  assert.equal(rules.length, 183);
+  assert.equal(createHash('sha256').update(JSON.stringify(rules.map((rule) => rule.id))).digest('hex'), '04f3dda979f0cd50c049c3b829bf083da24aaf46d5e1be18afdd810a6a932b26');
+  assert.equal(createHash('sha256').update(JSON.stringify(serializedRules())).digest('hex'), 'e9a891f70a580ebb261754808b86134d8762102c82d3575d528a4424978fb00c');
   assert.equal(new Set(rules.map((rule) => rule.id)).size, rules.length);
   for (const rule of rules) {
     assert.match(rule.id, /^(ai|formula|hedge|struct|punct|bait|cringe|insider|ogilvy|format)\./);
@@ -142,6 +142,31 @@ test('detects representative rules from every inherited rule family', () => {
     const report = analyzeAiEditor(example);
     assert.ok(report.findings.some((finding) => finding.id === id && finding.sentence === 1), id);
   }
+});
+
+test('flags theatrical colon reveals while leaving ordinary colons alone', () => {
+  for (const example of [
+    'The best part: it learns from the accepted edits.',
+    'The detail that makes it work: a separate agent grades the draft.',
+    'The real reason: the queue has no owner.',
+  ]) {
+    const finding = analyzeAiEditor(example).findings.find((item) => item.id === 'struct.colon-reveal');
+    assert.ok(finding, example);
+    assert.equal(finding.appliedPolicy, 'advisory');
+  }
+
+  for (const example of [
+    'Note: the queue has no owner.',
+    'The best part: A separate agent grades the draft.',
+    '# The best part: it learns from accepted edits.',
+    '- **The best part:** a separate agent grades the draft.',
+    'Use `The best part: it learns from accepted edits.` as an example.',
+    '```text\nThe best part: it learns from accepted edits.\n```',
+    '[Read the note](https://example.com/the-best-part-it-learns).',
+  ]) assert.equal(analyzeAiEditor(example).findings.some((item) => item.id === 'struct.colon-reveal'), false, example);
+
+  const blocked = analyzeAiEditor('The best part: it learns from accepted edits.', profileWithPolicies({ 'struct.colon-reveal': 'blocking' }));
+  assert.equal(blocked.findings.find((item) => item.id === 'struct.colon-reveal')?.appliedPolicy, 'blocking');
 });
 
 test('covers the narrow 3.5 pattern additions with an editorial example for each rule', () => {
@@ -285,7 +310,7 @@ test('retains the current question-hook and abstract-cluster detectors', () => {
 
 test('serializes reconstructable regular expressions and explicit scopes', () => {
   const catalog = serializedRules();
-  assert.equal(catalog.length, 182);
+  assert.equal(catalog.length, 183);
   assert.ok(catalog.every((rule) => rule.scope === 'sentence' || rule.scope === 'line' || rule.scope === 'document'));
   const meaningful = catalog.find((rule) => rule.id === 'ai.meaningful');
   assert.ok(meaningful);
