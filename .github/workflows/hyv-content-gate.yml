@@ -19,7 +19,7 @@ jobs:
         run: npm ci && npm run build
       - name: Inspect changed Markdown locally
         run: node scripts/check-changed-content.mjs .hyv/content-gate.json "$RUNNER_TEMP/changed-files.txt" | tee "$RUNNER_TEMP/hyv-content-gate.json" | tee -a "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: hyv-content-gate
           path: ${{ runner.temp }}/hyv-content-gate.json
