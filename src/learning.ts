@@ -86,7 +86,7 @@ function canonicalJson(value: unknown): string {
 }
 
 export function profileFingerprint(profile: Profile): string {
-  return createHash('sha256').update(canonicalJson(profile)).digest('hex');
+  return digest(profile);
 }
 
 function identity(profile: Profile): string { return profile.version === '3' ? profile.id : profileFingerprint(profile); }
@@ -155,16 +155,22 @@ function readEventsFromFile(file: string): LearningEvent[] {
 function readEvents(profile: Profile, options: LearningOptions = {}): LearningEvent[] { return readEventsFromFile(eventFile(profile, options)); }
 function serialize(events: LearningEvent[]): string { return events.length ? `${events.map((event) => JSON.stringify(event)).join('\n')}\n` : ''; }
 
-function learningState(events: LearningEvent[], profile: Profile) {
-  return {
-    superseded: new Set(events.filter((event) => event.kind === 'supersession').map((event) => event.targetEventId)),
-    ratified: new Set(events.filter((event) => event.kind === 'ratification' && event.profileRevision <= revision(profile)).map((event) => event.targetEventId)),
+function learningState(events: LearningEvent[], profile: Profile): (event: LearningEvent) => LearningInspection['status'] {
+  const superseded = new Set<string | undefined>();
+  const ratified = new Set<string | undefined>();
+  const currentRevision = revision(profile);
+  for (const event of events) {
+    if (event.kind === 'supersession') superseded.add(event.targetEventId);
+    if (event.kind === 'ratification' && event.profileRevision <= currentRevision) ratified.add(event.targetEventId);
+  }
+  return (event) => {
+    if (event.kind === 'ratification' || event.kind === 'supersession' || event.kind === 'migration') return 'control';
+    if (superseded.has(event.eventId)) return 'superseded';
+    if (ratified.has(event.eventId)) return 'active';
+    const compatible = event.profileRevision <= currentRevision
+      && (event.compatibility === 'same-or-newer' || event.profileRevision === currentRevision);
+    return compatible ? 'active' : 'incompatible';
   };
-}
-
-function isCompatible(event: LearningEvent, profile: Profile): boolean {
-  return event.profileRevision <= revision(profile)
-    && (event.compatibility === 'same-or-newer' || event.profileRevision === revision(profile));
 }
 
 function withLock<T>(file: string, operation: () => T): T | undefined {
@@ -196,7 +202,7 @@ function compact(events: LearningEvent[]): LearningEvent[] {
     .sort((a, b) => authorityRank[b.authority] - authorityRank[a.authority] || b.weight - a.weight || b.timestamp.localeCompare(a.timestamp) || a.eventId.localeCompare(b.eventId));
   const selected = new Set(content.slice(0, MAX_EVENTS).map((event) => event.eventId));
   const controls = events.filter((event) => event.kind === 'migration' || ((event.kind === 'ratification' || event.kind === 'supersession') && selected.has(event.targetEventId ?? '')));
-  while (selected.size + controls.length > MAX_EVENTS) selected.delete(content[[...selected].length - 1]?.eventId ?? '');
+  while (selected.size + controls.length > MAX_EVENTS) selected.delete(content[selected.size - 1]?.eventId ?? '');
   const retained = events.filter((event) => selected.has(event.eventId) || (event.kind === 'migration') || ((event.kind === 'ratification' || event.kind === 'supersession') && selected.has(event.targetEventId ?? '')))
     .sort((a, b) => a.timestamp.localeCompare(b.timestamp) || a.eventId.localeCompare(b.eventId));
   while (retained.length && Buffer.byteLength(serialize(retained)) > MAX_STORAGE_BYTES) {
@@ -226,30 +232,47 @@ function requestDigest(event: LearningEvent): string {
   return digest({ ...event, eventId: undefined, timestamp: undefined, requestDigest: undefined });
 }
 
-function eventBase(profile: Profile, kind: LearningEvent['kind'], options: LearningOptions): LearningEvent {
+function eventBase(profile: Profile, kind: LearningEvent['kind'], options: LearningOptions, details: Partial<Pick<LearningEvent, 'resolved' | 'outcome' | 'instruction' | 'targetEventId'>> = {}): LearningEvent {
   const mutationId = options.mutationId ?? randomUUID();
   const base = {
     version: '2', eventId: digest({ profile: identity(profile), mutationId }), mutationId, timestamp: new Date().toISOString(),
     profileRevision: revision(profile), revisionDigest: revisionDigest(profile), authority: options.authority ?? 'team',
     provenance: options.provenance ?? 'local', weight: options.weight ?? 1, compatibility: options.compatibility ?? 'same-or-newer', kind,
   } as LearningEvent;
-  return { ...base, requestDigest: requestDigest(base) };
+  const event = { ...base, requestDigest: '', ...details };
+  event.requestDigest = requestDigest(event);
+  return event;
+}
+
+function withMutation(
+  profile: Profile,
+  event: LearningEvent,
+  options: LearningOptions,
+  operation: (file: string, sourceFile?: string) => LearningMutationReceipt,
+  source?: Profile,
+): LearningMutationReceipt {
+  try {
+    mkdirSync(learningDirectory(options), { recursive: true, mode: 0o700 });
+    const file = eventFile(profile, options);
+    const sourceFile = source ? eventFile(source, options) : undefined;
+    const run = () => operation(file, sourceFile);
+    const result = sourceFile === undefined ? withLock(file, run) : withLocks([sourceFile, file], run);
+    return result ?? receipt(profile, event, 'lock_timeout');
+  } catch (error) {
+    return receipt(profile, event, (error as Error).message.includes('corrupt') ? 'corrupt' : 'write_failed');
+  }
 }
 
 function mutate(profile: Profile, event: LearningEvent, options: LearningOptions, validate?: (events: LearningEvent[]) => LearningMutationStatus | undefined): LearningMutationReceipt {
-  try {
-    const directory = learningDirectory(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
-    const file = eventFile(profile, options);
-    const result = withLock(file, () => {
-      const events = readEventsFromFile(file);
-      const existing = events.find((item) => item.mutationId === event.mutationId);
-      if (existing) return receipt(profile, existing, existing.requestDigest === event.requestDigest ? 'already_recorded' : 'conflict');
-      const invalid = validate?.(events); if (invalid) return receipt(profile, event, invalid);
-      writeEventsAtomically(file, [...events, event]);
-      return receipt(profile, event, 'recorded');
-    });
-    return result ?? receipt(profile, event, 'lock_timeout');
-  } catch (error) { return receipt(profile, event, (error as Error).message.includes('corrupt') ? 'corrupt' : 'write_failed'); }
+  return withMutation(profile, event, options, (file) => {
+    const events = readEventsFromFile(file);
+    const existing = events.find((item) => item.mutationId === event.mutationId);
+    if (existing) return receipt(profile, existing, existing.requestDigest === event.requestDigest ? 'already_recorded' : 'conflict');
+    const invalid = validate?.(events);
+    if (invalid) return receipt(profile, event, invalid);
+    writeEventsAtomically(file, [...events, event]);
+    return receipt(profile, event, 'recorded');
+  });
 }
 
 function countFindings(findings: Finding[]): Map<string, { finding: Finding; count: number }> {
@@ -269,8 +292,7 @@ export function recordVerifiedCandidate(profile: Profile, verification: Verifica
   if (!resolved.length) return 'nothing_to_learn';
   const outcome = createHash('sha256').update(`${identity(profile)}\0${candidate}`).digest('hex');
   if (readEvents(profile, options).some((event) => event.kind === 'verified_candidate' && event.outcome === outcome)) return 'nothing_to_learn';
-  const event = { ...eventBase(profile, 'verified_candidate', { ...options, mutationId: options.mutationId ?? outcome }), resolved: resolved.slice(0, MAX_RESOLVED_FINDINGS), outcome };
-  event.requestDigest = requestDigest(event);
+  const event = eventBase(profile, 'verified_candidate', { ...options, mutationId: options.mutationId ?? outcome }, { resolved: resolved.slice(0, MAX_RESOLVED_FINDINGS), outcome });
   const result = mutate(profile, event, options);
   return result.status === 'recorded' ? 'recorded' : result.status === 'already_recorded' ? 'nothing_to_learn' : 'write_failed';
 }
@@ -279,15 +301,13 @@ export function recordLearningInstruction(profile: Profile, instruction: string,
   const normalized = normalizeInstruction(instruction);
   if (!normalized) throw new Error('Learning instructions cannot be empty.');
   if (normalized.length > MAX_INSTRUCTION_CHARACTERS) throw new Error(`Learning instructions must be ${MAX_INSTRUCTION_CHARACTERS} characters or fewer.`);
-  const event = { ...eventBase(profile, 'instruction', options), instruction: normalized };
-  event.requestDigest = requestDigest(event);
+  const event = eventBase(profile, 'instruction', options, { instruction: normalized });
   return mutate(profile, event, options);
 }
 export function addLearningInstruction(profile: Profile, instruction: string, options: LearningOptions = {}): boolean { return recordLearningInstruction(profile, instruction, options).status === 'recorded'; }
 
 function recordControlEvent(profile: ProfileV3, kind: 'ratification' | 'supersession', targetEventId: string, options: LearningOptions): LearningMutationReceipt {
-  const event = { ...eventBase(profile, kind, options), targetEventId };
-  event.requestDigest = requestDigest(event);
+  const event = eventBase(profile, kind, options, { targetEventId });
   return mutate(profile, event, options, (events) => {
     const target = events.find((item) => item.eventId === targetEventId);
     return !target ? 'not_found' : authorityRank[event.authority] < authorityRank[target.authority] ? 'unauthorized' : undefined;
@@ -307,48 +327,40 @@ export function migrateLearningV2ToV3(source: ProfileV2, target: ProfileV3, opti
   const migrationId = options.mutationId ?? `migration:${digest({ source: sourceFingerprint, target: target.id, revision: target.revision })}`;
   const migrationOptions = { ...options, mutationId: migrationId };
   const marker = { ...eventBase(target, 'migration', migrationOptions), sourceProfile: sourceFingerprint };
-  try {
-    const directory = learningDirectory(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
-    const file = eventFile(target, options); const sourceFile = eventFile(source, options);
-    const result = withLocks([sourceFile, file], () => {
-      const targetEvents = readEventsFromFile(file);
-      const existing = targetEvents.find((event) => event.mutationId === marker.mutationId);
-      if (existing) return receipt(target, existing, 'already_recorded');
-      const migrated = readEventsFromFile(sourceFile).filter((event) => event.kind === 'instruction' || event.kind === 'verified_candidate').map((event) => ({
-        ...event, eventId: digest({ target: target.id, source: event.eventId }), mutationId: `migration:${marker.mutationId}:${event.mutationId}`,
-        profileRevision: target.revision, revisionDigest: target.revisionDigest, provenance: `migration:${sourceFingerprint}`,
-      }));
-      const intended = [...targetEvents, ...migrated, marker]; const compacted = compact(intended);
-      if (migrated.some((event) => !compacted.some((item) => item.eventId === event.eventId)) || !compacted.some((item) => item.eventId === marker.eventId)) return receipt(target, marker, 'capacity_exceeded');
-      writeEventsAtomically(file, intended);
-      return receipt(target, marker, 'recorded');
-    });
-    return result ?? receipt(target, marker, 'lock_timeout');
-  } catch (error) { return receipt(target, marker, (error as Error).message.includes('corrupt') ? 'corrupt' : 'write_failed'); }
+  return withMutation(target, marker, options, (file, sourceFile) => {
+    const targetEvents = readEventsFromFile(file);
+    const existing = targetEvents.find((event) => event.mutationId === marker.mutationId);
+    if (existing) return receipt(target, existing, 'already_recorded');
+    const migrated = readEventsFromFile(sourceFile!).filter((event) => event.kind === 'instruction' || event.kind === 'verified_candidate').map((event) => ({
+      ...event, eventId: digest({ target: target.id, source: event.eventId }), mutationId: `migration:${marker.mutationId}:${event.mutationId}`,
+      profileRevision: target.revision, revisionDigest: target.revisionDigest, provenance: `migration:${sourceFingerprint}`,
+    }));
+    const intended = [...targetEvents, ...migrated, marker];
+    const retainedIds = new Set(compact(intended).map((event) => event.eventId));
+    if (!retainedIds.has(marker.eventId) || migrated.some((event) => !retainedIds.has(event.eventId))) return receipt(target, marker, 'capacity_exceeded');
+    writeEventsAtomically(file, intended);
+    return receipt(target, marker, 'recorded');
+  }, source);
 }
 
 export function inspectLearning(profile: Profile, options: LearningOptions = {}): LearningInspection[] {
   const events = readEvents(profile, options);
-  const { superseded, ratified } = learningState(events, profile);
+  const statusOf = learningState(events, profile);
   return events.slice(-MAX_EVENTS).map((event) => {
-    const control = event.kind === 'ratification' || event.kind === 'supersession' || event.kind === 'migration';
-    const status: LearningInspection['status'] = control ? 'control' : superseded.has(event.eventId) ? 'superseded' : isCompatible(event, profile) || ratified.has(event.eventId) ? 'active' : 'incompatible';
     return {
       version: '1', eventId: event.eventId, mutationId: event.mutationId, eventType: event.kind, timestamp: event.timestamp,
       profileRevision: event.profileRevision, authority: event.authority, weight: event.weight,
-      compatibility: event.compatibility, status, ...(event.targetEventId ? { targetEventId: event.targetEventId } : {}),
+      compatibility: event.compatibility, status: statusOf(event), ...(event.targetEventId ? { targetEventId: event.targetEventId } : {}),
     };
   });
 }
 
 export function composeLearning(profile: Profile, options: LearningOptions = {}): LearningPreference[] {
   const events = readEvents(profile, options);
-  const { superseded, ratified } = learningState(events, profile);
+  const statusOf = learningState(events, profile);
   const preferences = new Map<string, { count: number; lastSeen: string; authority: number }>();
   for (const event of events) {
-    if (event.kind !== 'instruction' && event.kind !== 'verified_candidate') continue;
-    if (superseded.has(event.eventId)) continue;
-    if (!isCompatible(event, profile) && !ratified.has(event.eventId)) continue;
+    if (statusOf(event) !== 'active') continue;
     const texts = event.kind === 'instruction' && event.instruction ? [{ text: event.instruction, count: event.weight }]
       : (event.resolved ?? []).map((finding) => ({ text: `Previously verified repair: ${finding.engine}/${finding.id}.`, count: finding.count * event.weight }));
     for (const { text, count } of texts) {

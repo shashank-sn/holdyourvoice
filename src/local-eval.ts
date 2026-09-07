@@ -33,32 +33,24 @@ function groupedParagraphs(values: EvalParagraph[], label: string): void {
 
 interface SparseVector { [term: string]: number; }
 
-function tfIdf(documents: string[]): { vocabulary: string[]; idf: Map<string, number>; vectors: SparseVector[] } {
-  const documentTerms = documents.map((document) => terms(document));
-  const df = new Map<string, number>();
-  for (const document of documentTerms) for (const term of new Set(document)) df.set(term, (df.get(term) ?? 0) + 1);
-  const vocabulary = [...df.keys()].sort();
-  const idf = new Map([...df].map(([term, frequency]) => [term, Math.log((documents.length + 1) / (frequency + 1)) + 1]));
-  const toVector = (document: string): SparseVector => {
-    const termsInDocument = terms(document); const count = new Map<string, number>();
-    for (const term of termsInDocument) count.set(term, (count.get(term) ?? 0) + 1);
-    const vector: SparseVector = {};
-    for (const [term, occurrences] of count) if (idf.has(term)) vector[term] = (occurrences / Math.max(1, termsInDocument.length)) * idf.get(term)!;
-    return vector;
-  };
-  return {
-    vocabulary,
-    idf,
-    vectors: documents.map(toVector),
-  };
+function vectorWithIdf(documentTerms: string[], idf: Map<string, number>): SparseVector {
+  const counts = new Map<string, number>();
+  for (const term of documentTerms) counts.set(term, (counts.get(term) ?? 0) + 1);
+  const vector: SparseVector = {};
+  for (const [term, occurrences] of counts) {
+    if (idf.has(term)) vector[term] = (occurrences / Math.max(1, documentTerms.length)) * idf.get(term)!;
+  }
+  return vector;
 }
 
-function vectorWithIdf(document: string, idf: Map<string, number>): SparseVector {
-  const documentTerms = terms(document); const count = new Map<string, number>();
-  for (const term of documentTerms) count.set(term, (count.get(term) ?? 0) + 1);
-  const vector: SparseVector = {};
-  for (const [term, occurrences] of count) if (idf.has(term)) vector[term] = (occurrences / Math.max(1, documentTerms.length)) * idf.get(term)!;
-  return vector;
+function tfIdf(documents: string[]): { idf: Map<string, number>; vectors: SparseVector[] } {
+  const documentTerms = documents.map(terms);
+  const frequencies = new Map<string, number>();
+  for (const document of documentTerms) {
+    for (const term of new Set(document)) frequencies.set(term, (frequencies.get(term) ?? 0) + 1);
+  }
+  const idf = new Map([...frequencies].map(([term, frequency]) => [term, Math.log((documents.length + 1) / (frequency + 1)) + 1]));
+  return { idf, vectors: documentTerms.map((document) => vectorWithIdf(document, idf)) };
 }
 
 function sigmoid(value: number): number { return value >= 0 ? 1 / (1 + Math.exp(-value)) : Math.exp(value) / (1 + Math.exp(value)); }
@@ -75,7 +67,7 @@ function localAuthorshipProbability(candidate: string, user: EvalParagraph[], sh
       for (const [term, value] of Object.entries(vector)) weights[term] = (weights[term] ?? 0) + 0.12 * error * value;
     }
   }
-  const candidateVector = vectorWithIdf(candidate, transformed.idf);
+  const candidateVector = vectorWithIdf(terms(candidate), transformed.idf);
   const score = bias + Object.entries(candidateVector).reduce((sum, [term, value]) => sum + (weights[term] ?? 0) * value, 0);
   return Number(sigmoid(score).toFixed(3));
 }

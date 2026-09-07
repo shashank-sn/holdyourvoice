@@ -19,12 +19,22 @@ function top(items: string[], limit: number): string[] {
   return [...counts].sort((left, right) => right[1] - left[1]).slice(0, limit).map(([item]) => item);
 }
 
+function measureWriting(text: string, tokens?: string[]) {
+  const mapped = sentences(text);
+  return { text, mapped, tokens: tokens ?? words(text), sentenceWords: mapped.map((sentence) => words(sentence.text)) };
+}
+
+type MeasuredWriting = ReturnType<typeof measureWriting>;
+
 export function profileMetrics(text: string): VoiceDnaMetrics {
-  const draftSentences = sentences(text);
-  const draftWords = words(text);
-  const lengths = draftSentences.map((sentence) => words(sentence.text).length);
-  const starters = draftSentences.map((sentence) => words(sentence.text)[0]?.toLowerCase() ?? '');
-  const structures = draftSentences.map((sentence) => words(sentence.text).slice(0, 3).map((word) => word.toLowerCase()).join(' '));
+  return metricsFor(measureWriting(text));
+}
+
+function metricsFor(writing: MeasuredWriting): VoiceDnaMetrics {
+  const { text, mapped: draftSentences, tokens: draftWords, sentenceWords } = writing;
+  const lengths = sentenceWords.map((tokens) => tokens.length);
+  const starters = sentenceWords.map((tokens) => tokens[0]?.toLowerCase() ?? '');
+  const structures = sentenceWords.map((tokens) => tokens.slice(0, 3).map((word) => word.toLowerCase()).join(' '));
   const lowerWords = draftWords.map((word) => word.toLowerCase());
   const nonStop = lowerWords.filter((word) => word.length > 3 && !STOP_WORDS.has(word));
   const first = lowerWords.filter((word) => ['i', 'we', 'my', 'our', 'us'].includes(word)).length;
@@ -57,16 +67,18 @@ export function profileMetrics(text: string): VoiceDnaMetrics {
 }
 
 export function measureFounderFingerprint(text: string): FounderFingerprint {
-  const draftWords = words(text);
+  return fingerprintFor(measureWriting(text, words(text)));
+}
+
+function fingerprintFor(writing: MeasuredWriting): FounderFingerprint {
+  const { text, mapped: draftSentences, tokens: draftWords, sentenceWords } = writing;
   const wordDenominator = Math.max(1, draftWords.length);
   const contractionCount = draftWords.filter((word) => CONTRACTIONS.has(word.toLowerCase().replaceAll('’', "'"))).length;
-  const draftSentences = sentences(text);
   const sentenceDenominator = Math.max(1, draftSentences.length);
   const buckets = { short: 0, medium: 0, long: 0 };
-  for (const sentence of draftSentences) {
-    const length = words(sentence.text).length;
-    if (length <= 8) buckets.short += 1;
-    else if (length <= 20) buckets.medium += 1;
+  for (const tokens of sentenceWords) {
+    if (tokens.length <= 8) buckets.short += 1;
+    else if (tokens.length <= 20) buckets.medium += 1;
     else buckets.long += 1;
   }
   const nonblankLines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
@@ -85,15 +97,21 @@ export function measureFounderFingerprint(text: string): FounderFingerprint {
   };
 }
 
-export function buildProfile(samples: string[], avoid: string[] = []): Profile {
+function measureSamples(samples: string[], avoid: string[]) {
   if (samples.length < 2) throw new Error('Provide at least two local writing samples.');
   if (samples.some((sample) => !words(sample).length)) throw new Error('Every local writing sample must contain writing.');
-  return { version: '2', sampleCount: samples.length, metrics: profileMetrics(samples.join('\n\n')), avoid };
+  const writing = measureWriting(samples.join('\n\n'));
+  const profile = { version: '2' as const, sampleCount: samples.length, metrics: metricsFor(writing), avoid };
+  return { writing, profile };
+}
+
+export function buildProfile(samples: string[], avoid: string[] = []): Profile {
+  return measureSamples(samples, avoid).profile;
 }
 
 export function buildProfileV3(samples: string[], id: string, channel: ProfileChannel, avoid: string[] = [], tone?: ToneVector): ProfileV3 {
-  const base = buildProfile(samples, avoid);
-  const sampleText = samples.join('\n\n');
+  const { profile: base, writing } = measureSamples(samples, avoid);
+  const ruleAllowances = deriveRuleAllowances(samples);
   const fixtureIds = samples.map((_, index) => 'sample.' + String(index + 1).padStart(3, '0'));
   const unsigned = {
     version: '3' as const,
@@ -104,10 +122,10 @@ export function buildProfileV3(samples: string[], id: string, channel: ProfileCh
     avoid: base.avoid,
     provenance: { source: 'local-author-owned-samples', rights: 'author-owned', createdAt: new Date().toISOString() },
     rulePolicy: {},
-    ...(Object.keys(deriveRuleAllowances(samples)).length ? { ruleAllowances: deriveRuleAllowances(samples) } : {}),
+    ...(Object.keys(ruleAllowances).length ? { ruleAllowances } : {}),
     channel,
     ...(tone ? { tone } : {}),
-    fingerprint: measureFounderFingerprint(sampleText),
+    fingerprint: fingerprintFor(writing),
     tolerances: {
       contractionRate: { absolute: 0.1, calibrated: false },
       sentenceLengthDistribution: { absolute: 0.15, calibrated: false },
@@ -126,12 +144,13 @@ function finding(id: string, severity: Finding['severity'], sentence: number, ex
 }
 
 export function analyzeVoiceDna(text: string, profile: Profile): EngineReport {
-  const metrics = profileMetrics(text);
+  const writing = measureWriting(text);
+  const metrics = metricsFor(writing);
   const findings: Finding[] = [];
   const tolerance = Math.max(8, profile.metrics.sentenceVariation * 2.2);
 
-  for (const sentence of sentences(text)) {
-    const count = words(sentence.text).length;
+  for (const [index, sentence] of writing.mapped.entries()) {
+    const count = writing.sentenceWords[index]!.length;
     if (Math.abs(count - profile.metrics.sentenceLength) > tolerance) findings.push(finding('dna.sentence-length', 'yellow', sentence.index, sentence.text, `Sentence length (${count}) is outside the profile band around ${profile.metrics.sentenceLength}.`, 'Restore the writer’s usual sentence length where it improves clarity.'));
     for (const banned of profile.avoid) if (sentence.text.toLowerCase().includes(banned.toLowerCase())) findings.push(finding('dna.avoid-list', 'red', sentence.index, sentence.text, `Uses profile avoid-list phrase: ${banned}.`, 'Replace it with the writer’s natural language.'));
   }
@@ -140,7 +159,7 @@ export function analyzeVoiceDna(text: string, profile: Profile): EngineReport {
   if (metrics.pointOfView !== profile.metrics.pointOfView && profile.metrics.pointOfView !== 'mixed') findings.push(finding('dna.point-of-view', 'yellow', 1, text.slice(0, 160), `Draft point of view is ${metrics.pointOfView}; profile is ${profile.metrics.pointOfView}.`, 'Restore the writer’s normal narrative distance.'));
 
   if (profile.version === '3') {
-    const measured = measureFounderFingerprint(text);
+    const measured = fingerprintFor(writing);
     const fingerprintChecks = [
       ['contraction-rate', measured.contractionRate, profile.fingerprint.contractionRate, profile.tolerances.contractionRate],
       ['sentence-length-distribution', Math.max(

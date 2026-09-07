@@ -1,13 +1,14 @@
 {
   "name": "@holdyourvoice/hyv",
-  "version": "3.6.1",
-  "description": "A local-first dual-engine writing gate that protects voice and catches generic AI patterns.",
+  "version": "4.0.0",
+  "description": "Local writing checks, voice profiles, and verified editing workflows for humans and agents.",
   "type": "module",
   "bin": {
     "hyv": "dist/cli.js"
   },
   "files": [
     "dist",
+    "!dist/**/*.test.js",
     "skills",
     "Readme.md",
     "LICENSE"
@@ -26,7 +27,8 @@
     "stage2:human-packet": "npm run build && node scripts/run-stage2-human-packet.mjs",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "check:release": "node scripts/release-audit.mjs",
-    "prepack": "npm run check:release && npm test && npm run pack:claude"
+    "prepack": "npm run check:release && npm test && npm run pack:claude",
+    "check:compatibility": "node scripts/verify-compatibility.mjs"
   },
   "engines": {
     "node": ">=20"

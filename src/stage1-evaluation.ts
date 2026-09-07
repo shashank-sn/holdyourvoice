@@ -352,9 +352,18 @@ function parseReleaseAudit(protocol: CommittedProtocol, input: unknown): Release
   return audit as ReleaseAudit;
 }
 
-function correctionCount(ratings: ReviewerRecord[], mapping: BlindMapping, arm: Arm, result: 'correction' | 'confirm'): number {
-  const label = mapping.labels.A === arm ? 'A' : 'B';
-  return ratings.filter((rating) => rating.correctionVersusConfirm![label] === result).length;
+function rate(numerator: number, denominator: number) {
+  return { numerator, denominator, rate: numerator / denominator, uncertainty95: wilson95(numerator, denominator) };
+}
+
+function corrections(ratings: ReviewerRecord[], label: 'A' | 'B', denominator: number) {
+  let corrections = 0;
+  let confirms = 0;
+  for (const rating of ratings) {
+    if (rating.correctionVersusConfirm![label] === 'correction') corrections += 1;
+    if (rating.correctionVersusConfirm![label] === 'confirm') confirms += 1;
+  }
+  return { corrections, confirms, denominator, correctionRate: corrections / denominator, uncertainty95: wilson95(corrections, denominator) };
 }
 
 function workflowForArm(runs: RunRecord[], arm: Arm): { completed: number; denominator: number } {
@@ -365,21 +374,24 @@ function workflowForArm(runs: RunRecord[], arm: Arm): { completed: number; denom
 function calculateEvaluation(protocol: CommittedProtocol, runs: RunRecord[], ratings: ReviewerRecord[], mapping: BlindMapping, summary: RunSummary) {
   const completedRatings = ratings.filter((rating) => rating.workflow === 'completed');
   const preferenceDenominator = protocol.intentToTreat.expectedReviewers * protocol.cases.length;
-  const preferred = completedRatings.reduce((total, rating) => total + (rating.preferredLabel === 'tie' ? 0.5 : mapping.labels[rating.preferredLabel as 'A' | 'B'] === 'stage1' ? 1 : 0), 0);
+  let preferred = 0;
+  for (const rating of completedRatings) {
+    if (rating.preferredLabel === 'tie') preferred += 0.5;
+    else if (mapping.labels[rating.preferredLabel as 'A' | 'B'] === 'stage1') preferred += 1;
+  }
   const preferenceRate = preferenceDenominator ? preferred / preferenceDenominator : 0;
-  const stage1Confirm = correctionCount(completedRatings, mapping, 'stage1', 'confirm');
-  const baselineConfirm = correctionCount(completedRatings, mapping, 'baseline', 'confirm');
-  const stage1Correction = correctionCount(completedRatings, mapping, 'stage1', 'correction');
-  const baselineCorrection = correctionCount(completedRatings, mapping, 'baseline', 'correction');
+  const stage1 = corrections(completedRatings, mapping.labels.A === 'stage1' ? 'A' : 'B', preferenceDenominator);
+  const baseline = corrections(completedRatings, mapping.labels.A === 'baseline' ? 'A' : 'B', preferenceDenominator);
   const baselineWorkflow = workflowForArm(runs, 'baseline');
   const stage1Workflow = workflowForArm(runs, 'stage1');
-  const correctionMarginMet = (stage1Confirm - baselineConfirm) / preferenceDenominator >= protocol.analysis.margin;
-  const workflowRegressed = stage1Workflow.denominator === 0 || baselineWorkflow.denominator === 0 || stage1Workflow.completed / stage1Workflow.denominator < baselineWorkflow.completed / baselineWorkflow.denominator;
+  const correctionMarginMet = (stage1.confirms - baseline.confirms) / preferenceDenominator >= protocol.analysis.margin;
+  const workflowRegressed = stage1Workflow.denominator === 0 || baselineWorkflow.denominator === 0
+    || stage1Workflow.completed / stage1Workflow.denominator < baselineWorkflow.completed / baselineWorkflow.denominator;
   const metrics = {
-    preference: { numerator: preferred, denominator: preferenceDenominator, rate: preferenceRate, uncertainty95: wilson95(preferred, preferenceDenominator) },
-    correctionVersusConfirm: { stage1: { corrections: stage1Correction, confirms: stage1Confirm, denominator: preferenceDenominator, correctionRate: stage1Correction / preferenceDenominator, uncertainty95: wilson95(stage1Correction, preferenceDenominator) }, baseline: { corrections: baselineCorrection, confirms: baselineConfirm, denominator: preferenceDenominator, correctionRate: baselineCorrection / preferenceDenominator, uncertainty95: wilson95(baselineCorrection, preferenceDenominator) } },
-    completion: { numerator: completedRatings.length, denominator: preferenceDenominator, rate: completedRatings.length / preferenceDenominator, uncertainty95: wilson95(completedRatings.length, preferenceDenominator) },
-    abandonment: { numerator: ratings.length - completedRatings.length, denominator: preferenceDenominator, rate: (ratings.length - completedRatings.length) / preferenceDenominator, uncertainty95: wilson95(ratings.length - completedRatings.length, preferenceDenominator) },
+    preference: { ...rate(preferred, preferenceDenominator), rate: preferenceRate },
+    correctionVersusConfirm: { stage1, baseline },
+    completion: rate(completedRatings.length, preferenceDenominator),
+    abandonment: rate(ratings.length - completedRatings.length, preferenceDenominator),
     providerRuns: { completed: summary.completed, abandoned: summary.abandonments, hardFailures: summary.hardFailures, timeouts: summary.timeouts, denominator: summary.denominator },
   };
   return { correctionMarginMet, metrics, preferenceDenominator, preferenceRate, workflowRegressed };

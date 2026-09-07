@@ -123,14 +123,14 @@ for (const requiredPath of ['dist', 'skills', 'Readme.md']) {
 if (packageManifest.type !== 'module') failures.push('npm package must use the ESM runtime contract');
 if (packageManifest.bin?.hyv !== 'dist/cli.js') failures.push('npm hyv binary must point to dist/cli.js');
 if (packageManifest.engines?.node !== '>=20') failures.push('npm package must require Node 20 or newer');
-const allowedPackageManifestPaths = new Set(['dist', 'skills', 'Readme.md', 'LICENSE']);
+const allowedPackageManifestPaths = new Set(['dist', '!dist/**/*.test.js', 'skills', 'Readme.md', 'LICENSE']);
 for (const file of Array.isArray(packageManifest.files) ? packageManifest.files : []) {
   if (!allowedPackageManifestPaths.has(file)) failures.push(`npm package exposes an unexpected path: ${file}`);
 }
 const publicPackagePath = /^(?:package\.json|license|readme\.md|dist\/.+|skills\/hyv-[a-z0-9-]+\/(?:agent\.json|SKILL\.md|agents\/openai\.yaml))$/i;
 const forbiddenPackedPath = /(^|\/)(?:benchmarks?|profiles?|samples?|studies?|docs)(?:\/|$)/i;
 for (const file of packageFiles()) {
-  if (!publicPackagePath.test(file) || forbiddenPackedPath.test(file)) failures.push(`npm package contains an unexpected file: ${file}`);
+  if (!publicPackagePath.test(file) || forbiddenPackedPath.test(file) || file.endsWith('.test.js')) failures.push(`npm package contains an unexpected file: ${file}`);
 }
 for (const clause of mitRequiredClauses) {
   if (!mitLicense.includes(clause)) failures.push(`LICENSE is missing an MIT-required clause: ${clause}`);

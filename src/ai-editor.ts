@@ -109,15 +109,17 @@ function ruleFinding(rule: Rule, sentence: { index: number; text: string }): Fin
 function documentMatches(rule: Rule, prose: string, mapped: Array<{ index: number; start: number; end: number; text: string }>): Finding[] {
   const at = (index: number) => mapped[index] ? [ruleFinding(rule, mapped[index]!)] : [];
   if (rule.id === 'ai.repeated-sentence-opening') {
-    for (let index = 0; index + 2 < mapped.length; index += 1) {
-      const opening = mapped[index]!.text.match(/^\s*(\p{L}+)/u)?.[1]?.toLocaleLowerCase();
-      if (opening && [1, 2].every((offset) => mapped[index + offset]!.text.match(/^\s*(\p{L}+)/u)?.[1]?.toLocaleLowerCase() === opening)) return at(index);
+    const openings = mapped.map((sentence) => sentence.text.match(/^\s*(\p{L}+)/u)?.[1]?.toLocaleLowerCase());
+    for (let index = 0; index + 2 < openings.length; index += 1) {
+      const opening = openings[index];
+      if (opening && openings[index + 1] === opening && openings[index + 2] === opening) return at(index);
     }
     return [];
   }
   if (rule.id === 'format.bold-density') {
-    const line = prose.split('\n').findIndex((value) => (value.match(/\*\*[^*\n]+\*\*/gu) ?? []).length >= 2);
-    if (line >= 0) return at(mapped.findIndex((sentence) => sentence.start >= prose.split('\n').slice(0, line).join('\n').length));
+    const lines = prose.split('\n');
+    const line = lines.findIndex((value) => (value.match(/\*\*[^*\n]+\*\*/gu) ?? []).length >= 2);
+    if (line >= 0) return at(mapped.findIndex((sentence) => sentence.start >= lines.slice(0, line).join('\n').length));
     const total = (prose.match(/\*\*[^*\n]+\*\*/gu) ?? []).length;
     return total >= 4 ? at(0) : [];
   }
@@ -129,7 +131,10 @@ function documentMatches(rule: Rule, prose: string, mapped: Array<{ index: numbe
     return [];
   }
   if (rule.id === 'ai.clipped-fragment-run') {
-    for (let index = 0; index + 2 < mapped.length; index += 1) if ([0, 1, 2].every((offset) => (mapped[index + offset]!.text.match(/\p{L}+/gu) ?? []).length <= 4)) return at(index);
+    const fragments = mapped.map((sentence) => (sentence.text.match(/\p{L}+/gu) ?? []).length <= 4);
+    for (let index = 0; index + 2 < fragments.length; index += 1) {
+      if (fragments[index] && fragments[index + 1] && fragments[index + 2]) return at(index);
+    }
     return [];
   }
   if (rule.id === 'ai.jargon-stack') {
@@ -138,10 +143,13 @@ function documentMatches(rule: Rule, prose: string, mapped: Array<{ index: numbe
     return index >= 0 ? at(index) : [];
   }
   if (rule.id === 'ai.sentence-length-cluster') {
-    for (let index = 0; index + 3 < mapped.length; index += 1) if ([0, 1, 2, 3].every((offset) => {
-      const count = (mapped[index + offset]!.text.match(/\p{L}+/gu) ?? []).length;
+    const clustered = mapped.map((sentence) => {
+      const count = (sentence.text.match(/\p{L}+/gu) ?? []).length;
       return count >= 15 && count <= 20;
-    })) return at(index);
+    });
+    for (let index = 0; index + 3 < clustered.length; index += 1) {
+      if (clustered[index] && clustered[index + 1] && clustered[index + 2] && clustered[index + 3]) return at(index);
+    }
     return [];
   }
   return [];

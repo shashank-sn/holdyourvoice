@@ -1,0 +1,324 @@
+import * as handlers from './mcp-tools.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
+import { HYV_VERSION } from './version.js';
+import { loadApprovalContext } from './approval-context.js';
+
+const localRead = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
+const localWrite = { readOnlyHint: false, destructiveHint: false, openWorldHint: false };
+const localDelete = { readOnlyHint: false, destructiveHint: true, openWorldHint: false };
+const readOnly = { readOnlyHint: true };
+const writing = z.string().min(1).max(100_000);
+const hygieneText = z.string().max(100_000);
+const profileJson = z.string().min(1).max(50_000);
+const copySpecJson = z.string().min(1).max(250_000);
+const writingBriefJson = z.string().min(1).max(50_000);
+const samples = z.array(writing).min(2).max(20);
+const heldoutSamples = z.array(writing).min(3).max(20);
+const evalParagraphs = z.array(z.object({ paragraph_id: z.string().min(1).max(160), text: writing })).min(2).max(50);
+const writingExamples = z.array(z.object({ basename: z.string().min(1).max(160), text: writing })).min(1).max(64);
+const avoid = z.array(z.string().min(1).max(200)).max(50).optional();
+const lifecycleJson = z.string().min(1).max(1_048_576);
+const approvedLearningText = z.string().min(1).max(1_048_576);
+const evaluatorId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/);
+const semanticViolation = z.enum(['action_change', 'dropped_object', 'unsupported_claim', 'constraint_weakened', 'clarity_regression']);
+const factSourcesJson = z.string().min(2).max(250_000);
+const learningOptions = {
+  mutation_id: z.string().min(1).max(200).optional(),
+  authority: z.enum(['founder', 'team', 'system']).optional(),
+  provenance: z.string().min(1).max(500).optional(),
+  weight: z.number().positive().finite().optional(),
+  compatibility: z.enum(['same-or-newer', 'exact']).optional(),
+};
+function learningArgs(value: { mutation_id?: string; authority?: 'founder' | 'team' | 'system'; provenance?: string; weight?: number; compatibility?: 'same-or-newer' | 'exact' }) {
+  return { mutationId: value.mutation_id, authority: value.authority, provenance: value.provenance, weight: value.weight, compatibility: value.compatibility };
+}
+
+function json(value: unknown) {
+  return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] };
+}
+
+function failure(error: unknown) {
+  return { content: [{ type: 'text' as const, text: error instanceof Error ? error.message : String(error) }], isError: true };
+}
+
+function jsonHandler<Args>(run: (args: Args) => unknown, publicError?: string): (args: Args) => Promise<CallToolResult> {
+  return async (args) => {
+    try {
+      return json(run(args));
+    } catch (error) {
+      return failure(publicError ?? error);
+    }
+  };
+}
+
+function lifecycleValue(result: ReturnType<typeof handlers.submitSemanticVerdictForMcp>) {
+  return result.ok ? result.artifact : { error: result.error };
+}
+
+function registerWritingTools(server: McpServer, redactsSensitiveInputs: boolean): void {
+
+  server.registerTool('hyv_build_profile', {
+    description: 'Build a portable VoiceDNA profile from at least two writing samples. The samples stay in memory and are not saved.',
+    inputSchema: { samples, avoid },
+    annotations: readOnly,
+  }, jsonHandler(({ samples: writingSamples, avoid: phrases }) => handlers.buildProfileForMcp(writingSamples, phrases)));
+
+  server.registerTool('hyv_profile_assess', {
+    description: 'Assess local sample readiness before building a VoiceDNA profile. It returns aggregate counts and one-way sample digests, never stored sample text or an authorship verdict.',
+    inputSchema: { samples }, annotations: readOnly,
+  }, async ({ samples: writingSamples }) => json(handlers.assessProfileForMcp(writingSamples)));
+
+  server.registerTool('hyv_analyze', {
+    description: 'Run separate VoiceDNA and AI Editor checks plus a non-scoring Unicode hygiene inspection against a draft using a portable profile JSON string.',
+    inputSchema: { draft: writing, profile_json: profileJson, writing_brief_json: writingBriefJson.optional() },
+    annotations: readOnly,
+  }, jsonHandler(({ draft, profile_json, writing_brief_json }) => handlers.analyzeForMcp(draft, profile_json, writing_brief_json)));
+
+  server.registerTool('hyv_strict_check', {
+    description: 'Run the calibrated local strict-quality gate. It requires a Profile v3 and local writing samples; it returns strict-ready, needs-human-review, or blocked without changing text or learning state.',
+    inputSchema: { draft: writing, profile_json: profileJson, samples, writing_brief_json: writingBriefJson.optional() },
+    annotations: readOnly,
+  }, jsonHandler(({ draft, profile_json, samples: localSamples, writing_brief_json }) => handlers.strictCheckForMcp(draft, profile_json, localSamples, writing_brief_json)));
+
+  server.registerTool('hyv_score', {
+    description: 'Score a draft against explicit held-out local samples. It reports a VoiceDNA component vector and the writer’s own similarity band, or abstains when channel or language evidence is inadequate. It is not an authorship score.',
+    inputSchema: { draft: writing, profile_json: profileJson, samples: heldoutSamples, channel: z.enum(['general', 'email', 'chat', 'long-form', 'social', 'docs']).optional() },
+    annotations: readOnly,
+  }, jsonHandler(({ draft, profile_json, samples: localSamples, channel }) => handlers.scoreHeldoutForMcp(draft, profile_json, localSamples, channel)));
+
+  server.registerTool('hyv_backtest', {
+    description: 'Score a caller-supplied reconstruction against a held-out target without generating text. Returns separate preservation, AI Editor, and held-out-band reports without returning prose.',
+    inputSchema: { context: writing, target: writing, candidate: writing, profile_json: profileJson, samples: heldoutSamples },
+    annotations: readOnly,
+  }, jsonHandler(({ context, target, candidate, profile_json, samples: localSamples }) => handlers.backtestForMcp(context, target, candidate, profile_json, localSamples)));
+
+  server.registerTool('hyv_evaluate_local', {
+    description: 'Run a deterministic optional local evaluation composite: train-only TF-IDF logistic proxy, content F1, AI-tell change, and stylometric cosine. It groups paragraph IDs before splitting and is not an authorship verdict.',
+    inputSchema: { input: writing, candidate: writing, user: evalParagraphs, ai_shadow: evalParagraphs },
+    annotations: readOnly,
+  }, jsonHandler(({ input, candidate, user, ai_shadow }) => handlers.evaluateLocalForMcp(input, candidate, user.map((item) => ({ paragraphId: item.paragraph_id, text: item.text })), ai_shadow.map((item) => ({ paragraphId: item.paragraph_id, text: item.text })) )));
+
+  server.registerTool('hyv_hygiene', {
+    description: 'Inspect text for zero-width characters, bidirectional controls, Unicode tag characters, and unusual spaces without changing it or requiring a voice profile.',
+    inputSchema: { draft: hygieneText },
+    annotations: readOnly,
+  }, async ({ draft }) => json(handlers.inspectHygieneForMcp(draft)));
+
+  server.registerTool('hyv_inspect_hidden_text', {
+    description: 'Inspect hidden text controls with a non-mutating policy report. Findings are not watermark verdicts.',
+    inputSchema: { text: hygieneText, policy_json: lifecycleJson.optional() }, annotations: readOnly,
+  }, async ({ text, policy_json }) => json(handlers.inspectHiddenTextForMcp(text, policy_json)));
+
+  server.registerTool('hyv_apply_hidden_text_policy', {
+    description: 'Apply only explicitly approved minimal hidden-text removals and return hashes, exact changes, and remaining review findings.',
+    inputSchema: { text: hygieneText, policy_json: lifecycleJson }, annotations: localWrite,
+  }, async ({ text, policy_json }) => json(handlers.applyHiddenTextPolicyForMcp(text, policy_json)));
+
+  server.registerTool('hyv_final_check', {
+    description: 'Gate exact user-facing text from any model, tool, or interface. Returns output only when clean or after removing a leading byte-order mark; unresolved hidden characters withhold output.',
+    inputSchema: { text: hygieneText },
+    annotations: readOnly,
+  }, async ({ text }) => json(handlers.finalOutputCheckForMcp(text)));
+
+  server.registerTool('hyv_delivery_check', {
+    description: 'Run an opt-in local delivery-integrity check for placeholders, likely secrets, local links, and supplied citation IDs. It never fetches URLs and is separate from final-check.',
+    inputSchema: { text: hygieneText, policy_json: lifecycleJson.optional() }, annotations: readOnly,
+  }, jsonHandler(({ text, policy_json }) => handlers.deliveryCheckForMcp(text, policy_json)));
+
+  server.registerTool('hyv_fact_lint', {
+    description: 'Compare a draft against explicitly supplied local evidence text. It is a source-consistency check, not a truth service, and does not make network requests.',
+    inputSchema: { draft: writing, sources_json: factSourcesJson, metadata_json: lifecycleJson.optional() }, annotations: readOnly,
+  }, jsonHandler(({ draft, sources_json, metadata_json }) => handlers.factLintForMcp(draft, sources_json, metadata_json)));
+
+  server.registerTool('hyv_mcp_capabilities', {
+    description: 'Return the stable core MCP tool names and the compatibility-preserved advanced surface.', inputSchema: {}, annotations: readOnly,
+  }, async () => json({ version: '1', serverVersion: HYV_VERSION, core: ['hyv_analyze', 'hyv_verify', 'hyv_fact_lint', 'hyv_final_check'], advanced: ['hyv_logic_lint', 'hyv_delivery_check', 'hyv_profile_assess'], sensitiveInputRedaction: redactsSensitiveInputs }));
+
+  server.registerTool('hyv_logic_lint', {
+    description: 'Run the deterministic document-coherence gate. It detects configured topic drift, unanchored inference, and direct internal contradictions; it does not verify facts or approve publication.',
+    inputSchema: { draft: writing, writing_brief_json: writingBriefJson.optional() },
+    annotations: readOnly,
+  }, jsonHandler(({ draft, writing_brief_json }) => handlers.logicLintForMcp(draft, writing_brief_json)));
+
+  server.registerTool('hyv_rewrite_prompt', {
+    description: 'Create a strict constrained editing brief. Every active AI Editor finding is a required repair; explicit local examples remain advisory cadence evidence. It does not rewrite the draft or call a model.',
+    inputSchema: { draft: writing, profile_json: profileJson, writing_brief_json: writingBriefJson.optional(), examples: writingExamples.optional() },
+    annotations: readOnly,
+  }, jsonHandler(({ draft, profile_json, writing_brief_json, examples }) => handlers.rewritePromptForMcp(draft, profile_json, {}, writing_brief_json, examples)));
+
+  server.registerTool('hyv_find_writing_examples', {
+    description: 'Find up to three redacted excerpts from explicit in-memory local samples. Returns basenames only and never writes an index.',
+    inputSchema: { query: writing, examples: writingExamples },
+    annotations: readOnly,
+  }, jsonHandler(({ query, examples }) => handlers.findWritingExamplesForMcp(query, examples)));
+
+  server.registerTool('hyv_prepare_rewrite', {
+    description: 'Prepare a strict local, versioned rewrite task. Every active AI Editor finding is eligible for source-faithful repair; the caller may forward the task to a provider only by explicit choice.',
+    inputSchema: { draft: writing, profile_json: profileJson, copy_spec_json: copySpecJson.optional(), writing_brief_json: writingBriefJson.optional() },
+    annotations: readOnly,
+  }, jsonHandler(({ draft, profile_json, copy_spec_json, writing_brief_json }) => handlers.prepareRewriteForMcp(draft, profile_json, copy_spec_json, writing_brief_json)));
+
+  server.registerTool('hyv_apply_rewrite', {
+    description: 'Validate a model response to a prepared task, then reject any candidate with an unresolved active AI Editor finding. It never calls a provider or stores source or candidate text.',
+    inputSchema: { task_json: z.string().min(1).max(250_000), response_json: z.string().min(1).max(100_000), profile_json: profileJson },
+    annotations: readOnly,
+  }, jsonHandler(({ task_json, response_json, profile_json }) => handlers.applyRewriteForMcp(task_json, response_json, profile_json)));
+
+  server.registerTool('hyv_prepare_judgment', {
+    description: 'Prepare a versioned pre-edit or post-candidate judgment task. It does not call a model.',
+    inputSchema: {
+      stage: z.enum(['pre-edit', 'post-candidate']),
+      kind: z.enum(['triage', 'argument', 'form', 'polarity', 'flatness', 'semantic']),
+      draft: writing,
+      profile_json: profileJson,
+      candidate: writing.optional(),
+    },
+    annotations: readOnly,
+  }, jsonHandler(({ stage, kind, draft, profile_json, candidate }) => handlers.prepareJudgmentForMcp(stage, kind, draft, profile_json, candidate)));
+
+  server.registerTool('hyv_reduce_judgment', {
+    description: 'Reduce bound judgment envelopes into SHIP, EDIT, REBUILD, CLEAR, or ESCALATE. It does not call a model.',
+    inputSchema: { envelopes_json: z.string().min(1).max(250_000) },
+    annotations: readOnly,
+  }, jsonHandler(({ envelopes_json }) => handlers.reduceJudgmentForMcp(envelopes_json)));
+
+  server.registerTool('hyv_verify', {
+    description: 'Verify a revised candidate against an original draft and portable profile. Every active AI Editor finding fails default verification; learning state remains unchanged.',
+    inputSchema: { original: writing, candidate: writing, profile_json: profileJson, writing_brief_json: writingBriefJson.optional() },
+    annotations: localRead,
+  }, jsonHandler(({ original, candidate, profile_json, writing_brief_json }) => handlers.verifyForMcp(original, candidate, profile_json, writing_brief_json)));
+
+  server.registerTool('hyv_verify_copy_spec', {
+    description: 'Verify a candidate against strict default voice gates and a local CopySpec. Every active AI Editor finding fails verification; immutable claims remain verbatim unless atoms are supplied, and prohibited claims fail closed.',
+    inputSchema: { original: writing, candidate: writing, profile_json: profileJson, copy_spec_json: copySpecJson, writing_brief_json: writingBriefJson.optional() },
+    annotations: localRead,
+  }, jsonHandler(({ original, candidate, profile_json, copy_spec_json, writing_brief_json }) => handlers.verifyCopySpecForMcp(original, candidate, profile_json, copy_spec_json, writing_brief_json)));
+
+  server.registerTool('hyv_batch_analyze', {
+    description: 'Inspect two to one hundred drafts for repeated opening and closing sentences. It returns advisory batch findings and does not store the drafts.',
+    inputSchema: { drafts: z.array(writing).min(2).max(100) },
+    annotations: readOnly,
+  }, jsonHandler(({ drafts }) => handlers.analyzeBatchForMcp(drafts)));
+
+  server.registerTool('hyv_patterns', {
+    description: 'List the exact AI Editor rules that run in this extension.',
+    inputSchema: {},
+    annotations: readOnly,
+  }, async () => json(handlers.patternsForMcp()));
+
+}
+
+function registerLearningTools(server: McpServer): void {
+  server.registerTool('hyv_learning_inspect', {
+    description: 'Inspect profile-scoped learning receipts without returning stored instruction or draft text.',
+    inputSchema: { profile_json: profileJson }, annotations: readOnly,
+  }, jsonHandler(({ profile_json }) => handlers.inspectLearningForMcp(profile_json)));
+
+  server.registerTool('hyv_learning_record', {
+    description: 'Record an explicit profile-scoped learning instruction with authority and provenance metadata.',
+    inputSchema: { profile_json: profileJson, instruction: z.string().min(1).max(240), ...learningOptions }, annotations: localWrite,
+  }, jsonHandler((args) => handlers.recordLearningForMcp(args.profile_json, args.instruction, learningArgs(args))));
+
+  server.registerTool('hyv_learning_ratify', {
+    description: 'Ratify a learning event for a Profile v3 revision.',
+    inputSchema: { profile_json: profileJson, event_id: z.string().min(1).max(200), ...learningOptions }, annotations: localWrite,
+  }, jsonHandler((args) => handlers.ratifyLearningForMcp(args.profile_json, args.event_id, learningArgs(args))));
+
+  server.registerTool('hyv_learning_supersede', {
+    description: 'Supersede a learning event for a Profile v3 revision.',
+    inputSchema: { profile_json: profileJson, event_id: z.string().min(1).max(200), ...learningOptions }, annotations: localDelete,
+  }, jsonHandler((args) => handlers.supersedeLearningForMcp(args.profile_json, args.event_id, learningArgs(args))));
+
+  server.registerTool('hyv_learning_migrate', {
+    description: 'Migrate Profile v2 learning into a Profile v3 identity.',
+    inputSchema: { source_profile_json: profileJson, target_profile_json: profileJson, ...learningOptions }, annotations: localWrite,
+  }, jsonHandler((args) => handlers.migrateLearningForMcp(args.source_profile_json, args.target_profile_json, learningArgs(args))));
+
+  server.registerTool('hyv_learning_clear', {
+    description: 'Delete all local learning state for a profile.',
+    inputSchema: { profile_json: profileJson }, annotations: localDelete,
+  }, jsonHandler(({ profile_json }) => handlers.clearLearningForMcp(profile_json)));
+
+}
+
+function registerLifecycleTools(server: McpServer, redactsSensitiveInputs: boolean): void {
+  server.registerTool('hyv_lifecycle_prepare_semantic', {
+    description: 'Prepare a normal semantic-review task and its initial immutable lifecycle artifact.',
+    inputSchema: { deterministic_json: lifecycleJson, binding_json: lifecycleJson, receipt_json: lifecycleJson, policy: z.literal('normal'), allowed_violations: z.array(semanticViolation).max(5) },
+    annotations: localRead,
+  }, jsonHandler((args) => handlers.prepareLifecycleForMcp(args.deterministic_json, args.binding_json, args.receipt_json, args.policy, args.allowed_violations)));
+
+  server.registerTool('hyv_lifecycle_submit_verdict', {
+    description: 'Submit one normal-policy semantic verdict using the server-installed evaluator authorization context.',
+    inputSchema: { artifact_json: lifecycleJson, task_json: lifecycleJson, evaluator_id: evaluatorId, verdict_json: lifecycleJson },
+    annotations: localRead,
+  }, jsonHandler((args) => lifecycleValue(handlers.submitSemanticVerdictForMcp(args.artifact_json, args.task_json, args.evaluator_id, args.verdict_json, loadApprovalContext()))));
+
+  server.registerTool('hyv_lifecycle_inspect', {
+    description: 'Validate and inspect an immutable lifecycle artifact without exposing bound source or candidate hashes.',
+    inputSchema: { artifact_json: lifecycleJson }, annotations: localRead,
+  }, jsonHandler(({ artifact_json }) => handlers.inspectLifecycleForMcp(artifact_json)));
+
+  if (redactsSensitiveInputs) {
+    server.registerTool('hyv_lifecycle_finalize', {
+      description: 'Finalize an authorized human approval or rejection. Capability input requires host-guaranteed sensitive-input redaction.',
+      inputSchema: { artifact_json: lifecycleJson, decision_json: lifecycleJson, capability_json: lifecycleJson.optional() },
+      annotations: localRead,
+    }, jsonHandler((args) => lifecycleValue(handlers.finalizeLifecycleForMcp(args.artifact_json, args.decision_json, loadApprovalContext(), args.capability_json)), 'Lifecycle finalization failed.'));
+
+    server.registerTool('hyv_lifecycle_validate_final_approval', {
+      description: 'Validate a final-approval capability against the server-installed trust context.',
+      inputSchema: { artifact_json: lifecycleJson, capability_json: lifecycleJson }, annotations: localRead,
+    }, jsonHandler((args) => handlers.validateFinalApprovalForMcp(args.artifact_json, args.capability_json, loadApprovalContext()), 'Capability validation failed.'));
+
+    server.registerTool('hyv_learning_record_approved', {
+      description: 'Record one approval-revalidated, deterministic, text-free learning event.',
+      inputSchema: { ready_json: lifecycleJson, approved_json: lifecycleJson, original: approvedLearningText, candidate: approvedLearningText, profile_json: profileJson, decision_json: lifecycleJson, capability_json: lifecycleJson, copy_spec_json: copySpecJson.optional(), writing_brief_json: writingBriefJson.optional() },
+      annotations: localWrite,
+    }, jsonHandler((args) => ({ status: handlers.recordApprovedLearningForMcp({ readyJson: args.ready_json, approvedJson: args.approved_json, source: args.original, candidate: args.candidate, profileJson: args.profile_json, decisionJson: args.decision_json, capabilityJson: args.capability_json, context: loadApprovalContext(), copySpecJson: args.copy_spec_json, writingBriefJson: args.writing_brief_json }) }), 'Approved learning was not authorized.'));
+
+    server.registerTool('hyv_prepare_rebuild', {
+      description: 'Prepare a rebuild task only after an upstream REBUILD recommendation, CopySpec, and signed rebuild-authorization capability. Capability input requires host-guaranteed sensitive-input redaction.',
+      inputSchema: {
+        draft: writing,
+        profile_json: profileJson,
+        reduction_json: lifecycleJson,
+        copy_spec_json: copySpecJson,
+        capability_json: lifecycleJson,
+        writing_brief_json: writingBriefJson.optional(),
+        recomposition_policy_json: lifecycleJson.optional(),
+      },
+      annotations: localRead,
+    }, jsonHandler((args) => handlers.prepareRebuildForMcp(args.draft, args.profile_json, args.reduction_json, args.copy_spec_json, args.capability_json, loadApprovalContext(), args.writing_brief_json, args.recomposition_policy_json),
+      'Rebuild preparation failed.'));
+
+    server.registerTool('hyv_apply_rebuild', {
+      description: 'Validate a whole-document rebuild response against a prepared authorized rebuild task and reject unresolved active AI Editor findings. Capability input requires host-guaranteed sensitive-input redaction. It never calls a provider.',
+      inputSchema: { task_json: lifecycleJson, response_json: z.string().min(1).max(100_000), profile_json: profileJson, capability_json: lifecycleJson },
+      annotations: localRead,
+    }, jsonHandler((args) => handlers.applyRebuildForMcp(args.task_json, args.response_json, args.profile_json, args.capability_json, loadApprovalContext()),
+      'Rebuild application failed.'));
+
+    server.registerTool('hyv_rebuild_writer_request', {
+      description: 'Create the writer-only payload for a prepared rebuild. It excludes source draft, capability, profile body, and validation evidence.',
+      inputSchema: { task_json: lifecycleJson }, annotations: localRead,
+    }, jsonHandler(({ task_json }) => handlers.rebuildWriterRequestForMcp(task_json), 'Writer request could not be prepared.'));
+  } else {
+    server.registerTool('hyv_lifecycle_finalize', {
+      description: 'Record an authorized human rejection. Approval is unavailable because this host does not guarantee sensitive-input redaction.',
+      inputSchema: { artifact_json: lifecycleJson, decision_json: lifecycleJson }, annotations: localRead,
+    }, jsonHandler((args) => lifecycleValue(handlers.finalizeRejectionForMcp(args.artifact_json, args.decision_json, loadApprovalContext())),
+      'Only rejection is available without sensitive-input redaction.'));
+  }
+
+}
+
+export function createMcpServer(redactsSensitiveInputs = process.env.HYV_MCP_SENSITIVE_INPUT_REDACTION === '1'): McpServer {
+  const server = new McpServer({ name: 'hold-your-voice', version: HYV_VERSION });
+  registerWritingTools(server, redactsSensitiveInputs);
+  registerLearningTools(server);
+  registerLifecycleTools(server, redactsSensitiveInputs);
+  return server;
+}
