@@ -1,3 +1,4 @@
+import { WORD_ECONOMY_REVIEW } from './rewrite-prompt.js';
 import type {
   ApprovalTrustStoreV1,
   CopySpec,
@@ -61,6 +62,9 @@ function renderRebuildPrompt(draft: string, copySpec: CopySpec, writingBrief?: W
     'Return a whole-document candidate. Do not emit sentence replacements or range operations.',
     'Keep every immutable CopySpec claim and atom. Do not add prohibited claims.',
     'Claim, polarity, hygiene, fingerprint, and semantic gates remain blocking. Lexical survival is not required.',
+    '',
+    '# Word economy review',
+    WORD_ECONOMY_REVIEW,
     '',
     '# CopySpec',
     canonicalJson({ audience: copySpec.audience, intent: copySpec.intent, channel: copySpec.channel, claims: copySpec.claims, ...(copySpec.prohibitedClaims ? { prohibitedClaims: copySpec.prohibitedClaims } : {}) }),
@@ -156,16 +160,17 @@ export function parseRebuildTask(value: unknown): RebuildTask {
   return task as RebuildTask;
 }
 
-function rejected(task: RebuildTask, raw: unknown, failures: RewriteFailure[]): RewriteApplyResult {
+function rebuildResult(task: RebuildTask, raw: unknown, failures: RewriteFailure[], response?: RebuildResponse): RewriteApplyResult {
   return {
-    status: 'repairable',
+    status: response ? 'accepted' : 'repairable',
+    ...(response ? { candidate: response.candidate } : {}),
     failures,
     receipt: {
       version: '1',
       taskFingerprint: task.fingerprint,
       responseFingerprint: fingerprint(raw),
       adapterIds: [],
-      replacementSentenceIds: [],
+      replacementSentenceIds: response ? sentences(response.candidate).map((sentence) => sentence.index) : [],
       mode: 'REBUILD',
       recommendationFingerprint: task.recommendationFingerprint,
     },
@@ -174,24 +179,11 @@ function rejected(task: RebuildTask, raw: unknown, failures: RewriteFailure[]): 
 
 export function applyRebuildResponse(task: RebuildTask, raw: unknown): RewriteApplyResult {
   const response = parseRebuildResponse(typeof raw === 'string' ? parseResponseJson(raw) : raw);
-  if (isFailure(response)) return rejected(task, raw, [response]);
+  if (isFailure(response)) return rebuildResult(task, raw, [response]);
   if (response.taskFingerprint !== task.fingerprint) {
-    return rejected(task, raw, [failure('task_fingerprint_mismatch', 'Response task fingerprint does not match this task.', 'taskFingerprint')]);
+    return rebuildResult(task, raw, [failure('task_fingerprint_mismatch', 'Response task fingerprint does not match this task.', 'taskFingerprint')]);
   }
-  return {
-    status: 'accepted',
-    candidate: response.candidate,
-    failures: [],
-    receipt: {
-      version: '1',
-      taskFingerprint: task.fingerprint,
-      responseFingerprint: fingerprint(raw),
-      adapterIds: [],
-      replacementSentenceIds: sentences(response.candidate).map((sentence) => sentence.index),
-      mode: 'REBUILD',
-      recommendationFingerprint: task.recommendationFingerprint,
-    },
-  };
+  return rebuildResult(task, raw, [], response);
 }
 
 export function evaluateRebuildResponse(
@@ -223,16 +215,13 @@ export function evaluateRebuildResponse(
     ...(task.recompositionPolicy ? { lexicalResidual: measureLexicalResidual(task.draft, candidate, task.copySpec, task.recompositionPolicy) } : {}),
     provenanceStatus: provenanceStatusForRebuild(task),
   };
-  if (!verification.passed) {
-    const { candidate: _candidate, ...withheld } = applied;
-    return { ...withheld, receipt, status: 'needs_escalation', verification, deterministicArtifact };
-  }
-  if (receipt.lexicalResidual && !receipt.lexicalResidual.passed) {
+  const residualFailed = receipt.lexicalResidual && !receipt.lexicalResidual.passed;
+  if (!verification.passed || residualFailed) {
     const { candidate: _candidate, ...withheld } = applied;
     return {
       ...withheld,
       receipt,
-      failures: [failure('lexical_residual_exceeds_policy', 'Candidate exceeds the configured lexical-residual policy.')],
+      ...(verification.passed ? { failures: [failure('lexical_residual_exceeds_policy', 'Candidate exceeds the configured lexical-residual policy.')] } : {}),
       status: 'needs_escalation',
       verification,
       deterministicArtifact,

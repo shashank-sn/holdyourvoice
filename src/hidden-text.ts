@@ -47,17 +47,18 @@ export function inspectHiddenText(text: string, policy: HiddenTextPolicyV1 = min
 
 export function applyHiddenTextPolicy(text: string, policy: HiddenTextPolicyV1 = minimalHiddenTextPolicy): HiddenTextApplyReceiptV1 {
   const report = inspectHiddenText(text, policy);
-  const output = applyOnce(text, policy);
-  const remaining = inspectHiddenText(output, policy).findings;
-  const again = applyOnce(output, policy);
-  return { ...report, outputHash: hash(output), output, remaining, idempotent: again === output };
+  const output = removeProposedChanges(text, report.proposedChanges);
+  const remainingReport = inspectHiddenText(output, policy);
+  const again = removeProposedChanges(output, remainingReport.proposedChanges);
+  return { ...report, outputHash: hash(output), output, remaining: remainingReport.findings, idempotent: again === output };
 }
 
-function applyOnce(text: string, policy: HiddenTextPolicyV1): string {
-  const offsets = new Set(inspectHiddenText(text, policy).proposedChanges.map((item) => item.offset));
+function removeProposedChanges(text: string, changes: HiddenTextReportV1['proposedChanges']): string {
+  const offsets = new Set(changes.map((item) => item.offset));
   let output = '';
   for (let offset = 0; offset < text.length;) {
-    const value = text.codePointAt(offset)!; const character = String.fromCodePoint(value);
+    const value = text.codePointAt(offset)!;
+    const character = String.fromCodePoint(value);
     if (!offsets.has(offset)) output += character;
     offset += character.length;
   }

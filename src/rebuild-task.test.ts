@@ -191,7 +191,7 @@ test('CLI and MCP rebuild helpers share fingerprints', () => {
     version: '1', audience: 'operators', intent: 'explain', format: 'outreach',
   });
   assert.match(briefTask.prompt, /# WritingBrief/);
-  assert.equal(HYV_VERSION, '3.6.1');
+  assert.equal(HYV_VERSION, '4.0.0');
 });
 
 test('apply rejects forged tasks, missing capability, and substituted profiles', () => {
@@ -222,4 +222,16 @@ test('meaning-first rebuild binds the residual policy and blocks carried-over wo
   const fresh = evaluateRebuildResponse(task, { version: '1', mode: 'REBUILD', taskFingerprint: task.fingerprint, candidate: 'Release owners now work from a compact calendar note. The launch is on 14 August. Nothing else in this message repeats the original framing.' }, profile, capability(reduction, {}, source), trustStore, 150);
   assert.equal(fresh.status, 'needs_semantic_review');
   assert.equal(fresh.receipt.lexicalResidual?.passed, true);
+});
+
+
+test('both rebuild modes require word economy review within preservation constraints', () => {
+  const reduction = rebuildRecommendation();
+  for (const policy of [undefined, recompositionPolicy]) {
+    const task = prepareRebuildTask(draft, profile, reduction, copySpec, capability(reduction), trustStore, 150, undefined, policy);
+    assert.match(task.prompt, /every word must earn its place/);
+    assert.match(task.prompt, /Preserve facts, attribution, uncertainty, emphasis, rhythm/);
+    assert.match(task.prompt, /not a deterministic pass/);
+    assert.match(task.prompt, /# CopySpec/);
+  }
 });

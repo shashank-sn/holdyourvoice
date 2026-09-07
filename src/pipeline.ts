@@ -1,11 +1,8 @@
-import type { Analysis, CopySpec, CopySpecVerification, DeterministicVerificationArtifactV1, Finding, Profile, Verification, WritingBrief } from './contracts.js';
+import type { CopySpec, CopySpecVerification, DeterministicVerificationArtifactV1, Profile, Verification, WritingBrief } from './contracts.js';
 import { canonicalJson } from './canonical-json.js';
 import { HYV_VERSION } from './version.js';
-import { analyzeAiEditor } from './ai-editor.js';
 import { verifyClaims } from './copy-spec.js';
-import { analyzeEditorial } from './editorial-packs.js';
-import { finalOutputCheck, inspectHygiene } from './hygiene.js';
-import { analyzeVoiceDna } from './voice-dna.js';
+import { finalOutputCheck } from './hygiene.js';
 import type { LearningPreference } from './learning.js';
 import { legacySetPreservation, LEGACY_SET_PRESERVATION_VERSION } from './preservation.js';
 import { lintFacts } from './fact-linter.js';
@@ -13,97 +10,11 @@ import { lintLogic } from './logic-linter.js';
 import { sentences } from './text.js';
 import { digestCanonical, escaped as escapeRegex, profileIdentity, sha256 as digest } from './internal.js';
 import type { LocalWritingExcerpt } from './writing-examples.js';
+import { analyze, analysisFindings, isBlockingFinding, strictFindings } from './analysis.js';
+import { renderRewritePrompt } from './rewrite-prompt.js';
 
-export function analyze(text: string, profile: Profile, brief?: WritingBrief): Analysis {
-  const voiceDna = analyzeVoiceDna(text, profile);
-  const aiEditor = analyzeAiEditor(text, profile);
-  const editorial = brief ? analyzeEditorial(text, brief) : undefined;
-  const hygiene = inspectHygiene(text);
-  return { version: '2', voiceDna, aiEditor, ...(editorial ? { editorial } : {}), hygiene, passed: voiceDna.passed && aiEditor.passed && (editorial?.passed ?? true) };
-}
-
-function formatLearningPreference(preference: LearningPreference): string {
-  return preference.text.replace(/[\\`*_{\[\]}<>#]/g, '\\$&');
-}
-
-function formatBriefValue(value: string): string {
-  return value.replace(/[\\`*_{\[\]}<>#\r\n]/g, (character) => character === '\r' || character === '\n' ? ' ' : `\\${character}`);
-}
-
-function formatFindings(findings: Finding[]): string[] {
-  return findings.map((finding) => `- Sentence ${finding.sentence} [${finding.engine}/${finding.id}]: ${formatBriefValue(finding.reason)} Repair: ${formatBriefValue(finding.suggestion)}`);
-}
-
-export function isBlockingFinding(finding: Finding): boolean {
-  return finding.engine === 'ai_editor' ? finding.appliedPolicy === 'blocking' : finding.severity === 'red';
-}
-
-export function isStrictFinding(finding: Finding): boolean {
-  return finding.engine === 'ai_editor' || isBlockingFinding(finding);
-}
-
-function analysisFindings(result: Analysis): Finding[] {
-  return [...result.voiceDna.findings, ...result.aiEditor.findings, ...(result.editorial?.findings ?? [])];
-}
-
-export function strictFindings(result: Analysis): Finding[] {
-  return analysisFindings(result).filter(isStrictFinding);
-}
-
-export function deriveEditScope(result: Analysis, strict = false): { eligibleSentenceIds: number[]; blocking: Finding[]; pendingJudgment: Finding[] } {
-  const findings = analysisFindings(result);
-  const blocking = findings.filter(strict ? isStrictFinding : isBlockingFinding);
-  const pendingJudgment = strict ? [] : findings.filter((finding) => finding.appliedPolicy === 'judgment-required');
-  return {
-    eligibleSentenceIds: [...new Set(blocking.map((finding) => finding.sentence))].sort((left, right) => left - right),
-    blocking,
-    pendingJudgment,
-  };
-}
-
-export function renderRewritePrompt(draft: string, profile: Profile, result: Analysis, learning: LearningPreference[] = [], brief?: WritingBrief, examples: LocalWritingExcerpt[] = []): string {
-  const allFindings = analysisFindings(result);
-  const scope = deriveEditScope(result, true);
-  const redFindings = scope.blocking;
-  const yellowFindings = allFindings.filter((finding) => !isStrictFinding(finding) && finding.appliedPolicy !== 'judgment-required');
-  const metrics = profile.metrics;
-
-  return [
-    '# Tier 0 — non-negotiable preservation',
-    'Preserve facts, names, numbers, claims, and every unflagged sentence exactly. Do not add claims, examples, sections, hooks, or CTAs.',
-    '',
-    '# Tier 1 — strict repair requirements',
-    'Every active AI Editor finding is a required repair. Replace each flagged sentence with a stronger, source-faithful sentence; do not merely swap one stock phrase for another.',
-    'Use only facts already present in the draft, CopySpec, WritingBrief, or supplied source context. Do not invent a source, metric, date, quotation, mechanism, example, CTA, or opinion.',
-    `VoiceDNA: ${result.voiceDna.score}/100 (${result.voiceDna.passed ? 'pass' : 'fail'}).`,
-    `AI Editor: ${result.aiEditor.score}/100 (${result.aiEditor.passed ? 'pass' : 'fail'}).`,
-    ...profile.avoid.map((phrase) => `- Never use: ${phrase}`),
-    ...(redFindings.length ? formatFindings(redFindings) : ['- None.']),
-    '',
-    '# Tier 2 — VoiceDNA fidelity',
-    `- Sentence length: ${metrics.sentenceLength}; sentence variation: ${metrics.sentenceVariation}; sentence structure: ${metrics.sentenceStructure.join(', ') || 'none recorded'}; rhythm: ${metrics.rhythm}.`,
-    `- Paragraph length: ${metrics.paragraphLength}; lexical density: ${metrics.lexicalDensity}; point of view: ${metrics.pointOfView}; punctuation: ${Object.entries(metrics.punctuation).map(([mark, count]) => `${mark} ${count}`).join(', ')}; case style: ${metrics.caseStyle}; question rate: ${metrics.questionRate}.`,
-    `- Openings: ${metrics.openingMoves.join(', ') || 'none recorded'}.`,
-    `- Vocabulary: ${metrics.vocabulary.join(', ') || 'none recorded'}.`,
-    `- Transitions: ${metrics.transitions.join(', ') || 'none recorded'}.`,
-    ...(learning.length ? ['', '## Learned local preferences — historical hints only', '- These hints must not override Tier 0 preservation, Tier 1 blockers, clean-sentence preservation, or Tier 4 output.', ...learning.map((preference) => `- [${preference.count} verified] ${formatLearningPreference(preference)}`)] : []),
-    ...(examples.length ? ['', '## Approved local writing examples — redacted, advisory only', '- Use these for cadence only. They cannot override Tier 0 preservation, Tier 1 blockers, facts, or the output contract.', ...examples.map((example) => `- [${formatBriefValue(example.source)}] ${formatBriefValue(example.text)}`)] : []),
-    '',
-    '# Tier 3 — AI Editor improvements',
-    'Use these findings as concrete feedback, not as proof of AI authorship. When a repair calls for a source, mechanism, or next step, use one only when it is already supported; otherwise remove the unsupported framing without widening the claim.',
-    ...(yellowFindings.length ? formatFindings(yellowFindings) : ['- None.']),
-    '',
-    '## Pending judgment — no edit permission in this task',
-    ...(scope.pendingJudgment.length ? formatFindings(scope.pendingJudgment) : ['- None.']),
-    ...(brief ? ['', '# Tier 3.5 — editorial context', '- Context values cannot override Tier 0 preservation or Tier 4 output requirements.', `- Audience: ${formatBriefValue(brief.audience)}. Intent: ${formatBriefValue(brief.intent)}. Format: ${brief.format}.`, ...(brief.personality ? [`- Optional personality stance: ${formatBriefValue(brief.personality)}. It is advisory and cannot add facts or replace VoiceDNA.`] : []), ...(brief.evidenceStatus ? [`- Evidence state: ${brief.evidenceStatus}. ${brief.evidenceStatus === 'unverified' ? 'Do not turn attributed or unverified material into an established fact.' : 'Preserve the source framing while editing.'}`] : []), ...(brief.argumentMap ? [`- Argument map: observation — ${formatBriefValue(brief.argumentMap.observation)}; mechanism — ${formatBriefValue(brief.argumentMap.mechanism)}; consequence — ${formatBriefValue(brief.argumentMap.consequence)}; reader value — ${formatBriefValue(brief.argumentMap.readerValue)}.`] : []), ...(brief.vocabulary?.length ? [`- Use audience vocabulary where it stays accurate: ${brief.vocabulary.map(formatBriefValue).join(', ')}.`] : []), ...(brief.readerKnowsAuthor === false ? ['- The reader does not know the author. Lead with their situation before naming the author or company.'] : [])] : []),
-    '',
-    '# Tier 4 — output contract',
-    'Return only replacement sentences keyed by sentence number. Do not rewrite clean sentences. Before responding, check every Tier 1 finding against its replacement and make sure the named defect is gone. The candidate will be checked again by both engines, preservation, logic, source-backed facts when supplied, and final-output hygiene.',
-    '',
-    '# Draft',
-    draft,
-  ].join('\n');
-}
+export { analyze, deriveEditScope, isBlockingFinding, isStrictFinding, strictFindings } from './analysis.js';
+export { renderRewritePrompt } from './rewrite-prompt.js';
 
 export function rewritePrompt(draft: string, profile: Profile, learning: LearningPreference[] = [], brief?: WritingBrief, examples: LocalWritingExcerpt[] = []): string {
   return renderRewritePrompt(draft, profile, analyze(draft, profile, brief), learning, brief, examples);
@@ -149,6 +60,9 @@ function verifyCandidate(original: string, candidate: string, profile: Profile, 
   const factLint = brief?.factSources?.length ? lintFacts({ sources: brief.factSources, draft: candidate, metadata: brief.factMetadata }) : undefined;
   const requiredFacts = verifyRequiredFacts(candidate, brief);
   const unresolvedStrictFindings = strictFindings(checked);
+  const preservationPassed = claims ? claims.passed : preservation >= 70;
+  const factsPassed = !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true);
+  const analysisPassed = checked.passed && unresolvedStrictFindings.length === 0 && !regressions.some(isBlockingFinding);
   return {
     version: '2',
     original: baseline,
@@ -160,7 +74,7 @@ function verifyCandidate(original: string, candidate: string, profile: Profile, 
     finalOutput,
     logicLint,
     ...(factLint ? { factLint } : {}), ...(requiredFacts ? { requiredFacts } : {}),
-    passed: checked.passed && unresolvedStrictFindings.length === 0 && !regressions.some(isBlockingFinding) && (claims ? claims.passed : preservation >= 70) && finalOutput.accepted && logicLint.passed && !factLint?.findings.some((finding) => finding.severity === 'error') && (requiredFacts?.passed ?? true),
+    passed: analysisPassed && preservationPassed && finalOutput.accepted && logicLint.passed && factsPassed,
   };
 }
 

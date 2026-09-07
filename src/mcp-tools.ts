@@ -172,8 +172,8 @@ export function logicLintForMcp(draft: string, writingBriefJson?: string) {
 
 export function factLintForMcp(draft: string, sourcesJson: string, metadataJson?: string) {
   const sources = parsed<unknown>(sourcesJson, 'Fact sources');
-  if (!Array.isArray(sources) || !sources.every((source) => source && typeof source === 'object' && typeof (source as FactSource).id === 'string' && typeof (source as FactSource).text === 'string')) throw new Error('Fact sources are not valid.');
-  return lintFacts({ draft, sources: sources as FactSource[], metadata: metadataJson ? parsed<FactMetadata>(metadataJson, 'Fact metadata') : undefined });
+  if (!Array.isArray(sources) || !sources.every((source): source is FactSource => source && typeof source === 'object' && 'id' in source && typeof source.id === 'string' && 'text' in source && typeof source.text === 'string')) throw new Error('Fact sources are not valid.');
+  return lintFacts({ draft, sources, metadata: metadataJson ? parsed<FactMetadata>(metadataJson, 'Fact metadata') : undefined });
 }
 
 export function deliveryCheckForMcp(text: string, policyJson?: string) {

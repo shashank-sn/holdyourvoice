@@ -5,15 +5,18 @@ import { canonicalJson } from './canonical-json.js';
 function weighted(values: number[], weights: number[]): number {
   return Number((values.reduce((sum, value, index) => sum + value * weights[index]!, 0) / weights.reduce((sum, value) => sum + value, 0)).toFixed(3));
 }
+function rankedValues<T extends string>(lists: T[][], weights: number[]): T[] {
+  const scores = new Map<T, number>();
+  for (let index = 0; index < lists.length; index += 1) {
+    for (const item of lists[index]!) scores.set(item, (scores.get(item) ?? 0) + weights[index]!);
+  }
+  return [...scores].sort(([leftKey, leftScore], [rightKey, rightScore]) => rightScore - leftScore || leftKey.localeCompare(rightKey)).map(([item]) => item);
+}
 function weightedList(lists: string[][], weights: number[], limit: number): string[] {
-  const scores = new Map<string, number>();
-  for (let index = 0; index < lists.length; index += 1) for (const item of lists[index]!) scores.set(item, (scores.get(item) ?? 0) + weights[index]!);
-  return [...scores].sort(([leftKey, leftScore], [rightKey, rightScore]) => rightScore - leftScore || leftKey.localeCompare(rightKey)).slice(0, limit).map(([item]) => item);
+  return rankedValues(lists, weights).slice(0, limit);
 }
 function categorical<T extends string>(values: T[], weights: number[]): T {
-  const scores = new Map<T, number>();
-  for (let index = 0; index < values.length; index += 1) scores.set(values[index]!, (scores.get(values[index]!) ?? 0) + weights[index]!);
-  return [...scores].sort(([leftKey, leftScore], [rightKey, rightScore]) => rightScore - leftScore || leftKey.localeCompare(rightKey))[0]![0];
+  return rankedValues(values.map((value) => [value]), weights)[0]!;
 }
 function strictest(states: RulePolicyState[]): RulePolicyState {
   const rank: Record<RulePolicyState, number> = { disabled: 0, advisory: 1, 'judgment-required': 2, blocking: 3 };
@@ -57,6 +60,13 @@ function tone(profiles: ProfileV3[], weights: number[]): ToneVector | undefined 
   };
 }
 
+function strictestTolerance(profiles: ProfileV3[], metric: keyof ProfileV3['tolerances']) {
+  return {
+    absolute: Math.min(...profiles.map((profile) => profile.tolerances[metric].absolute)),
+    calibrated: profiles.every((profile) => profile.tolerances[metric].calibrated),
+  };
+}
+
 export function parseProfileRatio(value: string, count: number): number[] {
   const values = value.split(':').map((part) => Number(part));
   if (values.length !== count || values.some((item) => !Number.isFinite(item) || item <= 0)) throw new Error('Profile ratio must contain ' + count + ' positive colon-separated values.');
@@ -84,10 +94,10 @@ export function composeProfiles(profiles: ProfileV3[], ratio: number[]): Profile
     ...(composedTone ? { tone: composedTone } : {}),
     fingerprint: fingerprint(profiles, ratio),
     tolerances: {
-      contractionRate: { absolute: Math.min(...profiles.map((profile) => profile.tolerances.contractionRate.absolute)), calibrated: profiles.every((profile) => profile.tolerances.contractionRate.calibrated) },
-      sentenceLengthDistribution: { absolute: Math.min(...profiles.map((profile) => profile.tolerances.sentenceLengthDistribution.absolute)), calibrated: profiles.every((profile) => profile.tolerances.sentenceLengthDistribution.calibrated) },
-      bulletRate: { absolute: Math.min(...profiles.map((profile) => profile.tolerances.bulletRate.absolute)), calibrated: profiles.every((profile) => profile.tolerances.bulletRate.calibrated) },
-      enDashRate: { absolute: Math.min(...profiles.map((profile) => profile.tolerances.enDashRate.absolute)), calibrated: profiles.every((profile) => profile.tolerances.enDashRate.calibrated) },
+      contractionRate: strictestTolerance(profiles, 'contractionRate'),
+      sentenceLengthDistribution: strictestTolerance(profiles, 'sentenceLengthDistribution'),
+      bulletRate: strictestTolerance(profiles, 'bulletRate'),
+      enDashRate: strictestTolerance(profiles, 'enDashRate'),
     },
     metricFixtures: { contractionRate: fixtures('contractionRate'), sentenceLengthDistribution: fixtures('sentenceLengthDistribution'), bulletRate: fixtures('bulletRate'), enDashRate: fixtures('enDashRate') },
   };

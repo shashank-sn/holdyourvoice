@@ -4,7 +4,7 @@ import { verifyApprovalCapability } from './approval-capability.js';
 import { createInitialLifecycleArtifact, isValidLifecycleArtifact, parseSemanticVerdict, prepareSemanticReviewTask, reduceRewriteLifecycle, type LifecycleReductionResult } from './semantic-review.js';
 import { verifyDeterministically } from './pipeline.js';
 import { recordVerifiedCandidate, type LearningCaptureStatus } from './learning.js';
-import { MAX_JSON_BYTES } from './internal.js';
+import { MAX_JSON_BYTES, verificationMatchesBinding } from './internal.js';
 
 export function prepareLifecycle(
   deterministic: DeterministicVerificationArtifactV1,
@@ -95,9 +95,6 @@ export function recordApprovedLearning(request: ApprovedLearningRequest): Learni
   const replay = finalizeLifecycle(ready, decision, context, capability);
   if (!replay.ok || canonicalJson(replay.artifact) !== canonicalJson(approved) || approved.status !== 'approved') throw new Error('Approved learning is not authorized.');
   const deterministic = verifyDeterministically(source, candidate, profile, copySpec, writingBrief);
-  if (!deterministic.verification.passed || deterministic.artifact.artifactFingerprint !== approved.binding.deterministicArtifactFingerprint
-    || deterministic.artifact.sourceHash !== approved.binding.sourceHash || deterministic.artifact.candidateHash !== approved.binding.candidateHash
-    || deterministic.artifact.profileId !== approved.binding.profileId || deterministic.artifact.profileRevisionDigest !== approved.binding.profileRevisionDigest
-    || deterministic.artifact.rulesetVersion !== approved.binding.rulesetVersion) throw new Error('Approved learning binding does not match deterministic verification.');
+  if (!deterministic.verification.passed || !verificationMatchesBinding(deterministic.artifact, approved.binding)) throw new Error('Approved learning binding does not match deterministic verification.');
   return recordVerifiedCandidate(profile, deterministic.verification, candidate, { mutationId: `approved:${approved.artifactFingerprint}`, authority: 'team', provenance: `approved:${approved.capabilityFingerprint}`, compatibility: 'exact' });
 }

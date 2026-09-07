@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Profile } from './contracts.js';
+import type { DeterministicVerificationArtifactV1, Profile, RewriteLifecycleBindingV1 } from './contracts.js';
 import { canonicalJson } from './canonical-json.js';
 
 export const MAX_JSON_BYTES = 1024 * 1024;
@@ -36,4 +36,13 @@ export function isText(value: unknown, maximum = 256): value is string {
 
 export function escaped(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function verificationMatchesBinding(verification: DeterministicVerificationArtifactV1, binding: RewriteLifecycleBindingV1): boolean {
+  return verification.artifactFingerprint === binding.deterministicArtifactFingerprint
+    && verification.sourceHash === binding.sourceHash
+    && verification.candidateHash === binding.candidateHash
+    && verification.profileId === binding.profileId
+    && verification.profileRevisionDigest === binding.profileRevisionDigest
+    && verification.rulesetVersion === binding.rulesetVersion;
 }

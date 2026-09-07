@@ -1,144 +1,139 @@
-# Hold Your Voice
+# hold your voice
 
 [![npm downloads](https://img.shields.io/npm/dt/%40holdyourvoice%2Fhyv?label=npm%20downloads&color=2f81f7)](https://www.npmjs.com/package/@holdyourvoice/hyv)
 
-Hold Your Voice (`hyv`) is a local writing checker. It helps you edit AI-assisted writing without losing your own writing patterns. It is not an AI-authorship detector: it provides local, inspectable writing evidence while a human still decides what to publish.
+hold your voice (`hyv`) checks writing locally. it compares a draft with your writing samples, flags generic writing patterns, and checks an edited candidate before you use it. you supply the writing and the edits; hyv supplies inspectable findings and verification.
 
-It runs two independent checks:
+it works through a command-line tool, an mcp server, and portable agent contracts. it needs node.js 20 or newer. it makes no model calls and needs no account or api key.
 
-- VoiceDNA compares a draft with a profile built from your writing samples.
-- AI Editor finds deterministic patterns that often make writing generic or formulaic.
+## what it does
 
-The package also checks hidden Unicode, source-backed facts, document logic, and protected claims. All checks run locally, without model calls, automatic draft changes, or runtime network requests.
+| check or workflow | result |
+| --- | --- |
+| voice dna | compares sentence structure, rhythm, vocabulary, punctuation, and other measurements with a local profile. |
+| ai editor | flags deterministic wording and structural patterns, with sentence locations and repair guidance. |
+| profiles | builds v2 or v3 profiles, assesses sample readiness, composes profiles, watches local sample files, and scores against held-out samples. |
+| fact and logic checks | compares claims with supplied source files and checks document structure, required facts, and claim polarity. |
+| hidden-text checks | inspects unicode controls, applies an explicit removal policy, and gates the exact final text. |
+| delivery checks | optionally checks placeholders, likely secrets, local links, and supplied citation ids offline. |
+| editing and rebuilding | prepares fingerprint-bound tasks, accepts a supplied response, preserves locked text or required claims, and verifies the candidate. |
+| review and approval | binds semantic judgments and signed approval capabilities to the exact candidate. |
+| local learning | records explicit instructions or verified repairs and applies profile revision and authority rules. |
+| evaluation | runs local backtests, synthetic comparisons, and evidence-bound benchmark workflows. |
 
-## how it works
-
-inspect the draft, let your editor make the changes, then verify the candidate and check the exact output. the [architecture guide](docs/ARCHITECTURE.md#writing-workflow) shows the full flow, including judgments, authorized rebuilds, and approval gates.
+voice fit, generic-pattern findings, factual evidence, and approval stay separate. a passing check does not prove authorship, truth, or publication quality.
 
 ## install
-
-You need Node.js 20 or newer and at least two writing samples you have the right to use.
 
 ```bash
 npm install --global @holdyourvoice/hyv
 ```
 
-For a one-off command, replace `hyv` with `npx @holdyourvoice/hyv`.
+for a one-off command, replace `hyv` with `npx @holdyourvoice/hyv`.
 
-For Humanizer's complementary editor skill, install it separately with `npx skills add blader/humanizer`. It is not a HYV dependency: HYV's local AI Editor keeps its own versioned rules and final-output gate.
+## check and edit a draft
 
-## basic workflow
-
-1. Build a local profile from your samples.
+build a profile from at least two writing samples you have the right to use:
 
 ```bash
 hyv profile profile.json samples/one.md samples/two.md
-```
-
-Add `--avoid=phrase` for wording that must block a draft. Repeat the option for more phrases.
-
-2. Check a draft against that profile.
-
-```bash
 hyv analyze draft.md profile.json
 ```
 
-The result contains separate VoiceDNA and AI Editor reports. The top-level `passed` value is true only when every required check passes.
+`analyze` returns separate voice dna, ai editor, and hygiene reports. hygiene is informational here; use `final-check` to gate delivery.
 
-3. Create an editing brief, edit the draft, and verify the candidate.
+create an editing brief, give it to your editor or a model you choose, then check the candidate:
 
 ```bash
 hyv rewrite-prompt draft.md profile.json > rewrite-brief.md
 hyv verify draft.md candidate.md profile.json
+hyv final-check candidate.md
 ```
 
-Send the brief to a human editor or a model you choose. Delivery stays under your control.
+before verification, the editing brief asks for a word economy review: **every word must earn its place.** cut filler, repeated ideas, and needless setup when removing them loses no meaning, evidence, clarity, or voice. preserve necessary uncertainty, attribution, emphasis, and rhythm. this is an editor or model judgment, not an automatic score or a word-count target. edits must stay within the authorized scope.
 
-4. Check the exact text before delivery.
+rewrite and verification commands are strict by default: every active ai editor finding must be repaired. a v3 profile can deliberately disable a rule. verification also checks preservation, logic, required facts when supplied, and final-output hygiene. it does not record learning.
+
+`final-check` writes accepted text to stdout. it removes a leading byte-order mark; unresolved hidden characters withhold output and return exit code `2`. run it after the last edit or formatting change. stdin works too:
 
 ```bash
-hyv final-check candidate.md
 producer | hyv final-check -
 ```
 
-`final-check` writes accepted text to stdout. It withholds output and exits with code `2` when unresolved hidden Unicode remains.
-
-`delivery-check` is a separate opt-in offline check for placeholders, likely credential patterns, local Markdown links, and citation IDs in a local policy. It never fetches a URL or proves a fact.
-
 ## commands
 
-| Command | Purpose |
+most commands return json. exit code `0` means completion, `2` means a content or policy gate failed, and `1` means invalid input or a command error. run a command without enough arguments for its usage, or read the [full cli reference](docs/wiki/CLI-Reference.md).
+
+| command | purpose |
 | --- | --- |
-| `hyv profile <profile.json> <sample...>` | Build a local profile from two or more samples. |
-| `hyv profile v3 <profile.json> --id=writer.channel --channel=email <sample...>` | Build a signed channel-specific Profile v3; optional tone is advisory metadata. |
-| `hyv profile compose --ratio 70:30 <profile...>` | Locally compose two or more Profile v3 metrics without creating writing. |
-| `hyv score <draft> <profile-v3.json> <heldout...>` | Measure the draft against a separate held-out local writing range; may abstain. |
-| `hyv ingest <source> <export> --owner=owner --output=/absolute/dir` | Create redacted, owner-authorized Gmail or Telegram samples and a text-free receipt. |
-| `hyv analyze <draft> <profile.json>` | Run VoiceDNA, AI Editor, and hygiene checks. |
-| `hyv strict-check <draft> <profile-v3.json> <sample...>` | Run the calibrated local strict-quality gate. It requires a V3 profile built from five or more samples, five non-duplicate validation samples with a consistent visible format and 1,500 words total, and returns `strict-ready`, `needs-human-review`, or `blocked`. |
-| `hyv hygiene <draft> [--fix]` | Inspect hidden Unicode or write a conservative cleaned copy. |
-| `hyv inspect-hidden-text <draft> [policy.json]` | Inspect hidden text with an optional policy. |
-| `hyv apply-hidden-text-policy <draft> <policy.json> <output>` | Apply approved hidden-text removals. |
-| `hyv final-check <path\|->` | Gate the exact text before delivery. |
-| `hyv delivery-check <path\|-> [policy.json]` | Run optional local delivery-integrity checks. |
-| `hyv profile assess <sample...>` | Inspect sample readiness before building a profile. |
-| `hyv team-profile validate\|compose ...` | Validate or locally compose consent-bound team profile metadata. |
-| `hyv dispositions <draft> <profile>` | Return normalized `block`, `review`, and `signal` findings. |
-| `hyv fact-lint <draft\|-> --source=id:path` | Check claims against local source files. |
-| `hyv logic-lint <draft\|-> [brief.json]` | Check deterministic document logic. |
-| `hyv batch-analyze <draft...>` | Find repeated openings and endings across drafts. |
-| `hyv rewrite-prompt <draft> <profile.json>` | Create a strict constrained editing brief. |
-| `hyv prepare-rewrite ...` | Create a fingerprint-bound edit task. |
-| `hyv apply-rewrite ...` | Apply and verify a response to an edit task. |
-| `hyv prepare-judgment ...` | Create a pre-edit or post-candidate judgment task. |
-| `hyv reduce-judgment <envelope...>` | Reduce judgments to SHIP, EDIT, REBUILD, CLEAR, or ESCALATE. |
-| `hyv prepare-rebuild ...` | Create an authorized whole-document rebuild task. |
-| `hyv rebuild-writer-request ...` | Create the writer-only part of a rebuild task. |
-| `hyv apply-rebuild ...` | Apply and verify an authorized rebuild response. |
-| `hyv verify <original> <candidate> <profile.json>` | Verify a candidate without changing learning state. |
-| `hyv verify-spec ...` | Verify a candidate and a CopySpec. |
-| `hyv lifecycle ...` | Run semantic review and final approval steps. |
-| `hyv learning ...` | Inspect or change local profile learning. |
-| `hyv patterns` | Print the active AI Editor rule catalog. |
-| `hyv agent list\|validate\|describe\|emit` | Inspect or emit portable agent contracts. |
-| `hyv mcp` | Start the local MCP server on standard input/output. |
+| `profile <output> <sample...>` | build a v2 profile; repeat `--avoid=phrase` for blocked phrases. |
+| `profile v3 <output> --id=writer.channel --channel=email <sample...>` | build a revisioned, digest-bound v3 profile. |
+| `profile assess <sample...>` | check sample readiness. |
+| `profile compose --ratio 70:30 <profile...>` | combine v3 measurements and conservative rule policies. |
+| `profile watch ...` | rebuild a local profile as its sample files change. |
+| `team-profile validate\|compose ...` | work with consent-bound team metadata. |
+| `ingest ...` | import owner-authorized gmail or telegram exports into redacted local samples. |
+| `analyze <draft> <profile>` | run the writing checks. |
+| `score <draft> <profile-v3> <heldout...>` | compare against a separate local writing range; abstain when evidence is inadequate. |
+| `strict-check <draft> <profile-v3> <sample...>` | return `strict-ready`, `needs-human-review`, or `blocked` using calibrated voice evidence. |
+| `dispositions <draft> <profile>` | normalize findings into `block`, `review`, and `signal`. |
+| `patterns` | print the active rule catalog. |
+| `batch-analyze <draft...>` | find repeated openings and endings. |
+| `fact-lint <draft\|-> --source=id:path` | check claims against supplied local sources. |
+| `logic-lint <draft\|-> [brief.json]` | check deterministic document logic. |
+| `hygiene <draft> [--fix]` | inspect hidden characters or write a conservative cleaned copy. |
+| `inspect-hidden-text <draft> [policy.json]` | inspect with an optional hidden-text policy. |
+| `apply-hidden-text-policy <draft> <policy.json> <output>` | apply explicitly permitted removals. |
+| `final-check <path\|->` | gate the exact output text. |
+| `delivery-check <path\|-> [policy.json]` | run the separate optional delivery check. |
+| `rewrite-prompt <draft> <profile>` | prepare a constrained editing brief. |
+| `prepare-rewrite ...` / `apply-rewrite ...` | prepare and verify sentence replacements or range edits. |
+| `prepare-judgment ...` / `reduce-judgment ...` | collect and reduce pre-edit or post-candidate judgments. |
+| `prepare-rebuild ...` / `rebuild-writer-request ...` / `apply-rebuild ...` | run a whole-document rebuild with required claims and signed authorization. |
+| `verify <original> <candidate> <profile>` | verify an edited candidate. |
+| `verify-spec ...` | also enforce a `CopySpec` claim contract. |
+| `lifecycle ...` | prepare semantic review, submit verdicts, inspect state, and finalize approval or rejection. |
+| `learning ...` | inspect, add, ratify, supersede, migrate, or clear local learning. |
+| `backtest ...` / `evaluate-local ...` | evaluate supplied candidates locally without generating writing. |
+| `agent list\|validate\|describe\|emit` | inspect or emit portable agent contracts. |
+| `mcp` | start the local server over standard input/output. |
 
-`rewrite-prompt`, `prepare-rewrite`, `apply-rewrite`, and `verify` are strict by default: every active AI Editor finding must be repaired, and verification rejects a candidate that leaves one unresolved. A Profile v3 `disabled` policy is the only deliberate exception. `strict-check` adds the separate calibrated voice-evidence decision.
+`strict-check` requires a v3 profile built from at least five samples, plus five non-duplicate validation samples with a consistent visible format and at least 1,500 words in total.
 
-Most commands return JSON. Exit code `0` means the command completed, `2` means a content or policy gate failed, and `1` means the command or input was invalid.
+whole-document rebuilding requires an upstream `REBUILD` recommendation, a `CopySpec`, and a signed `hyv.rebuild-authorization` capability. it checks required claims instead of enforcing the ordinary lexical preservation threshold. semantic review and final approval remain separate steps. see the [workflow and architecture](docs/ARCHITECTURE.md) and [recomposition contract](docs/RECOMPOSITION.md).
 
-Run `hyv <command>` without enough arguments to see its exact usage. Read the [CLI reference](docs/wiki/CLI-Reference.md) for every option.
+## use with an agent
 
-## portable agents and MCP
+start the mcp server with `hyv mcp`. compatible hosts can call the same local checks through tools. the `skills/hyv-*` packages describe inputs, outputs, evidence, permissions, and stop conditions for agent workflows.
 
-The `skills/hyv-*` directories package the CLI workflows as portable agent contracts. Use `hyv agent validate` to check them and `hyv agent emit` to create a host-specific prompt or JSON contract.
+```bash
+hyv agent list
+hyv agent validate
+```
 
-The MCP server exposes the same local engine for compatible hosts. Read [Portable Agents](docs/wiki/Portable-Agents.md), [Claude Desktop setup](docs/CLAUDE-DESKTOP.md), or [Claude Code setup](docs/CLAUDE-CODE.md).
+setup guides: [codex](docs/CODEX.md), [claude desktop](docs/CLAUDE-DESKTOP.md), [claude code](docs/CLAUDE-CODE.md), and [portable agents](docs/wiki/Portable-Agents.md).
 
-## privacy and safety
+## local data
 
-Drafts, samples, profiles, candidates, and source files stay on your machine. The package has no accounts, telemetry, hosted analysis, or runtime network requests.
+hyv has no runtime network requests, telemetry, hosted analysis, or profile sync. samples, drafts, profiles, candidates, and source files stay local unless you choose to send them elsewhere.
 
-Learning commands can write text-free events under `~/.hyv/learning/`. A manually added learning instruction is stored as entered. Keep private writing, profiles, and client data out of public repositories.
+learning lives under `~/.hyv/learning/` by default. verified-repair events store findings and hashes rather than draft text. explicit learning instructions store the instruction itself. approval trust is loaded separately from a permission-checked local context. private samples and approval keys do not belong in a public repository.
 
-VoiceDNA fit, AI-pattern findings, fact consistency, and human approval are separate results. A clean report only states that its configured checks passed. Authorship, factual truth, and publication quality still need separate evidence or review.
+## version 4 and development
 
-## performance
+version 4 rebuilds the implementation boundaries while retaining the existing cli commands, mcp contracts, profile formats, deep-import paths, rules, and agent packages. existing profiles need no migration. verification artifacts include the package version: prepare fresh version-bound tasks and approvals after upgrading.
 
-The frozen synthetic runtime benchmark covers natural text, punctuation-heavy text, final checking, cold CLI startup, and fact linting. On its 100,000-character dotted v3 fixture, seven-run median process CPU time fell from 8,823.134 ms to 17.245 ms. That is 99.8045% lower for this stress case, not a whole-application speedup. Read the [runtime benchmark contract and full results](https://github.com/shashank-sn/holdyourvoice/blob/main/benchmarks/runtime/README.md).
-
-## development
+start with [architecture](docs/ARCHITECTURE.md) to find the owner of a behavior. the compatibility check compares the rebuilt implementation with the frozen v3 source, including serialized outputs and errors.
 
 ```bash
 npm ci
 npm test
 npm run check:release
+npm run pack:claude
 ```
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. The main design boundaries are in [Architecture](docs/ARCHITECTURE.md) and the full user guides are in the [wiki](https://github.com/shashank-sn/holdyourvoice/wiki).
-
-See the [roadmap](docs/ROADMAP.md), [rule authoring guide](docs/RULE-AUTHORING.md), and synthetic [benchmark scorecard command](scripts/public-scorecard.mjs). The public fixture scorecard does not measure human preference or model quality.
+read [contributing](CONTRIBUTING.md), [rule authoring](docs/RULE-AUTHORING.md), the [roadmap](docs/ROADMAP.md), and the [wiki](https://github.com/shashank-sn/holdyourvoice/wiki). existing [runtime measurements](benchmarks/runtime/README.md) describe their recorded fixtures and revisions; they are not a new version 4 performance claim. public synthetic scorecards do not measure human preference.
 
 ## license
 
-[MIT](LICENSE). Third-party writing and data keep their own rights.
+[mit](LICENSE). third-party writing and data keep their own rights.

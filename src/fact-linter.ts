@@ -24,10 +24,16 @@ const QUOTE = /["“]([^"”]+)["”]/;
 function normal(value: string): string { return value.toLowerCase().replace(/[^\p{L}\p{N}%]+/gu, ' ').trim(); }
 function tokens(value: string): string[] { return normal(value).split(' ').filter((word) => word.length > 1 && !STOP_WORDS.has(word)); }
 function evidence(source: FactSource, text: string): FactEvidence { const start = source.text.indexOf(text); return { sourceId: source.id, excerpt: text, start: Math.max(0, start), end: Math.max(0, start) + text.length }; }
-function sourceSentences(sources: FactSource[]): { source: FactSource; text: string }[] { return sources.flatMap((source) => sentences(source.text).map((sentence) => ({ source, text: sentence.text }))); }
-function hasOverlap(claim: string, source: string): boolean {
-  const claimTokens = tokens(claim); const sourceTokens = new Set(tokens(source));
-  return claimTokens.length > 0 && claimTokens.filter((token) => sourceTokens.has(token)).length / claimTokens.length >= 0.8;
+interface SourceSentence { source: FactSource; text: string; terms: Set<string>; }
+
+function sourceSentences(sources: FactSource[]): SourceSentence[] {
+  return sources.flatMap((source) => sentences(source.text).map((sentence) => ({
+    source, text: sentence.text, terms: new Set(tokens(sentence.text)),
+  })));
+}
+
+function hasOverlap(claimTerms: string[], source: SourceSentence): boolean {
+  return claimTerms.length > 0 && claimTerms.filter((term) => source.terms.has(term)).length / claimTerms.length >= 0.8;
 }
 function dates(value: string): string[] { return [...value.matchAll(DATE)].map((match) => new Date(match[0]).toISOString().slice(0, 10)).filter((value) => value !== ''); }
 function numbers(value: string): string[] { return value.match(/\b\d+(?:\.\d+)?\s*(?:%|days?|hours?|weeks?|months?|years?)?\b/gi) ?? []; }
@@ -55,11 +61,12 @@ function kindFor(text: string): FactClaimKind[] {
   if (!kinds.length) kinds.push('fact');
   return kinds;
 }
-function findRelevant(claim: string, sources: { source: FactSource; text: string }[]): { source: FactSource; text: string }[] {
-  const terms = tokens(claim); return sources.filter(({ text }) => terms.some((term) => tokens(text).includes(term)));
+function evidenceFor(lines: SourceSentence[]): FactEvidence[] {
+  return lines.map(({ source, text }) => evidence(source, text));
 }
-function fallbackEvidence(sources: { source: FactSource; text: string }[]): FactEvidence[] {
-  const line = sources[0]; return line ? [evidence(line.source, line.text)] : [];
+
+function fallbackEvidence(sources: SourceSentence[]): FactEvidence[] {
+  return evidenceFor(sources.slice(0, 1));
 }
 function finding(claim: FactClaim, kind: FactFindingKind, severity: FactSeverity, reason: string, evidenceItems: FactEvidence[], confidence: FactFinding['confidence'], suggestedAction: string): FactFinding {
   return { severity, kind, claim: claim.text, draftLocation: { sentence: claim.sentence, start: claim.start, end: claim.end }, reason, evidence: evidenceItems, confidence, suggestedAction };
@@ -73,8 +80,6 @@ export function extractFactClaims(draft: string): FactClaim[] {
   }
   return output;
 }
-
-type SourceSentence = ReturnType<typeof sourceSentences>[number];
 
 function capabilityFinding(claim: FactClaim, relevant: SourceSentence[], evidenceItems: FactEvidence[]): FactFinding | undefined {
   const claimCapabilities = capabilityObjects(claim.text);
@@ -99,14 +104,15 @@ function capabilityFinding(claim: FactClaim, relevant: SourceSentence[], evidenc
 }
 
 function findingsForClaim(claim: FactClaim, input: FactLintInput, sourceLines: SourceSentence[], semanticAdapter: SemanticAdapter | undefined): FactFinding[] {
-  const relevant = findRelevant(claim.text, sourceLines);
-  const same = sourceLines.find(({ text }) => hasOverlap(claim.text, text));
-  const evidenceItems = relevant.length ? relevant.slice(0, 2).map(({ source, text }) => evidence(source, text)) : fallbackEvidence(sourceLines);
+  const claimTerms = tokens(claim.text);
+  const relevant = sourceLines.filter((source) => claimTerms.some((term) => source.terms.has(term)));
+  const same = sourceLines.find((source) => hasOverlap(claimTerms, source));
+  const evidenceItems = relevant.length ? evidenceFor(relevant.slice(0, 2)) : fallbackEvidence(sourceLines);
   const quote = claim.text.match(QUOTE)?.[1];
   const sourceHasAttribution = input.sources.some((source) => /\b(said|according to|reported)\b/i.test(source.text));
   if (quote && sourceHasAttribution && !input.sources.some((source) => source.text.includes(quote))) {
     const quoteRelevant = sourceLines.filter(({ text }) => /\b(said|according to|reported)\b/i.test(text));
-    const quoteEvidence = quoteRelevant.length ? quoteRelevant.slice(0, 2).map(({ source, text }) => evidence(source, text)) : input.sources.slice(0, 1).map((source) => evidence(source, source.text));
+    const quoteEvidence = quoteRelevant.length ? evidenceFor(quoteRelevant.slice(0, 2)) : input.sources.slice(0, 1).map((source) => evidence(source, source.text));
     return [finding(claim, 'quote_drift', 'error', 'The quoted wording differs from the supplied source.', quoteEvidence, 'high', 'Use the source wording or label the text as a paraphrase.')];
   }
 
@@ -141,7 +147,7 @@ function findingsForClaim(claim: FactClaim, input: FactLintInput, sourceLines: S
   if (overreach.length) return overreach;
   if (claimDates.some((date) => sourceDates.includes(date)) || same) return [];
 
-  if (!relevant.length && claim.kinds.includes('fact') && tokens(claim.text).length <= 4) {
+  if (!relevant.length && claim.kinds.includes('fact') && claimTerms.length <= 4) {
     return [finding(claim, 'missing_evidence', 'needs_human_review', 'No close source evidence was found; the wording is too sparse for a reliable deterministic verdict.', evidenceItems, 'low', 'Confirm with a reviewer or provide a source.')];
   }
   if (!relevant.length || (claim.kinds.includes('number') && !relevant.some(({ text }) => /\b\d+(?:\.\d+)?%?\b/.test(text)))) {
@@ -157,15 +163,22 @@ function findingsForClaim(claim: FactClaim, input: FactLintInput, sourceLines: S
 }
 
 function draftContradictions(claims: FactClaim[], sourceLines: SourceSentence[]): FactFinding[] {
-  const normalized = claims.map((claim) => ({ claim, text: normal(claim.text) }));
+  const normalized = claims.map((claim) => {
+    const text = normal(claim.text);
+    return { claim, core: normal(text.replace(/\bnot\b/g, '')), negated: /\bnot\b/.test(text) };
+  });
+  const byCore = new Map<string, number[]>();
+  normalized.forEach(({ core }, index) => {
+    const indexes = byCore.get(core) ?? [];
+    indexes.push(index);
+    byCore.set(core, indexes);
+  });
   const findings: FactFinding[] = [];
   for (let index = 0; index < normalized.length; index += 1) {
-    for (let other = index + 1; other < normalized.length; other += 1) {
-      const left = normalized[index];
+    const left = normalized[index];
+    for (const other of byCore.get(left.core)!) {
       const right = normalized[other];
-      const leftCore = normal(left.text.replace(/\bnot\b/g, ''));
-      const rightCore = normal(right.text.replace(/\bnot\b/g, ''));
-      if (leftCore === rightCore && /\bnot\b/.test(left.text) !== /\bnot\b/.test(right.text)) {
+      if (other > index && left.negated !== right.negated) {
         findings.push(finding(right.claim, 'draft_contradiction', 'error', 'This draft claim contradicts an earlier draft claim.', fallbackEvidence(sourceLines), 'high', 'Resolve the two claims before publishing.'));
       }
     }
@@ -173,14 +186,22 @@ function draftContradictions(claims: FactClaim[], sourceLines: SourceSentence[])
   return findings;
 }
 
+const CONTRADICTIONS = new Set<FactFindingKind>(['draft_contradiction', 'number_drift', 'date_drift', 'entity_drift', 'quote_drift', 'capability_drift', 'semantic_contradiction']);
+
 function summarizeFindings(claims: FactClaim[], findings: FactFinding[]): FactLintReport['summary'] {
-  const claimKey = (item: FactFinding) => `${item.draftLocation.start}:${item.draftLocation.end}`;
-  const unsupported = new Set(findings.filter((item) => item.kind === 'unsupported_claim').map(claimKey)).size;
-  const contradicted = new Set(findings.filter((item) => ['draft_contradiction', 'number_drift', 'date_drift', 'entity_drift', 'quote_drift', 'capability_drift', 'semantic_contradiction'].includes(item.kind)).map(claimKey)).size;
-  const humanReview = new Set(findings.filter((item) => item.severity === 'needs_human_review' || item.severity === 'warning').map(claimKey)).size;
+  const unsupported = new Set<string>();
+  const contradicted = new Set<string>();
+  const humanReview = new Set<string>();
+  const affected = new Set<string>();
+  for (const item of findings) {
+    const key = `${item.draftLocation.start}:${item.draftLocation.end}`;
+    affected.add(key);
+    if (item.kind === 'unsupported_claim') unsupported.add(key);
+    if (CONTRADICTIONS.has(item.kind)) contradicted.add(key);
+    if (item.severity === 'needs_human_review' || item.severity === 'warning') humanReview.add(key);
+  }
   const checked = claims.filter((claim) => !claim.kinds.includes('opinion')).length;
-  const affected = new Set(findings.map(claimKey)).size;
-  return { checked, supported: Math.max(0, checked - affected), unsupported, contradicted, humanReview };
+  return { checked, supported: Math.max(0, checked - affected.size), unsupported: unsupported.size, contradicted: contradicted.size, humanReview: humanReview.size };
 }
 
 export function lintFacts(input: FactLintInput): FactLintReport {

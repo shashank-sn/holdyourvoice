@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type { DeterministicVerificationArtifactV1, LifecycleError, RewriteLifecycleActionV1, RewriteLifecycleArtifactV1, RewriteLifecycleBindingV1, RewriteLifecycleContextV1, RewriteReceipt, SemanticPolicy, SemanticReview, SemanticReviewTaskV1, SemanticVerdict, SemanticVerdictV1, SemanticViolation } from './contracts.js';
 import { canonicalJson } from './canonical-json.js';
 import { verifyApprovalCapability } from './approval-capability.js';
-import { exactKeys as exact, isPlainObject as plain } from './internal.js';
+import { exactKeys as exact, isPlainObject as plain, verificationMatchesBinding } from './internal.js';
 
 const violations = new Set<SemanticViolation>(['action_change', 'dropped_object', 'unsupported_claim', 'constraint_weakened', 'clarity_regression']);
 const HEX = /^[a-f0-9]{64}$/;
@@ -85,7 +85,7 @@ export function createInitialLifecycleArtifact(task: SemanticReviewTaskV1, deter
   const { taskFingerprint, ...taskBase } = task;
   const { artifactFingerprint, ...deterministicBase } = deterministic;
   const expectedDeterministicFingerprint = createHash('sha256').update(`hyv:deterministic-verification:v1\0${canonicalJson(deterministicBase)}`).digest('hex');
-  if (taskFingerprint !== hash('hyv:semantic-task:v1', taskBase) || !deterministic.passed || artifactFingerprint !== expectedDeterministicFingerprint || deterministic.artifactFingerprint !== task.binding.deterministicArtifactFingerprint || deterministic.sourceHash !== task.binding.sourceHash || deterministic.candidateHash !== task.binding.candidateHash || deterministic.profileId !== task.binding.profileId || deterministic.profileRevisionDigest !== task.binding.profileRevisionDigest || deterministic.rulesetVersion !== task.binding.rulesetVersion) throw new Error('Lifecycle creation requires its bound passed deterministic verification artifact.');
+  if (taskFingerprint !== hash('hyv:semantic-task:v1', taskBase) || !deterministic.passed || artifactFingerprint !== expectedDeterministicFingerprint || !verificationMatchesBinding(deterministic, task.binding)) throw new Error('Lifecycle creation requires its bound passed deterministic verification artifact.');
   return artifact({ version: '1', status: 'needs_semantic_review', transitionFingerprint: hash('hyv:lifecycle-initial:v1', { binding: task.binding, semanticPolicy: task.policy }), binding: task.binding, semanticPolicy: task.policy, semanticTaskFingerprint: task.taskFingerprint, semanticEvidenceScopeFingerprint: hash('hyv:semantic-evidence-scope:v1', task.evidenceScope), verdictFingerprints: [] });
 }
 
@@ -110,44 +110,91 @@ function normalizeAction(value: unknown): RewriteLifecycleActionV1 | undefined {
   return undefined;
 }
 
-export function reduceRewriteLifecycle(current: RewriteLifecycleArtifactV1, rawAction: unknown, context: RewriteLifecycleContextV1): LifecycleReductionResult {
-  let action: RewriteLifecycleActionV1 | undefined;
-  let transitionFingerprint: string;
-  try { action = normalizeAction(rawAction); if (!action) return fail('invalid_action'); transitionFingerprint = hash('hyv:lifecycle-transition:v1', action); }
-  catch { return fail('invalid_action'); }
-  if (current.transitionFingerprint === transitionFingerprint) return { ok: true, artifact: current };
-  if (action.parentArtifactFingerprint === current.parentArtifactFingerprint) return fail('conflicting_replay');
-  if (action.parentArtifactFingerprint !== current.artifactFingerprint) return fail('stale_parent');
-  if (current.status === 'approved' || current.status === 'needs_escalation') return fail('terminal_state');
+function nextArtifact(
+  current: RewriteLifecycleArtifactV1,
+  transitionFingerprint: string,
+  status: RewriteLifecycleArtifactV1['status'],
+  verdictFingerprints: string[],
+  extra: Pick<RewriteLifecycleArtifactV1, 'reason' | 'capabilityFingerprint'> = {},
+): LifecycleReductionResult {
+  return { ok: true, artifact: artifact({
+    version: '1', status, parentArtifactFingerprint: current.artifactFingerprint,
+    transitionFingerprint, binding: current.binding, semanticPolicy: current.semanticPolicy,
+    semanticTaskFingerprint: current.semanticTaskFingerprint,
+    semanticEvidenceScopeFingerprint: current.semanticEvidenceScopeFingerprint,
+    verdictFingerprints, ...extra,
+  }) };
+}
 
-  if (action.type === 'semantic_submission') {
-    if (current.status !== 'needs_semantic_review') return fail('out_of_order_transition');
-    const required = current.semanticPolicy === 'normal' ? 1 : 3;
-    if (action.verdicts.length !== required) return fail('invalid_verdict_count');
-    const ids = action.verdicts.map((verdict) => verdict.evaluatorId); if (new Set(ids).size !== ids.length) return fail('duplicate_evaluator');
-    const authorized = current.semanticPolicy === 'normal' ? context.authorizedSemanticEvaluatorIds.normal : context.authorizedSemanticEvaluatorIds.highAssurance;
-    if (current.semanticPolicy === 'high_assurance' && new Set(authorized).size < 3) return fail('invalid_verdict_count');
-    if (ids.some((id) => !authorized.includes(id))) return fail('evaluator_not_authorized');
-    for (const verdict of action.verdicts) {
-      if (action.taskFingerprint !== current.semanticTaskFingerprint || verdict.taskFingerprint !== action.taskFingerprint) return fail('task_fingerprint_mismatch');
-      if (!same(verdict.binding, current.binding)) return fail('invalid_binding');
-      if (verdict.judgmentType !== 'semantic' || hash('hyv:semantic-evidence-scope:v1', verdict.evidenceScope) !== current.semanticEvidenceScopeFingerprint) return fail('evidence_scope_mismatch');
-      if ((verdict.approved && verdict.violations.length) || (!verdict.approved && !verdict.violations.length)) return fail('contradictory_verdict');
-    }
-    const verdictFingerprints = action.verdicts.map((verdict) => hash('hyv:semantic-verdict:v1', verdict));
-    const approvals = action.verdicts.filter((verdict) => verdict.approved).length;
-    const status = approvals === required ? 'ready_for_human_review' : 'needs_escalation';
-    const reason = status === 'needs_escalation' ? (approvals === 0 ? 'semantic_rejection' : 'semantic_disagreement') : undefined;
-    return { ok: true, artifact: artifact({ version: '1', status, parentArtifactFingerprint: current.artifactFingerprint, transitionFingerprint, binding: current.binding, semanticPolicy: current.semanticPolicy, semanticTaskFingerprint: current.semanticTaskFingerprint, semanticEvidenceScopeFingerprint: current.semanticEvidenceScopeFingerprint, verdictFingerprints, ...(reason ? { reason } : {}) }) };
+function submitReview(
+  current: RewriteLifecycleArtifactV1,
+  action: Extract<RewriteLifecycleActionV1, { type: 'semantic_submission' }>,
+  context: RewriteLifecycleContextV1,
+  transitionFingerprint: string,
+): LifecycleReductionResult {
+  if (current.status !== 'needs_semantic_review') return fail('out_of_order_transition');
+  const required = current.semanticPolicy === 'normal' ? 1 : 3;
+  if (action.verdicts.length !== required) return fail('invalid_verdict_count');
+  const ids = action.verdicts.map((verdict) => verdict.evaluatorId);
+  if (new Set(ids).size !== ids.length) return fail('duplicate_evaluator');
+  const authorized = current.semanticPolicy === 'normal'
+    ? context.authorizedSemanticEvaluatorIds.normal
+    : context.authorizedSemanticEvaluatorIds.highAssurance;
+  if (current.semanticPolicy === 'high_assurance' && new Set(authorized).size < 3) return fail('invalid_verdict_count');
+  if (ids.some((id) => !authorized.includes(id))) return fail('evaluator_not_authorized');
+  for (const verdict of action.verdicts) {
+    if (action.taskFingerprint !== current.semanticTaskFingerprint || verdict.taskFingerprint !== action.taskFingerprint) return fail('task_fingerprint_mismatch');
+    if (!same(verdict.binding, current.binding)) return fail('invalid_binding');
+    if (verdict.judgmentType !== 'semantic' || hash('hyv:semantic-evidence-scope:v1', verdict.evidenceScope) !== current.semanticEvidenceScopeFingerprint) return fail('evidence_scope_mismatch');
+    if ((verdict.approved && verdict.violations.length) || (!verdict.approved && !verdict.violations.length)) return fail('contradictory_verdict');
   }
+  const fingerprints = action.verdicts.map((verdict) => hash('hyv:semantic-verdict:v1', verdict));
+  const approvals = action.verdicts.filter((verdict) => verdict.approved).length;
+  if (approvals === required) return nextArtifact(current, transitionFingerprint, 'ready_for_human_review', fingerprints);
+  return nextArtifact(current, transitionFingerprint, 'needs_escalation', fingerprints, {
+    reason: approvals === 0 ? 'semantic_rejection' : 'semantic_disagreement',
+  });
+}
 
+function finalizeReview(
+  current: RewriteLifecycleArtifactV1,
+  action: Extract<RewriteLifecycleActionV1, { type: 'human_finalization' }>,
+  context: RewriteLifecycleContextV1,
+  transitionFingerprint: string,
+): LifecycleReductionResult {
   if (current.status !== 'ready_for_human_review') return fail('out_of_order_transition');
   const finalization = action.finalization;
   if (finalization.parentArtifactFingerprint !== current.artifactFingerprint || !same(finalization.binding, current.binding) || finalization.judgmentType !== 'human_finalization' || finalization.evidenceScope.kind !== 'candidate') return fail('invalid_binding');
   if (!context.authorizedHumanFinalizerIds.includes(finalization.evaluatorId)) return fail('human_finalizer_not_authorized');
-  if (finalization.decision === 'reject') return { ok: true, artifact: artifact({ version: '1', status: 'needs_escalation', parentArtifactFingerprint: current.artifactFingerprint, transitionFingerprint, binding: current.binding, semanticPolicy: current.semanticPolicy, semanticTaskFingerprint: current.semanticTaskFingerprint, semanticEvidenceScopeFingerprint: current.semanticEvidenceScopeFingerprint, verdictFingerprints: current.verdictFingerprints, reason: 'human_rejection' }) };
+  if (finalization.decision === 'reject') {
+    return nextArtifact(current, transitionFingerprint, 'needs_escalation', current.verdictFingerprints, { reason: 'human_rejection' });
+  }
   if (!finalization.capability) return fail('capability_required');
-  const capability = verifyApprovalCapability(finalization.capability, context.trustStore, { now: context.now, expectedSubjectArtifactFingerprint: current.artifactFingerprint, binding: current.binding, expectedPurpose: 'hyv.final-approval' });
+  const capability = verifyApprovalCapability(finalization.capability, context.trustStore, {
+    now: context.now, expectedSubjectArtifactFingerprint: current.artifactFingerprint,
+    binding: current.binding, expectedPurpose: 'hyv.final-approval',
+  });
   if (!capability.ok) return fail('capability_invalid');
-  return { ok: true, artifact: artifact({ version: '1', status: 'approved', parentArtifactFingerprint: current.artifactFingerprint, transitionFingerprint, binding: current.binding, semanticPolicy: current.semanticPolicy, semanticTaskFingerprint: current.semanticTaskFingerprint, semanticEvidenceScopeFingerprint: current.semanticEvidenceScopeFingerprint, verdictFingerprints: current.verdictFingerprints, capabilityFingerprint: capability.capabilityFingerprint }) };
+  return nextArtifact(current, transitionFingerprint, 'approved', current.verdictFingerprints, {
+    capabilityFingerprint: capability.capabilityFingerprint,
+  });
+}
+
+export function reduceRewriteLifecycle(current: RewriteLifecycleArtifactV1, rawAction: unknown, context: RewriteLifecycleContextV1): LifecycleReductionResult {
+  let action: RewriteLifecycleActionV1 | undefined;
+  let transitionFingerprint: string;
+  try {
+    action = normalizeAction(rawAction);
+    if (!action) return fail('invalid_action');
+    transitionFingerprint = hash('hyv:lifecycle-transition:v1', action);
+  } catch {
+    return fail('invalid_action');
+  }
+  if (current.transitionFingerprint === transitionFingerprint) return { ok: true, artifact: current };
+  if (action.parentArtifactFingerprint === current.parentArtifactFingerprint) return fail('conflicting_replay');
+  if (action.parentArtifactFingerprint !== current.artifactFingerprint) return fail('stale_parent');
+  if (current.status === 'approved' || current.status === 'needs_escalation') return fail('terminal_state');
+  return action.type === 'semantic_submission'
+    ? submitReview(current, action, context, transitionFingerprint)
+    : finalizeReview(current, action, context, transitionFingerprint);
 }

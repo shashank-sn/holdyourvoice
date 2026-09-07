@@ -8,36 +8,24 @@ function agentFlags(args: string[]): { values: string[]; host: string; mode?: 'p
   let mode: 'prompt' | 'json' | undefined;
   let output: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
-    const argument = args[index]!;
-    if (argument === '--host') {
-      const value = args[index + 1];
-      if (!value || value.startsWith('--')) throw new Error('Usage: hyv agent --host HOST requires a value.');
-      host = value;
-      index += 1;
-    } else if (argument.startsWith('--host=')) {
-      const value = argument.slice('--host='.length);
-      if (!value) throw new Error('Usage: hyv agent --host HOST requires a value.');
-      host = value;
-    } else if (argument === '--mode') {
-      const value = args[index + 1];
-      if (value !== 'prompt' && value !== 'json') throw new Error('Usage: hyv agent --mode prompt|json requires a mode.');
-      mode = value;
-      index += 1;
-    } else if (argument.startsWith('--mode=')) {
-      const value = argument.slice('--mode='.length) as 'prompt' | 'json';
-      if (value !== 'prompt' && value !== 'json') throw new Error('Usage: hyv agent --mode prompt|json requires a mode.');
-      mode = value;
-    } else if (argument === '--output') {
-      const value = args[index + 1];
-      if (!value || value.startsWith('--')) throw new Error('Usage: hyv agent --output FILE requires a value.');
-      output = value;
-      index += 1;
-    } else if (argument.startsWith('--output=')) {
-      const value = argument.slice('--output='.length);
-      if (!value) throw new Error('Usage: hyv agent --output FILE requires a value.');
-      output = value;
-    } else {
+    const argument = args[index];
+    const separator = argument.indexOf('=');
+    const name = separator < 0 ? argument : argument.slice(0, separator);
+    if (name !== '--host' && name !== '--mode' && name !== '--output') {
       values.push(argument);
+      continue;
+    }
+    const inline = separator >= 0;
+    const value = inline ? argument.slice(separator + 1) : args[++index];
+    if (name === '--mode') {
+      if (value !== 'prompt' && value !== 'json') throw new Error('Usage: hyv agent --mode prompt|json requires a mode.');
+      mode = value;
+    } else {
+      if (!value || (!inline && value.startsWith('--'))) {
+        throw new Error(name === '--host' ? 'Usage: hyv agent --host HOST requires a value.' : 'Usage: hyv agent --output FILE requires a value.');
+      }
+      if (name === '--host') host = value;
+      else output = value;
     }
   }
   return { values, host, mode, output };

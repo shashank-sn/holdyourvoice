@@ -13,37 +13,30 @@ function isFailure(value: unknown): value is RewriteFailure {
   return typeof value === 'object' && value !== null && 'code' in value;
 }
 
-function parseResponse(value: unknown): RewriteResponse | RewriteResponseV2 | { version: '1'; mode: 'SHIP'; taskFingerprint: string } | RewriteFailure {
-  const raw = typeof value === 'string' ? parseResponseJson(value) : value;
-  if (isFailure(raw)) return raw;
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return failure('invalid_response_shape', 'Response must be an object.');
-  const response = raw as Record<string, unknown>;
-  if (typeof response.taskFingerprint !== 'string' || response.taskFingerprint.length !== 64) return failure('invalid_response_shape', 'Response must include the task fingerprint.', 'taskFingerprint');
-  if (response.mode === 'REBUILD') return failure('rebuild_response_on_edit_task', 'Rebuild responses cannot satisfy edit tasks.', 'mode');
-  if (response.mode === 'SHIP' && response.version === '1') {
-    return { version: '1', mode: 'SHIP', taskFingerprint: response.taskFingerprint };
-  }
-  if (response.version === '2') {
-    if (!Array.isArray(response.operations)) return failure('invalid_response_shape', 'Version 2 responses require an operations array.', 'operations');
-    if (response.operations.length > MAX_REPLACEMENTS) return failure('invalid_response_shape', `Response may include at most ${MAX_REPLACEMENTS} replacements.`, 'operations');
-    for (const [index, operation] of (response.operations as RewriteRangeOperation[]).entries()) {
-      if (!operation || typeof operation !== 'object' || !Number.isInteger(operation.startSentenceId) || !Number.isInteger(operation.endSentenceId) || typeof operation.text !== 'string') {
-        return failure('invalid_response_shape', 'Every operation requires integer startSentenceId, endSentenceId, and string text.', `operations[${index}]`);
-      }
-      if (operation.endSentenceId < operation.startSentenceId) return failure('noncontiguous_range', 'A range must be inclusive and contiguous.', `operations[${index}]`);
-      if (operation.text.length > MAX_REPLACEMENT_CHARACTERS) return failure('invalid_replacement_text', `Replacement text must contain at most ${MAX_REPLACEMENT_CHARACTERS} characters.`, `operations[${index}].text`);
+type ParsedResponse = RewriteResponse | RewriteResponseV2 | { version: '1'; mode: 'SHIP'; taskFingerprint: string } | RewriteFailure;
+
+function parseRangeResponse(response: Record<string, unknown>): RewriteResponseV2 | RewriteFailure {
+  if (!Array.isArray(response.operations)) return failure('invalid_response_shape', 'Version 2 responses require an operations array.', 'operations');
+  if (response.operations.length > MAX_REPLACEMENTS) return failure('invalid_response_shape', `Response may include at most ${MAX_REPLACEMENTS} replacements.`, 'operations');
+  for (const [index, operation] of (response.operations as RewriteRangeOperation[]).entries()) {
+    if (!operation || typeof operation !== 'object' || !Number.isInteger(operation.startSentenceId) || !Number.isInteger(operation.endSentenceId) || typeof operation.text !== 'string') {
+      return failure('invalid_response_shape', 'Every operation requires integer startSentenceId, endSentenceId, and string text.', `operations[${index}]`);
     }
-    if (response.hygieneOperations !== undefined) {
-      if (!Array.isArray(response.hygieneOperations)) return failure('invalid_response_shape', 'Hygiene operations must be an array.', 'hygieneOperations');
-      for (const [index, operation] of (response.hygieneOperations as HygieneRangeOperation[]).entries()) {
-        if (!operation || !Number.isInteger(operation.start) || !Number.isInteger(operation.end) || typeof operation.text !== 'string' || operation.end < operation.start) {
-          return failure('invalid_response_shape', 'Every hygiene operation requires integer start, end, and string text.', `hygieneOperations[${index}]`);
-        }
+    if (operation.endSentenceId < operation.startSentenceId) return failure('noncontiguous_range', 'A range must be inclusive and contiguous.', `operations[${index}]`);
+    if (operation.text.length > MAX_REPLACEMENT_CHARACTERS) return failure('invalid_replacement_text', `Replacement text must contain at most ${MAX_REPLACEMENT_CHARACTERS} characters.`, `operations[${index}].text`);
+  }
+  if (response.hygieneOperations !== undefined) {
+    if (!Array.isArray(response.hygieneOperations)) return failure('invalid_response_shape', 'Hygiene operations must be an array.', 'hygieneOperations');
+    for (const [index, operation] of (response.hygieneOperations as HygieneRangeOperation[]).entries()) {
+      if (!operation || !Number.isInteger(operation.start) || !Number.isInteger(operation.end) || typeof operation.text !== 'string' || operation.end < operation.start) {
+        return failure('invalid_response_shape', 'Every hygiene operation requires integer start, end, and string text.', `hygieneOperations[${index}]`);
       }
     }
-    return response as unknown as RewriteResponseV2;
   }
-  if (response.version !== '1') return failure('invalid_response_version', 'Response version must be "1" or "2".', 'version');
+  return response as unknown as RewriteResponseV2;
+}
+
+function parseReplacements(response: Record<string, unknown>): RewriteResponse | RewriteFailure {
   if (!Array.isArray(response.replacements)) return failure('invalid_response_shape', 'Response replacements must be an array.', 'replacements');
   if (response.replacements.length > MAX_REPLACEMENTS) return failure('invalid_response_shape', `Response may include at most ${MAX_REPLACEMENTS} replacements.`, 'replacements');
   for (const [index, replacement] of (response.replacements as RewriteReplacement[]).entries()) {
@@ -57,23 +50,36 @@ function parseResponse(value: unknown): RewriteResponse | RewriteResponseV2 | { 
   return response as unknown as RewriteResponse;
 }
 
-function repairStringifiedReplacements(value: unknown): { value: unknown; adapterId?: string } {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return { value };
-  const raw = value as Record<string, unknown>;
-  if (typeof raw.replacements !== 'string') return { value };
-  try {
-    const replacements = JSON.parse(raw.replacements);
-    if (!Array.isArray(replacements)) return { value };
-    return { value: { ...raw, replacements }, adapterId: 'stringified_replacements_v1' };
-  } catch {
-    return { value };
-  }
+function parseResponse(value: unknown): ParsedResponse {
+  const raw = typeof value === 'string' ? parseResponseJson(value) : value;
+  if (isFailure(raw)) return raw;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return failure('invalid_response_shape', 'Response must be an object.');
+  const response = raw as Record<string, unknown>;
+  if (typeof response.taskFingerprint !== 'string' || response.taskFingerprint.length !== 64) return failure('invalid_response_shape', 'Response must include the task fingerprint.', 'taskFingerprint');
+  if (response.mode === 'REBUILD') return failure('rebuild_response_on_edit_task', 'Rebuild responses cannot satisfy edit tasks.', 'mode');
+  if (response.mode === 'SHIP' && response.version === '1') return { version: '1', mode: 'SHIP', taskFingerprint: response.taskFingerprint };
+  if (response.version === '2') return parseRangeResponse(response);
+  if (response.version !== '1') return failure('invalid_response_version', 'Response version must be "1" or "2".', 'version');
+  return parseReplacements(response);
 }
 
-function repairFencedJson(value: unknown): { value: unknown; adapterId?: string } {
-  if (typeof value !== 'string') return { value };
-  const match = value.match(/^```json\s*\n([\s\S]*?)\n```\s*$/i);
-  return match ? { value: match[1], adapterId: 'fenced_json_v1' } : { value };
+function decodeResponse(raw: unknown): { response: ParsedResponse; adapterIds: string[] } {
+  const source = typeof raw === 'string' ? parseResponseJson(raw) : raw;
+  const response = isFailure(source) ? source : parseResponse(source);
+  if (isFailure(response) && response.code === 'invalid_json' && typeof raw === 'string') {
+    const fenced = raw.match(/^```json\s*\n([\s\S]*?)\n```\s*$/i);
+    if (fenced) return { response: parseResponse(fenced[1]), adapterIds: ['fenced_json_v1'] };
+  }
+  if (isFailure(response) && response.code === 'invalid_response_shape' && source && typeof source === 'object' && !Array.isArray(source)) {
+    const value = source as Record<string, unknown>;
+    if (typeof value.replacements === 'string') {
+      let replacements: unknown;
+      try { replacements = JSON.parse(value.replacements); }
+      catch { return { response, adapterIds: [] }; }
+      if (Array.isArray(replacements)) return { response: parseResponse({ ...value, replacements }), adapterIds: ['stringified_replacements_v1'] };
+    }
+  }
+  return { response, adapterIds: [] };
 }
 
 export function prepareRewriteTask(draft: string, profile: Profile, copySpec?: CopySpec, writingBrief?: WritingBrief, authorizedSentenceIds: number[] = []): RewriteTask {
@@ -126,12 +132,7 @@ export function applyShip(task: RewriteTask): RewriteApplyResult {
 }
 
 export function applyRewriteResponse(task: RewriteTask, raw: unknown): RewriteApplyResult {
-  const source = typeof raw === 'string' ? parseResponseJson(raw) : raw;
-  const parsed = isFailure(source) ? source : parseResponse(source);
-  const fenced = isFailure(parsed) && parsed.code === 'invalid_json' ? repairFencedJson(raw) : { value: source };
-  const repaired = isFailure(parsed) && parsed.code === 'invalid_response_shape' ? repairStringifiedReplacements(source) : fenced;
-  const response = repaired.adapterId ? parseResponse(repaired.value) : parsed;
-  const adapterIds = repaired.adapterId ? [repaired.adapterId] : [];
+  const { response, adapterIds } = decodeResponse(raw);
   if (isFailure(response)) return rejected(task, raw, [response], adapterIds);
   if (response.taskFingerprint !== task.fingerprint) return rejected(task, raw, [failure('task_fingerprint_mismatch', 'Response task fingerprint does not match this task.', 'taskFingerprint')], adapterIds);
   if ('mode' in response && response.mode === 'SHIP') {
@@ -185,10 +186,10 @@ function applyRangeResponse(task: RewriteTask, response: RewriteResponseV2, raw:
   for (const operation of [...(response.hygieneOperations ?? [])].sort((left, right) => right.start - left.start)) {
     candidate = `${candidate.slice(0, operation.start)}${operation.text}${candidate.slice(operation.end)}`;
   }
-  const mapped = sentences(candidate);
+  const mapped = new Map(sentences(candidate).map((sentence) => [sentence.index, sentence]));
   for (const operation of [...response.operations].reverse()) {
-    const start = mapped.find((sentence) => sentence.index === operation.startSentenceId);
-    const end = mapped.find((sentence) => sentence.index === operation.endSentenceId);
+    const start = mapped.get(operation.startSentenceId);
+    const end = mapped.get(operation.endSentenceId);
     if (!start || !end) return rejected(task, raw, [failure('unknown_sentence_id', 'Range sentenceId is not in this task.', 'operations')], adapterIds);
     candidate = `${candidate.slice(0, start.start)}${operation.text}${candidate.slice(end.end)}`;
   }

@@ -25,15 +25,16 @@ function isDenied(text: string): boolean {
 function isFollowUpDenial(text: string): boolean {
   return /^(?:that|this) (?:statement|claim|fact|assertion|point) (?:is|was) (?:not|false|untrue|incorrect)\b/i.test(text.trim());
 }
-function hasAffirmedSourceText(source: string, text: string): boolean {
+function hasAffirmedSourceText(sourceSentences: Sentence[], text: string): boolean {
   const expected = text.toLowerCase();
-  const sourceSentences = sentences(source);
   return sourceSentences.some((sentence, index) => sentence.text.toLowerCase().includes(expected) && !isDenied(sentence.text) && !isFollowUpDenial(sourceSentences[index + 1]?.text ?? ''));
 }
 function requiredFactsAreSourced(brief: Partial<WritingBrief>): boolean {
   if (!brief.requiredFacts?.length) return true;
   if (!brief.factSources?.length) return false;
-  return brief.requiredFacts.every((fact) => brief.factSources?.some((source) => hasAffirmedSourceText(source.text, fact.text) || (fact.atoms?.length && fact.atoms.every((atom) => hasAffirmedSourceText(source.text, atom)))));
+  const sources = brief.factSources.map((source) => sentences(source.text));
+  return brief.requiredFacts.every((fact) => sources.some((source) => hasAffirmedSourceText(source, fact.text)
+    || (fact.atoms?.length && fact.atoms.every((atom) => hasAffirmedSourceText(source, atom)))));
 }
 
 function isArgumentMap(value: unknown): value is ArgumentMap {

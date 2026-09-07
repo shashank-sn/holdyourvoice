@@ -30,23 +30,18 @@ function finding(id: string, disposition: StrictQualityFindingDisposition, reaso
   return { id, disposition, reason, suggestion, ...(sentence === undefined ? {} : { sentence }) };
 }
 
+const FINGERPRINT_KEYS = new Map<string, keyof ProfileV3['tolerances']>([
+  ['dna.fingerprint.contraction-rate', 'contractionRate'],
+  ['dna.fingerprint.sentence-length-distribution', 'sentenceLengthDistribution'],
+  ['dna.fingerprint.bullet-rate', 'bulletRate'],
+  ['dna.fingerprint.en-dash-rate', 'enDashRate'],
+]);
+
 function strictFinding(source: Finding, profile: ProfileV3): StrictQualityFindingV1 {
-  if (source.engine === 'ai_editor') {
-    return finding(`strict.${source.engine}.${source.id}`, 'block', source.reason, source.suggestion, source.sentence);
-  }
-  if (source.engine === 'voice_dna') {
-    if (source.severity === 'red') return finding(`strict.${source.engine}.${source.id}`, 'block', source.reason, source.suggestion, source.sentence);
-    if (source.id.startsWith('dna.fingerprint.')) {
-      const metric = source.id.slice('dna.fingerprint.'.length);
-      const key = metric === 'contraction-rate' ? 'contractionRate'
-        : metric === 'sentence-length-distribution' ? 'sentenceLengthDistribution'
-          : metric === 'bullet-rate' ? 'bulletRate'
-            : metric === 'en-dash-rate' ? 'enDashRate' : undefined;
-      if (key && profile.tolerances[key].calibrated) return finding(`strict.${source.engine}.${source.id}`, 'block', source.reason, source.suggestion, source.sentence);
-    }
-    return finding(`strict.${source.engine}.${source.id}`, 'review', source.reason, source.suggestion, source.sentence);
-  }
-  return finding(`strict.${source.engine}.${source.id}`, source.severity === 'red' ? 'block' : 'review', source.reason, source.suggestion, source.sentence);
+  const metric = FINGERPRINT_KEYS.get(source.id);
+  const calibratedDrift = source.engine === 'voice_dna' && metric && profile.tolerances[metric].calibrated;
+  const blocks = source.engine === 'ai_editor' || source.severity === 'red' || calibratedDrift;
+  return finding(`strict.${source.engine}.${source.id}`, blocks ? 'block' : 'review', source.reason, source.suggestion, source.sentence);
 }
 
 export function evaluateStrictQuality(draft: string, profile: Profile, samples: string[], brief?: WritingBrief): StrictQualityReportV1 {

@@ -46,10 +46,10 @@ export function verifyClaims(candidate: string, spec: CopySpec): ClaimVerificati
       const atoms = claim.atoms.map(normalized);
       const presentAtoms = new Set<string>();
       for (const sentence of draftSentences) {
-        if (atoms.some((atom) => atomMatches(sentence.normalizedText, atom))) {
-          for (const atom of atoms) if (atomMatches(sentence.normalizedText, atom)) presentAtoms.add(atom);
-          (sentenceClaims[sentence.index] ??= []).push(claim.id);
-        }
+        const matches = atoms.filter((atom) => atomMatches(sentence.normalizedText, atom));
+        if (!matches.length) continue;
+        for (const atom of matches) presentAtoms.add(atom);
+        (sentenceClaims[sentence.index] ??= []).push(claim.id);
       }
       const missingAtoms = atoms.filter((atom) => !presentAtoms.has(atom));
       if (!claim.mutable && missingAtoms.length) {

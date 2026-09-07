@@ -1,8 +1,5 @@
 import type { ProvenanceStatusV1, RebuildTask, RebuildWriterRequestV1 } from './contracts.js';
-import { canonicalJson } from './canonical-json.js';
-import { createHash } from 'node:crypto';
-
-function fingerprint(value: unknown): string { return createHash('sha256').update(canonicalJson(value)).digest('hex'); }
+import { digestCanonical as fingerprint } from './internal.js';
 
 export function writerRequestForRebuild(task: RebuildTask): RebuildWriterRequestV1 {
   return {

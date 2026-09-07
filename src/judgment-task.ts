@@ -34,10 +34,6 @@ function isRange(value: unknown): value is SentenceRange {
     && (value as SentenceRange).endSentenceId >= (value as SentenceRange).startSentenceId;
 }
 
-function rangesContiguous(ranges: SentenceRange[]): boolean {
-  return ranges.every((range) => range.endSentenceId >= range.startSentenceId);
-}
-
 export function parseJudgmentEnvelope(value: unknown): JudgmentEnvelopeV1 {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Judgment envelope must be an object.');
   const envelope = value as Partial<JudgmentEnvelopeV1>;
@@ -119,10 +115,14 @@ function reduced(decision: PreEditDecision, editScope: { ranges: SentenceRange[]
   return { decision, editScope, ...(reason ? { reason } : {}), recommendationFingerprint: fingerprintReduction(decision, editScope, reason) };
 }
 
-export function reducePreEdit(envelopes: JudgmentEnvelopeV1[]): PreEditReduction {
-  if (envelopes.length !== PRE_EDIT_KINDS.length) throw new Error('Pre-edit reduction requires triage, argument, and form envelopes.');
+function requireKinds(envelopes: JudgmentEnvelopeV1[], required: JudgmentKind[], message: string): void {
+  if (envelopes.length !== required.length) throw new Error(message);
   const kinds = new Set(envelopes.map((envelope) => envelope.judgmentType));
-  if (PRE_EDIT_KINDS.some((kind) => !kinds.has(kind))) throw new Error('Pre-edit reduction requires triage, argument, and form envelopes.');
+  if (required.some((kind) => !kinds.has(kind))) throw new Error(message);
+}
+
+export function reducePreEdit(envelopes: JudgmentEnvelopeV1[]): PreEditReduction {
+  requireKinds(envelopes, PRE_EDIT_KINDS, 'Pre-edit reduction requires triage, argument, and form envelopes.');
   if (envelopes.some((envelope) => envelope.stage !== 'pre-edit')) throw new Error('Pre-edit reduction rejects post-candidate envelopes.');
   const argument = envelopes.find((envelope) => envelope.judgmentType === 'argument')!;
   if (argument.findings.some((finding) => finding.unbounded) || argument.decision === 'REBUILD') {
@@ -132,7 +132,7 @@ export function reducePreEdit(envelopes: JudgmentEnvelopeV1[]): PreEditReduction
     return reduced('REBUILD', { ranges: [] });
   }
   const ranges = envelopes.flatMap((envelope) => envelope.editScope?.ranges ?? namedRanges(envelope.findings));
-  if (!rangesContiguous(ranges) || ranges.some((range) => range.endSentenceId < range.startSentenceId)) {
+  if (!ranges.every((range) => range.endSentenceId >= range.startSentenceId)) {
     throw new Error('Edit scope must name contiguous sentence ranges.');
   }
   if (envelopes.every((envelope) => envelope.decision === 'SHIP') && ranges.length === 0) {
@@ -143,9 +143,7 @@ export function reducePreEdit(envelopes: JudgmentEnvelopeV1[]): PreEditReduction
 }
 
 export function reducePostCandidate(envelopes: JudgmentEnvelopeV1[]): { decision: PostCandidateDecision } {
-  if (envelopes.length !== POST_CANDIDATE_KINDS.length) throw new Error('Post-candidate reduction requires argument, polarity, form, flatness, and semantic envelopes.');
-  const kinds = new Set(envelopes.map((envelope) => envelope.judgmentType));
-  if (POST_CANDIDATE_KINDS.some((kind) => !kinds.has(kind))) throw new Error('Post-candidate reduction requires argument, polarity, form, flatness, and semantic envelopes.');
+  requireKinds(envelopes, POST_CANDIDATE_KINDS, 'Post-candidate reduction requires argument, polarity, form, flatness, and semantic envelopes.');
   if (envelopes.some((envelope) => envelope.stage !== 'post-candidate')) throw new Error('Post-candidate reduction rejects pre-edit envelopes.');
   if (envelopes.some((envelope) => envelope.decision === 'REBUILD')) return { decision: 'REBUILD' };
   if (envelopes.some((envelope) => envelope.decision === 'ESCALATE')) return { decision: 'ESCALATE' };

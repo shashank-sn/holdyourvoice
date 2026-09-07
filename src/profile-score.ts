@@ -52,10 +52,9 @@ function componentScores(candidate: VoiceDnaMetrics, target: VoiceDnaMetrics): R
 function score(components: Record<MetricName, number>): number {
   return rounded(100 * METRICS.reduce((sum, key) => sum + components[key], 0) / METRICS.length);
 }
-function percentile(values: number[], fraction: number): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  if (!sorted.length) return 0;
-  return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * fraction))]!;
+function sortedPercentile(values: number[], fraction: number): number {
+  if (!values.length) return 0;
+  return values[Math.min(values.length - 1, Math.floor((values.length - 1) * fraction))]!;
 }
 function languageConfidence(text: string): boolean {
   const letters = text.match(/\p{L}/gu) ?? [];
@@ -71,10 +70,11 @@ export function scoreHeldoutProfile(candidate: string, profile: Profile, heldout
   const heldout = heldoutSamples.map(profileMetrics);
   const pairScores: number[] = [];
   for (let left = 0; left < heldout.length; left += 1) for (let right = left + 1; right < heldout.length; right += 1) pairScores.push(score(componentScores(heldout[left]!, heldout[right]!)));
+  pairScores.sort((left, right) => left - right);
   const components = componentScores(profileMetrics(candidate), profile.metrics);
   const candidateScore = score(components);
-  const lowerBound = rounded(percentile(pairScores, 0.1));
-  const median = rounded(percentile(pairScores, 0.5));
+  const lowerBound = rounded(sortedPercentile(pairScores, 0.1));
+  const median = rounded(sortedPercentile(pairScores, 0.5));
   return {
     version: '1',
     disposition: candidateScore >= lowerBound ? 'inside_band' : 'review',

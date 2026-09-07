@@ -27,14 +27,11 @@ function isBoundedStringArray(value: unknown, minimum = 0): value is string[] {
     && value.every((item) => isBoundedString(item)) && new Set(value).size === value.length;
 }
 
-function isNumberRecord(value: unknown): value is Record<string, number> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype
-    && Object.values(value).every((item) => typeof item === 'number' && Number.isFinite(item));
-}
-
 function isPunctuation(value: unknown): value is Record<string, number> {
   const marks = ['!', '?', ';', ':', '—'];
-  return isNumberRecord(value) && Object.values(value).every((item) => item >= 0) && Object.keys(value).length === marks.length && marks.every((mark) => mark in value);
+  return isPlainObject(value)
+    && Object.values(value).every((item) => typeof item === 'number' && Number.isFinite(item) && item >= 0)
+    && Object.keys(value).length === marks.length && hasKnownKeys(value, marks);
 }
 
 function isMetrics(value: unknown): value is VoiceDnaMetrics {
@@ -117,19 +114,20 @@ function hasValidRevisionDigest(profile: Record<string, unknown>): boolean {
 }
 
 function parseProfileV3(value: Record<string, unknown>): ProfileV3 {
-  const valid = isPlainObject(value) && Object.keys(value).every((key) => PROFILE_V3_ALLOWED_KEYS.includes(key as typeof PROFILE_V3_ALLOWED_KEYS[number]))
-    && PROFILE_V3_REQUIRED_KEYS.every((key) => key in value)
-    && typeof value.id === 'string' && STABLE_ID.test(value.id)
-    && typeof value.revision === 'number' && Number.isSafeInteger(value.revision) && value.revision > 0
-    && typeof value.sampleCount === 'number' && Number.isInteger(value.sampleCount) && value.sampleCount >= 2
-    && isStrictMetrics(value.metrics)
-    && isBoundedStringArray(value.avoid)
-    && isProvenance(value.provenance)
-    && isRulePolicy(value.rulePolicy)
-    && isFingerprint(value.fingerprint)
-    && isTolerances(value.tolerances)
-    && isMetricFixtures(value.metricFixtures);
-  if (!valid) throw new Error('Profile is not a valid Hold Your Voice version 3 profile. Rebuild it from fixture-backed metrics.');
+  const invalid = () => { throw new Error('Profile is not a valid Hold Your Voice version 3 profile. Rebuild it from fixture-backed metrics.'); };
+  if (!isPlainObject(value)
+    || !Object.keys(value).every((key) => PROFILE_V3_ALLOWED_KEYS.includes(key as typeof PROFILE_V3_ALLOWED_KEYS[number]))
+    || !PROFILE_V3_REQUIRED_KEYS.every((key) => key in value)) invalid();
+
+  if (typeof value.id !== 'string' || !STABLE_ID.test(value.id)
+    || typeof value.revision !== 'number' || !Number.isSafeInteger(value.revision) || value.revision <= 0
+    || typeof value.sampleCount !== 'number' || !Number.isInteger(value.sampleCount) || value.sampleCount < 2) invalid();
+
+  if (!isStrictMetrics(value.metrics) || !isBoundedStringArray(value.avoid)
+    || !isProvenance(value.provenance) || !isRulePolicy(value.rulePolicy)
+    || !isFingerprint(value.fingerprint) || !isTolerances(value.tolerances)
+    || !isMetricFixtures(value.metricFixtures)) invalid();
+
   if (value.ruleAllowances !== undefined && !isRuleAllowances(value.ruleAllowances, value.sampleCount)) {
     throw new Error('Profile version 3 rule allowances must be derived from at least two samples and use eligible rule IDs.');
   }

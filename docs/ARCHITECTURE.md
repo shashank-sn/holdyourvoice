@@ -1,6 +1,6 @@
 # architecture
 
-cli commands and mcp tools call the same local engine. start in `src/cli.ts` for command dispatch, `src/mcp.ts` for mcp tools, or `src/pipeline.ts` for analysis and verification. paths below are relative to `src/`.
+cli commands and mcp tools call the same local engine. start in `src/cli.ts` for command dispatch, `src/mcp-server.ts` for mcp tools, or `src/pipeline.ts` for analysis and verification. paths below are relative to `src/`.
 
 ## entry points
 
@@ -13,12 +13,14 @@ cli commands and mcp tools call the same local engine. start in `src/cli.ts` for
 | `cli/lifecycle.ts` | semantic review, final approval, and learning commands. |
 | `cli/agents.ts` | portable agent contracts. |
 | `cli/io.ts` | shared file, json, profile, brief, and capability input/output. |
-| `mcp.ts` | the local engine's mcp adapter. |
+| `mcp.ts` | stdio startup only. |
+| `mcp-server.ts` | constructs the server and registers writing, learning, and lifecycle tools. |
+| `mcp-tools.ts` | adapts json arguments to the same core functions used by the cli. |
 | `lifecycle-adapter.ts` | the shared core-to-cli/mcp boundary for lifecycle operations. |
 
 ## analysis and verification
 
-`pipeline.ts` is the only place that combines scored output. it combines pass states, keeps both engine scores unchanged, and attaches hygiene as a separate report that does not affect scores.
+`analysis.ts` combines scored output. `pipeline.ts` coordinates candidate verification and re-exports the existing analysis entry points. it combines pass states, keeps both engine scores unchanged, and attaches hygiene as a separate report that does not affect scores.
 
 standard and rebuild verification share voicedna and ai editor checks, blocking-regression rejection, logic lint, required-fact checks, and final-output checking. fact lint runs when a `WritingBrief` supplies sources. deterministic verification artifacts share one projection. standard verification enforces preservation; `verify-spec` adds `CopySpec` claim checks. authorized rebuild verification checks `CopySpec` claims and reports preservation without using the standard preservation threshold.
 
@@ -40,10 +42,12 @@ standard and rebuild verification share voicedna and ai editor checks, blocking-
 
 ## edit scope and approval
 
-`pipeline.ts` derives edit eligibility from structured blocking findings. advisory and pending-judgment findings cannot grant edit scope. rewrite preparation stays limited to flagged sentence ids and preserves clean, unflagged text.
+`analysis.ts` derives edit eligibility from structured blocking findings. advisory and pending-judgment findings cannot grant edit scope. rewrite preparation stays limited to flagged sentence ids and preserves clean, unflagged text.
 
 | module | owns |
 | --- | --- |
+| `analysis.ts` | combines engines and derives strict findings and edit scope. |
+| `rewrite-prompt.ts` | renders the editing contract from an analysis; optional editorial context has one explicit section. |
 | `rewrite-task.ts` | versioned sentence-replacement and range-edit tasks. |
 | `rewrite-response.ts` | response json size checks and parsing, failure records, and lifecycle bindings shared by edit and rebuild tasks. |
 | `judgment-task.ts` | reducing pre-edit `SHIP`/`EDIT`/`REBUILD` recommendations and post-candidate clearance. |
@@ -121,6 +125,20 @@ flowchart TD
 ```
 
 run `final-check` again after the last human, model, formatter, or template change. hyv never calls a model; a human editor or model you choose supplies edits and judgments.
+
+## compatibility and source ownership
+
+the public module paths remain available. `pipeline.ts` re-exports moved analysis and prompt functions so existing imports continue to work. data contracts in `contracts.ts`, rule ids, prompt text, canonical bytes, and profile schemas remain stable. the version bump changes version-bound verification fingerprints; create fresh tasks and approvals after upgrading.
+
+the rewrite keeps functions that already express a single operation clearly. cryptographic validation, lock ownership, canonical encodings, rules, fixtures, and historical benchmark identities are preserved rather than replaced for appearance. changes concentrate on repeated work, mixed responsibilities, and opaque control flow. there is no service container, plugin dispatch framework, runtime schema generator, or model client.
+
+use a separately built baseline to compare behavior:
+
+```bash
+npm run check:compatibility -- /path/to/built-baseline . /tmp/hyv-compatibility.json
+```
+
+the check exercises existing exports, serialized function results, errors, cli output and exit codes, and mcp schemas in both sensitive-input modes. it rejects missing functions and records the compiled input hashes. when package versions differ, it copies the baseline into a temporary directory and changes only its literal `dist/version.js` export to the candidate version. the receipt records both versions and module hashes. it compares output fields and fingerprints exactly; it never edits the source baseline or normalizes result hashes. stateful learning, signed approval, ingestion, and watcher behavior also have focused tests. every baseline test stays in the repository; compiled test files are excluded from the npm package.
 
 ## extending the engine
 
