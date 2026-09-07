@@ -26,6 +26,8 @@
       "Rewrite this draft in the style of these examples. Show a short review first, then the revision.",
       "Check this final draft for visible formatting, unsupported claims, and wording that feels unlike the supplied examples."
     ],
-    "brandColor": "#1F2937"
+    "brandColor": "#1F2937",
+    "composerIcon": "./assets/hyv-logo.png",
+    "logo": "./assets/hyv-logo.png"
   }
 }
