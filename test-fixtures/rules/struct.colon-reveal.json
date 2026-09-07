@@ -1,0 +1,17 @@
+{
+  "version": "1",
+  "id": "struct.colon-reveal",
+  "channel": "stable",
+  "severity": "yellow",
+  "provenance": "https://github.com/petergyang/no-ai-slop/blob/main/skills/no-ai-slop/SKILL.md; reviewed as a narrow local heuristic, 2026-09-07.",
+  "positive": [
+    "The best part: it learns from accepted edits.",
+    "The detail that makes it work: a separate agent grades the draft."
+  ],
+  "counterexamples": [
+    "Note: the queue has no owner.",
+    "# The best part: it learns from accepted edits.",
+    "- **The best part:** a separate agent grades the draft."
+  ],
+  "impact": "Hypothesis: surface theatrical reveal framing for review without blocking ordinary colon use."
+}

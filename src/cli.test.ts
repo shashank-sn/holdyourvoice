@@ -72,8 +72,8 @@ test('publishes the same normalized reconciled catalog and version through CLI a
   assert.equal(result.status, 0, result.stderr);
   const cliCatalog = JSON.parse(result.stdout);
   const mcpCatalog = patternsForMcp();
-  assert.equal(cliCatalog.version, '3.5.0-local.3');
-  assert.equal(cliCatalog.rules.length, 182);
+  assert.equal(cliCatalog.version, '3.5.0-local.4');
+  assert.equal(cliCatalog.rules.length, 183);
   assert.deepEqual(cliCatalog, mcpCatalog);
 });
 
