@@ -1,6 +1,6 @@
 {
   "name": "@holdyourvoice/hyv",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "Local writing checks, voice profiles, and verified editing workflows for humans and agents.",
   "type": "module",
   "bin": {

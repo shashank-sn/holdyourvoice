@@ -1,6 +1,6 @@
 {
   "name": "hold-your-voice",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "A careful writing-review workflow for protecting voice and removing generic AI patterns.",
   "author": {
     "name": "Shashank SN",
@@ -13,8 +13,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Hold Your Voice",
-    "shortDescription": "Review and revise writing without sanding off its voice.",
-    "longDescription": "A deliberate writing-review workflow for spotting generic AI patterns, protecting stated constraints, and revising only the text that needs work. It gives editorial guidance in ChatGPT; it does not run the local HYV CLI or claim deterministic VoiceDNA results.",
+    "shortDescription": "Make AI writing sound like you.",
+    "longDescription": "Hold Your Voice helps you revise drafts without flattening the way you write. Share a draft and a few examples of your voice; it flags generic phrasing, protects your constraints, and improves only what needs changing.",
     "developerName": "Shashank SN",
     "category": "Productivity",
     "capabilities": [],
