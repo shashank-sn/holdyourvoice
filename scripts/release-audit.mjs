@@ -47,8 +47,9 @@ function packageFiles() {
       env: { ...process.env, npm_config_cache: cache },
     });
     const result = JSON.parse(output);
-    if (!Array.isArray(result) || !Array.isArray(result[0]?.files)) throw new Error('npm pack returned no file list');
-    return result[0].files.map((file) => file.path);
+    const packed = Array.isArray(result) ? result[0] : Object.values(result ?? {})[0];
+    if (!Array.isArray(packed?.files)) throw new Error('npm pack returned no file list');
+    return packed.files.map((file) => file.path);
   } finally {
     rmSync(cache, { recursive: true, force: true });
   }

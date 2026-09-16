@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -16,6 +16,12 @@ function refs(repository: string) {
   return text ? text.split('\n').sort() : [];
 }
 
+function isolateFromAmbientGitHooks(root: string, repositories: string[]) {
+  const hooks = join(root, 'ambient-hooks');
+  mkdirSync(hooks);
+  for (const repository of repositories) git(repository, 'config', 'core.hooksPath', hooks);
+}
+
 test('reconciles branch and tag creates, rewrites, and deletions', () => {
   const root = mkdtempSync(join(tmpdir(), 'hyv-mirror-refs-'));
   const source = join(root, 'source.git');
@@ -26,6 +32,7 @@ test('reconciles branch and tag creates, rewrites, and deletions', () => {
     git(root, 'init', '--bare', '--quiet', source);
     git(root, 'init', '--bare', '--quiet', mirror);
     git(root, 'clone', '--quiet', source, checkout);
+    isolateFromAmbientGitHooks(root, [source, mirror, checkout]);
     git(checkout, 'config', 'user.name', 'Mirror Test');
     git(checkout, 'config', 'user.email', 'mirror-test@example.invalid');
     git(checkout, 'switch', '--quiet', '-c', 'fixture/main');
