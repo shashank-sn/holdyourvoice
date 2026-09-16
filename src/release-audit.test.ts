@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, chmodSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -91,6 +91,27 @@ test('accepts the complete public package contract', () => {
     const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /release audit passed/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('accepts the npm 12 package file list shape', () => {
+  const directory = fixture({ 'README.md': '# public' });
+  const npmShim = join(directory, 'npm');
+  const shimMarker = join(directory, 'npm-shim-invoked');
+  const packed = '{"@holdyourvoice/hyv":{"files":[{"path":"package.json"},{"path":"Readme.md"},{"path":"LICENSE"},{"path":"dist/cli.js"}]}}';
+  writeFileSync(npmShim, `#!/bin/sh\n: > '${shimMarker}'\nprintf '%s\\n' '${packed}'\n`);
+  chmodSync(npmShim, 0o755);
+  try {
+    const result = spawnSync(process.execPath, [audit], {
+      cwd: directory,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${directory}:${process.env.PATH}` },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /release audit passed/);
+    assert.ok(existsSync(shimMarker), 'the audit must run the npm shim, not the installed npm');
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
