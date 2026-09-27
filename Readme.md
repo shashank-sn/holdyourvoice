@@ -2,6 +2,8 @@
 
 [![npm downloads](https://img.shields.io/npm/dt/%40holdyourvoice%2Fhyv?label=npm%20downloads&color=2f81f7)](https://www.npmjs.com/package/@holdyourvoice/hyv)
 
+hyv is now a part of [ellora]([url](https://getellora.com))
+
 hold your voice (`hyv`) checks writing locally. it compares a draft with your writing samples, flags generic writing patterns, and checks an edited candidate before you use it. you supply the writing and the edits; hyv supplies inspectable findings and verification.
 
 it works through a command-line tool, an mcp server, and portable agent contracts. it needs node.js 20 or newer. it makes no model calls and needs no account or api key.
