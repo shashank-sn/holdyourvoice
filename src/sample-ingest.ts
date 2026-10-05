@@ -67,7 +67,7 @@ function containsBlockedWord(text: string, blockedWords: string[]): boolean {
 }
 function redact(text: string, counts: Record<RedactionCategory, number>): string {
   let output = text;
-  for (const [category, expression] of REDACTORS) output = output.replace(expression, (value) => {
+  for (const [category, expression] of REDACTORS) output = output.replace(expression, () => {
     counts[category] += 1;
     return '[REDACTED:' + category.toUpperCase() + ']';
   });

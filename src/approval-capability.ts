@@ -1,6 +1,6 @@
 import { createHash, createPublicKey, verify } from 'node:crypto';
 import type { ApprovalCapabilityClaimsV1, ApprovalCapabilityPurpose, ApprovalTrustKeyV1, ApprovalTrustStoreV1, CapabilityError, RewriteLifecycleBindingV1 } from './contracts.js';
-import { canonicalJsonBytes, parseCanonicalJson } from './canonical-json.js';
+import { parseCanonicalJson } from './canonical-json.js';
 import { exactKeys, isPlainObject as plain } from './internal.js';
 
 const DIGEST = /^[a-f0-9]{64}$/;

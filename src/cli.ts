@@ -4,6 +4,7 @@ import { runProfile, runScore, runBacktest, runEvaluateLocal, runIngest, runTeam
 import { runDeliveryCheck, runAnalyze, runStrictCheck, runHygiene, runInspectHiddenText, runApplyHiddenTextPolicy, runFinalCheck, runFactLint, runLogicLint, runBatchAnalyze, runVerify, runVerifySpec, runPatterns, runDispositions } from './cli/checks.js';
 import { runRewritePrompt, runPrepareRewrite, runApplyRewrite, runPrepareJudgment, runReduceJudgment, runPrepareRebuild, runApplyRebuild, runRebuildWriterRequest } from './cli/rewriting.js';
 import { runLifecycle, runLearning } from './cli/lifecycle.js';
+import { feedbackNotice } from './cli/feedback.js';
 
 const usage = 'Commands: agent, profile, team-profile, analyze, score, backtest, evaluate-local, ingest, strict-check, hygiene, inspect-hidden-text, apply-hidden-text-policy, final-check, delivery-check, fact-lint, logic-lint, batch-analyze, rewrite-prompt, prepare-rewrite, apply-rewrite, prepare-judgment, reduce-judgment, prepare-rebuild, rebuild-writer-request, apply-rebuild, verify, verify-spec, lifecycle, learning, patterns, dispositions, mcp';
 
@@ -59,7 +60,10 @@ export async function runCli(args: string[]): Promise<number> {
 
 void (async () => {
   try {
-    process.exitCode = await runCli(process.argv.slice(2));
+    const args = process.argv.slice(2);
+    process.exitCode = await runCli(args);
+    const notice = feedbackNotice({ command: args[0], isTTY: process.stderr.isTTY === true, env: process.env });
+    if (notice) console.error(notice);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
