@@ -1,0 +1,36 @@
+name: tell me how you use hyv
+description: one minute. your answer decides what i build next.
+title: 'feedback: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        i can't see who installs hyv. it makes no network calls, so this form is the only way i learn what people use it for. answer the first question and skip the rest if you want. this issue is public.
+  - type: textarea
+    id: use
+    attributes:
+      label: what you use hyv for
+      description: the kind of writing, and the job you wanted done.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: where you run it
+      options:
+        - terminal
+        - claude code
+        - cursor
+        - codex
+        - ci
+        - other
+  - type: textarea
+    id: friction
+    attributes:
+      label: what almost made you stop
+      description: a confusing command, a wrong finding, a missing check. anything.
+  - type: input
+    id: contact
+    attributes:
+      label: a way to ask you a follow-up question
+      description: leave an x or linkedin handle. this issue is public, so don't post an email address.

@@ -121,6 +121,8 @@ hyv has no runtime network requests, telemetry, hosted analysis, or profile sync
 
 learning lives under `~/.hyv/learning/` by default. verified-repair events store findings and hashes rather than draft text. explicit learning instructions store the instruction itself. approval trust is loaded separately from a permission-checked local context. private samples and approval keys do not belong in a public repository.
 
+when you run hyv in a terminal, it prints one line on stderr with a link to a feedback form. the line is text. hyv sends nothing and opens nothing. it stays out of pipes, files, ci, and `hyv mcp`, so agent and script output does not change. set `HYV_NO_FEEDBACK=1` to hide it.
+
 ## version 4 and development
 
 version 4 rebuilds the implementation boundaries while retaining the existing cli commands, mcp contracts, profile formats, deep-import paths, rules, and agent packages. existing profiles need no migration. verification artifacts include the package version: prepare fresh version-bound tasks and approvals after upgrading.
