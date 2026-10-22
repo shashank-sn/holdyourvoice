@@ -11,10 +11,6 @@ on:
   schedule:
     - cron: "17 3 * * *"
 
-concurrency:
-  group: mirror-to-stitchflow
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
@@ -23,6 +19,10 @@ jobs:
     if: github.repository == 'shashank-sn/holdyourvoice' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Job-level so skipped Dependabot runs never displace a pending mirror run.
+    concurrency:
+      group: mirror-to-stitchflow
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
         with:

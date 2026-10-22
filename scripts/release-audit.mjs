@@ -80,7 +80,7 @@ const mirrorRequirements = [
   [mirrorWorkflow, /^  delete:\s*$/m, 'mirror workflow must reconcile deleted refs'],
   [mirrorWorkflow, /^  workflow_dispatch:\s*$/m, 'mirror workflow must support manual recovery'],
   [mirrorWorkflow, /^  schedule:\n    - cron: ["']17 3 \* \* \*["']$/m, 'mirror workflow must reconcile refs on a schedule'],
-  [mirrorWorkflow, /^concurrency:\n  group: mirror-to-stitchflow\n  cancel-in-progress: false$/m, 'mirror workflow must serialize full-ref updates and finish the active update'],
+  [mirrorWorkflow, /^    concurrency:\n      group: mirror-to-stitchflow\n      cancel-in-progress: false$/m, 'mirror workflow must serialize full-ref updates and finish the active update'],
   [mirrorWorkflow, /^  mirror:\n    if: github\.repository == 'shashank-sn\/holdyourvoice' && github\.actor != 'dependabot\[bot\]'\n    runs-on: ubuntu-latest\n    timeout-minutes: 10$/m, 'mirror workflow must run only in the public source outside Dependabot pushes with a bounded timeout'],
   [mirrorWorkflow, /^      - uses: actions\/checkout@v7$/m, 'mirror workflow must use the current checkout action'],
   [mirrorWorkflow, /^ {10}if \[ -z "\$\{MIRROR_DEPLOY_KEY:-\}" \]; then$/m, 'mirror workflow must validate the source deploy key'],
@@ -92,6 +92,7 @@ const mirrorRequirements = [
 for (const [text, pattern, failure] of mirrorRequirements) {
   if (!pattern.test(text)) failures.push(failure);
 }
+if (/^concurrency:/m.test(mirrorWorkflow)) failures.push('mirror workflow must serialize at the job level so skipped Dependabot runs cannot displace pending mirror runs');
 for (const [name, command] of Object.entries(stage1Scripts)) {
   if (packageManifest.scripts?.[name] !== command) failures.push(`Stage 1 script contract has drifted: ${name}`);
 }

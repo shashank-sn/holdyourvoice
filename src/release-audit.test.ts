@@ -13,15 +13,14 @@ const mirrorWorkflow = `on:
   schedule:
     - cron: '17 3 * * *'
 
-concurrency:
-  group: mirror-to-stitchflow
-  cancel-in-progress: false
-
 jobs:
   mirror:
     if: github.repository == 'shashank-sn/holdyourvoice' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    concurrency:
+      group: mirror-to-stitchflow
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
       - run: |
@@ -145,12 +144,26 @@ test('requires the mirror workflow to exclude Dependabot pushes', () => {
   }
 });
 
+test('requires mirror serialization at the job level so skipped Dependabot runs cannot displace pending runs', () => {
+  const directory = fixture({
+    'README.md': '# public',
+    '.github/workflows/mirror-to-stitchflow.yml': mirrorWorkflow.replace('jobs:\n', 'concurrency:\n  group: mirror-to-stitchflow\n  cancel-in-progress: false\n\njobs:\n'),
+  });
+  try {
+    const result = spawnSync(process.execPath, [audit], { cwd: directory, encoding: 'utf8' });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /mirror workflow must serialize at the job level/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 for (const requirement of [
   { name: 'deleted refs', fragment: '  delete:\n', error: /mirror workflow must reconcile deleted refs/ },
   { name: 'manual recovery', fragment: '  workflow_dispatch:\n', error: /mirror workflow must support manual recovery/ },
   { name: 'scheduled reconciliation', fragment: "  schedule:\n    - cron: '17 3 \* \* \*'\n", error: /mirror workflow must reconcile refs on a schedule/ },
-  { name: 'serialized updates', fragment: '  group: mirror-to-stitchflow\n', error: /mirror workflow must serialize full-ref updates and finish the active update/ },
-  { name: 'non-cancelled active updates', fragment: '  cancel-in-progress: false\n', error: /mirror workflow must serialize full-ref updates and finish the active update/ },
+  { name: 'serialized updates', fragment: '      group: mirror-to-stitchflow\n', error: /mirror workflow must serialize full-ref updates and finish the active update/ },
+  { name: 'non-cancelled active updates', fragment: '      cancel-in-progress: false\n', error: /mirror workflow must serialize full-ref updates and finish the active update/ },
   { name: 'bounded execution', fragment: '    timeout-minutes: 10\n', error: /mirror workflow must run only in the public source outside Dependabot pushes with a bounded timeout/ },
   { name: 'current checkout action', fragment: '      - uses: actions/checkout@v7\n', error: /mirror workflow must use the current checkout action/ },
   { name: 'deploy-key validation', fragment: '          if [ -z "${MIRROR_DEPLOY_KEY:-}" ]; then\n', error: /mirror workflow must validate the source deploy key/ },
